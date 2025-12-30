@@ -30,10 +30,12 @@ def format_book_info(book) -> str:
         "low": "🟢"
     }.get(book.priority, "⚪")
 
+    tags_text = ", ".join(book.tags) if book.tags else "Нет тегов"
+
     return (
         f"{status_emoji} {priority_emoji} **{book.title}**\n"
         f"*Автор:* {book.author}\n"
-        f"*Жанр:* {book.genre}\n"
+        f"*Теги:* {tags_text}\n"
         f"*Страниц:* {book.pages}\n"
         f"*Прогресс:* {book.progress}%\n"
     )

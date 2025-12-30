@@ -25,7 +25,7 @@ class Book:
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
     title: str = ""
     author: str = ""
-    genre: str = ""
+    tags: list[str] = field(default_factory=list)
     pages: int = 0
     progress: int = 0
     status: ReadingStatus = ReadingStatus.WANT_TO_READ
@@ -48,7 +48,7 @@ class Book:
             "id": self.id,
             "title": self.title,
             "author": self.author,
-            "genre": self.genre,
+            "tags": self.tags,
             "pages": self.pages,
             "progress": self.progress,
             "status": self.status.value,
@@ -68,7 +68,7 @@ class Book:
             id=data.get("id", str(uuid.uuid4())),
             title=data.get("title", ""),
             author=data.get("author", ""),
-            genre=data.get("genre", ""),
+            tags=data.get("tags", []),
             pages=data.get("pages", 0),
             progress=data.get("progress", 0),
             status=ReadingStatus(data.get("status", ReadingStatus.WANT_TO_READ.value)),

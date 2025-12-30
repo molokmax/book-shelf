@@ -29,15 +29,15 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         # Сохраняем автора
         context.user_data["book_author"] = text
         await update.message.reply_text(
-            "Хорошо! Теперь введите жанр книги (например: Фантастика, Детектив):",
+            "Хорошо! Теперь введите теги книги через запятую (например: Tech, Программирование):",
             reply_markup=keyboards.cancel_keyboard()
         )
-        context.user_data["state"] = "waiting_for_genre"
+        context.user_data["state"] = "waiting_for_tags"
         return
 
-    if state == "waiting_for_genre":
-        # Сохраняем жанр
-        context.user_data["book_genre"] = text
+    if state == "waiting_for_tags":
+        # Сохраняем теги
+        context.user_data["book_tags"] = [tag.strip() for tag in text.split(",") if tag.strip()]
         await update.message.reply_text(
             "Отлично! Теперь введите количество страниц в книге:",
             reply_markup=keyboards.cancel_keyboard()
@@ -56,7 +56,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             book = book_service.create_book(
                 title=context.user_data["book_title"],
                 author=context.user_data["book_author"],
-                genre=context.user_data["book_genre"],
+                tags=context.user_data["book_tags"],
                 pages=pages
             )
 

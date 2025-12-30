@@ -36,7 +36,7 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "• `/export` - Экспортировать библиотеку\n\n"
         "📖 **Добавление книги:**\n"
         "Используйте команду `/add` и следуйте инструкциям.\n"
-        "Вы можете указать: название, автора, жанр, количество страниц.\n\n"
+        "Вы можете указать: название, автора, теги, количество страниц.\n\n"
         "📊 **Управление статусами:**\n"
         "После добавления книги вы можете изменить её статус:\n"
         "• Хочу прочитать\n"
@@ -82,10 +82,11 @@ async def list_books(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             "low": "🟢"
         }.get(book.priority, "⚪")
 
+        tags_text = ", ".join(book.tags) if book.tags else "Нет тегов"
         response += (
             f"{i}. {status_emoji} {priority_emoji} **{book.title}**\n"
             f"   *Автор:* {book.author}\n"
-            f"   *Жанр:* {book.genre}\n"
+            f"   *Теги:* {tags_text}\n"
             f"   *Страниц:* {book.pages}\n"
             f"   *Прогресс:* {book.progress}%\n\n"
         )

@@ -21,7 +21,7 @@ class BookService:
         self,
         title: str,
         author: str,
-        genre: str,
+        tags: list[str],
         pages: int,
         progress: int = 0,
         status: str = ReadingStatus.WANT_TO_READ.value,
@@ -31,7 +31,7 @@ class BookService:
         book = Book(
             title=title,
             author=author,
-            genre=genre,
+            tags=tags,
             pages=pages,
             progress=progress,
             status=ReadingStatus(status),
