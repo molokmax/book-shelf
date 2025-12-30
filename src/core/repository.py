@@ -1,7 +1,6 @@
 """Репозиторий для работы с данными."""
 
 import json
-import os
 from typing import List, Optional, Dict
 from pathlib import Path
 
@@ -15,26 +14,6 @@ class BookRepository:
         self.data_dir = Path(data_dir)
         self.data_dir.mkdir(exist_ok=True)
         self.books_file = self.data_dir / "books.json"
-        self.users_file = self.data_dir / "users.json"
-
-    def _ensure_file_exists(self, file_path: Path) -> None:
-        """Обеспечивает существование файла."""
-        if not file_path.exists():
-            file_path.write_text("{}")
-
-    def _load_data(self, file_path: Path) -> Dict:
-        """Загружает данные из файла."""
-        self._ensure_file_exists(file_path)
-        try:
-            with open(file_path, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except (json.JSONDecodeError, IOError):
-            return {}
-
-    def _save_data(self, file_path: Path, data: Dict) -> None:
-        """Сохраняет данные в файл."""
-        with open(file_path, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
 
     def get_all_books(self) -> List[Book]:
         """Получает все книги."""
@@ -117,6 +96,26 @@ class BookRepository:
         books = self.get_all_books()
         return [book for book in books if book.priority.value == priority]
 
+    def _ensure_file_exists(self, file_path: Path) -> None:
+        """Обеспечивает существование файла."""
+        if not file_path.exists():
+            file_path.write_text("{}")
+
+    def _load_data(self, file_path: Path) -> Dict:
+        """Загружает данные из файла."""
+        self._ensure_file_exists(file_path)
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except (json.JSONDecodeError, IOError):
+            return {}
+
+    def _save_data(self, file_path: Path, data: Dict) -> None:
+        """Сохраняет данные в файл."""
+        with open(file_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+
+
 class UserRepository:
     """Репозиторий для работы с пользователями."""
 
@@ -173,6 +172,11 @@ class UserRepository:
         self._save_data(self.users_file, data)
         return user
 
+    def _ensure_file_exists(self, file_path: Path) -> None:
+        """Обеспечивает существование файла."""
+        if not file_path.exists():
+            file_path.write_text("{}")
+
     def _load_data(self, file_path: Path) -> Dict:
         """Загружает данные из файла."""
         self._ensure_file_exists(file_path)
@@ -186,8 +190,3 @@ class UserRepository:
         """Сохраняет данные в файл."""
         with open(file_path, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
-
-    def _ensure_file_exists(self, file_path: Path) -> None:
-        """Обеспечивает существование файла."""
-        if not file_path.exists():
-            file_path.write_text("{}")

@@ -1,14 +1,13 @@
 """Обработчики команд для Telegram-бота."""
 
-import logging
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from core.models import Book
+from utils import logger
 from core.services import BookService
 from bot.keyboards import main as keyboards
 
-logger = logging.getLogger(__name__)
+log = logger.setup_logger(__name__)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработчик команды /start."""

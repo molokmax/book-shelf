@@ -1,13 +1,13 @@
 """Обработчики callback-queries для Telegram-бота."""
 
-import logging
 from telegram import Update
 from telegram.ext import ContextTypes
 
+from utils import logger
 from core.services import BookService
 from bot.keyboards import main as keyboards
 
-logger = logging.getLogger(__name__)
+log = logger.setup_logger(__name__)
 
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработчик callback-queries."""
@@ -41,7 +41,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 reply_markup=keyboards.main_menu()
             )
         except Exception as e:
-            logger.error(f"Ошибка при изменении статуса: {e}")
+            log.error(f"Ошибка при изменении статуса: {e}")
             await query.edit_message_text("❌ Произошла ошибка при изменении статуса")
 
     elif data[0] == "change_priority":
@@ -58,7 +58,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 reply_markup=keyboards.main_menu()
             )
         except Exception as e:
-            logger.error(f"Ошибка при изменении приоритета: {e}")
+            log.error(f"Ошибка при изменении приоритета: {e}")
             await query.edit_message_text("❌ Произошла ошибка при изменении приоритета")
 
     elif data[0] == "update_progress":
@@ -75,7 +75,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 reply_markup=keyboards.main_menu()
             )
         except Exception as e:
-            logger.error(f"Ошибка при обновлении прогресса: {e}")
+            log.error(f"Ошибка при обновлении прогресса: {e}")
             await query.edit_message_text("❌ Произошла ошибка при обновлении прогресса")
 
     elif data[0] == "delete_book":
@@ -91,5 +91,5 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 reply_markup=keyboards.main_menu()
             )
         except Exception as e:
-            logger.error(f"Ошибка при удалении книги: {e}")
+            log.error(f"Ошибка при удалении книги: {e}")
             await query.edit_message_text("❌ Произошла ошибка при удалении книги")

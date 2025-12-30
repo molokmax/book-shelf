@@ -1,7 +1,7 @@
 """Модели данных для Book Shelf."""
 
 from dataclasses import dataclass, field
-from typing import Optional, List
+from typing import Optional
 from enum import Enum
 import uuid
 from datetime import datetime

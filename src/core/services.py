@@ -1,13 +1,13 @@
 """Сервисный слой для работы с книгами."""
 
-import logging
+from utils import logger
 from typing import List, Dict, Optional
 from datetime import datetime
 
 from core.models import Book, User, ReadingStatus, Priority
 from core.repository import BookRepository, UserRepository
 
-logger = logging.getLogger(__name__)
+log = logger.setup_logger(__name__)
 
 class BookService:
     """Сервис для работы с книгами."""

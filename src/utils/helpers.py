@@ -1,6 +1,5 @@
 """Вспомогательные функции для Book Shelf."""
 
-from typing import Optional
 import re
 
 def sanitize_text(text: str) -> str:
