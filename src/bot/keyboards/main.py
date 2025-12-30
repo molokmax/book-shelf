@@ -7,7 +7,8 @@ def main_menu() -> ReplyKeyboardMarkup:
     keyboard = [
         [
             "/add 📖",
-            "/list 📚"
+            "/list 📚",
+            "/progress 📈"
         ],
         [
             "/stats 📊",
@@ -78,3 +79,13 @@ def book_actions_keyboard(book_id: int) -> InlineKeyboardMarkup:
         ]
     ]
     return InlineKeyboardMarkup(keyboard)
+
+def confirm_keyboard(callback_data: str) -> ReplyKeyboardMarkup:
+    """Клавиатура с кнопками подтверждения/отмены."""
+    keyboard = [
+        [
+            "/yes ✅",
+            "/no ❌"
+        ]
+    ]
+    return ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)

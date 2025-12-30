@@ -39,6 +39,7 @@ class BookShelfBot:
         self.application.add_handler(CommandHandler("list", commands.list_books))
         self.application.add_handler(CommandHandler("stats", commands.stats))
         self.application.add_handler(CommandHandler("export", commands.export))
+        self.application.add_handler(CommandHandler("progress", commands.update_progress))
 
         # Обработчики сообщений
         self.application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, messages.handle_text))

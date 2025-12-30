@@ -18,6 +18,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "Что я могу сделать:\n"
         "/add - Добавить новую книгу\n"
         "/list - Показать список книг\n"
+        "/progress - Обновить прогресс чтения\n"
         "/stats - Статистика чтения\n"
         "/help - Помощь\n\n"
         "Начните с добавления первой книги!",
@@ -32,11 +33,15 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "• `/start` - Начало работы\n"
         "• `/add` - Добавить новую книгу\n"
         "• `/list` - Показать список книг\n"
+        "• `/progress` - Обновить прогресс чтения\n"
         "• `/stats` - Статистика чтения\n"
         "• `/export` - Экспортировать библиотеку\n\n"
         "📖 **Добавление книги:**\n"
         "Используйте команду `/add` и следуйте инструкциям.\n"
         "Вы можете указать: название, автора, теги, количество страниц.\n\n"
+        "📊 **Обновление прогресса:**\n"
+        "Используйте команду `/progress` и следуйте инструкциям.\n"
+        "Укажите номер книги и текущую страницу (например: '1 50').\n\n"
         "📊 **Управление статусами:**\n"
         "После добавления книги вы можете изменить её статус:\n"
         "• Хочу прочитать\n"
@@ -122,3 +127,30 @@ async def export(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "Данные сохранены в файл. Вы можете загрузить его или использовать для резервного копирования.",
         reply_markup=keyboards.main_menu()
     )
+
+async def update_progress(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обработчик команды /progress."""
+    book_service = BookService()
+    books = book_service.get_all_books()
+
+    if not books:
+        await update.message.reply_text("Ваша библиотека пуста. Добавьте первую книгу с помощью /add")
+        return
+
+    # Показываем список книг с их текущим прогрессом
+    response = "📚 Выберите книгу для обновления прогресса:\n\n"
+    for i, book in enumerate(books, 1):
+        status_emoji = {
+            "want_to_read": "📖",
+            "reading": "📚",
+            "read": "📕",
+            "postponed": "⏸️"
+        }.get(book.status, "📘")
+
+        response += f"{i}. {status_emoji} **{book.title}** - Страница {book.progress}/{book.pages}\n"
+
+    response += "\nПожалуйста, отправьте номер книги и текущую страницу (например: '1 50' для страницы 50):"
+    await update.message.reply_text(response, parse_mode="Markdown", reply_markup=keyboards.cancel_keyboard())
+
+    # Сохраняем состояние для следующих шагов
+    context.user_data["state"] = "waiting_for_progress_update"
