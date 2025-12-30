@@ -96,6 +96,11 @@ class BookRepository:
         books = self.get_all_books()
         return [book for book in books if book.priority.value == priority]
 
+    def get_books_by_user_id(self, user_id: str) -> List[Book]:
+        """Получает книги по ID пользователя."""
+        books = self.get_all_books()
+        return [book for book in books if book.user_id == user_id]
+
     def _ensure_file_exists(self, file_path: Path) -> None:
         """Обеспечивает существование файла."""
         if not file_path.exists():

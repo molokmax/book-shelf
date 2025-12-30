@@ -4,7 +4,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from utils import logger
-from core.services import BookService
+from core.services import BookService, UserService
 from bot.keyboards import main as keyboards
 
 log = logger.setup_logger(__name__)
@@ -55,6 +55,15 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def add_book(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработчик команды /add."""
+    # Получаем или создаём пользователя
+    user_service = UserService()
+    user = user_service.get_or_create_user(
+        update.effective_user.id,
+        username=update.effective_user.username,
+        first_name=update.effective_user.first_name,
+        last_name=update.effective_user.last_name
+    )
+
     await update.message.reply_text(
         "📖 Добавление новой книги\n\n"
         "Пожалуйста, введите название книги:",
@@ -62,11 +71,21 @@ async def add_book(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     )
     # Сохраняем состояние для следующих шагов
     context.user_data["state"] = "waiting_for_title"
+    context.user_data["user_id"] = user.id
 
 async def list_books(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработчик команды /list."""
+    # Получаем или создаём пользователя
+    user_service = UserService()
+    user = user_service.get_or_create_user(
+        update.effective_user.id,
+        username=update.effective_user.username,
+        first_name=update.effective_user.first_name,
+        last_name=update.effective_user.last_name
+    )
+
     book_service = BookService()
-    books = book_service.get_all_books()
+    books = book_service.get_all_books(user.id)
 
     if not books:
         await update.message.reply_text("Ваша библиотека пуста. Добавьте первую книгу с помощью /add")
@@ -100,8 +119,17 @@ async def list_books(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
 
 async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработчик команды /stats."""
+    # Получаем или создаём пользователя
+    user_service = UserService()
+    user = user_service.get_or_create_user(
+        update.effective_user.id,
+        username=update.effective_user.username,
+        first_name=update.effective_user.first_name,
+        last_name=update.effective_user.last_name
+    )
+
     book_service = BookService()
-    stats_data = book_service.get_stats()
+    stats_data = book_service.get_stats(user.id)
 
     stats_text = (
         "📊 **Статистика чтения**\n\n"
@@ -119,8 +147,17 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def export(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработчик команды /export."""
+    # Получаем или создаём пользователя
+    user_service = UserService()
+    user = user_service.get_or_create_user(
+        update.effective_user.id,
+        username=update.effective_user.username,
+        first_name=update.effective_user.first_name,
+        last_name=update.effective_user.last_name
+    )
+
     book_service = BookService()
-    export_data = book_service.export_library()
+    export_data = book_service.export_library(user.id)
 
     await update.message.reply_text(
         "📥 Экспорт библиотеки завершён!\n\n"
@@ -130,8 +167,17 @@ async def export(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def update_progress(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработчик команды /progress."""
+    # Получаем или создаём пользователя
+    user_service = UserService()
+    user = user_service.get_or_create_user(
+        update.effective_user.id,
+        username=update.effective_user.username,
+        first_name=update.effective_user.first_name,
+        last_name=update.effective_user.last_name
+    )
+
     book_service = BookService()
-    books = book_service.get_all_books()
+    books = book_service.get_all_books(user.id)
 
     if not books:
         await update.message.reply_text("Ваша библиотека пуста. Добавьте первую книгу с помощью /add")

@@ -4,7 +4,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from utils import logger
-from core.services import BookService
+from core.services import BookService, UserService
 from bot.keyboards import main as keyboards
 
 log = logger.setup_logger(__name__)
@@ -52,12 +52,23 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             if pages <= 0:
                 raise ValueError
 
+            # # Получаем или создаём пользователя
+            # user_service = UserService()
+            # user = user_service.get_or_create_user(
+            #     update.effective_user.id,
+            #     username=update.effective_user.username,
+            #     first_name=update.effective_user.first_name,
+            #     last_name=update.effective_user.last_name
+            # )
+            user_id = context.user_data["user_id"]
+
             book_service = BookService()
             book = book_service.create_book(
                 title=context.user_data["book_title"],
                 author=context.user_data["book_author"],
                 tags=context.user_data["book_tags"],
-                pages=pages
+                pages=pages,
+                user_id=user_id
             )
 
             # Очищаем состояние
@@ -81,6 +92,16 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     if state == "waiting_for_progress_update":
         # Обрабатываем обновление прогресса чтения
         try:
+            # Получаем или создаём пользователя
+            # user_service = UserService()
+            # user = user_service.get_or_create_user(
+            #     update.effective_user.id,
+            #     username=update.effective_user.username,
+            #     first_name=update.effective_user.first_name,
+            #     last_name=update.effective_user.last_name
+            # )
+            user_id = context.user_data["user_id"]
+
             # Парсим номер книги и страницу
             parts = text.split()
             if len(parts) != 2:
@@ -90,7 +111,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             current_page = int(parts[1])
 
             book_service = BookService()
-            books = book_service.get_all_books()
+            books = book_service.get_all_books(user_id)
 
             if book_index < 0 or book_index >= len(books):
                 raise ValueError("Некорректный номер книги")

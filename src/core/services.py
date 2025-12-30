@@ -23,6 +23,7 @@ class BookService:
         author: str,
         tags: list[str],
         pages: int,
+        user_id: str,
         progress: int = 0,
         status: str = ReadingStatus.WANT_TO_READ.value,
         priority: str = Priority.MEDIUM.value
@@ -33,14 +34,17 @@ class BookService:
             author=author,
             tags=tags,
             pages=pages,
+            user_id=user_id,
             progress=progress,
             status=ReadingStatus(status),
             priority=Priority(priority)
         )
         return self.book_repo.add_book(book)
 
-    def get_all_books(self) -> List[Book]:
-        """Получает все книги."""
+    def get_all_books(self, user_id: Optional[str] = None) -> List[Book]:
+        """Получает все книги. Если указан user_id, возвращает только книги этого пользователя."""
+        if user_id is not None:
+            return self.book_repo.get_books_by_user_id(user_id)
         return self.book_repo.get_all_books()
 
     def get_book_by_id(self, book_id: str) -> Optional[Book]:
@@ -99,9 +103,9 @@ class BookService:
         """Удаляет книгу."""
         return self.book_repo.delete_book(book_id)
 
-    def get_stats(self) -> Dict:
-        """Получает статистику чтения."""
-        books = self.get_all_books()
+    def get_stats(self, user_id: Optional[str] = None) -> Dict:
+        """Получает статистику чтения. Если указан user_id, возвращает статистику только для книг этого пользователя."""
+        books = self.get_all_books(user_id)
 
         total_books = len(books)
         read_books = len([b for b in books if b.status == ReadingStatus.READ])
@@ -124,9 +128,9 @@ class BookService:
             "avg_progress": avg_progress
         }
 
-    def export_library(self) -> Dict:
-        """Экспортирует библиотеку в формат для сохранения."""
-        books = self.get_all_books()
+    def export_library(self, user_id: Optional[str] = None) -> Dict:
+        """Экспортирует библиотеку в формат для сохранения. Если указан user_id, экспортирует только книги этого пользователя."""
+        books = self.get_all_books(user_id)
         return {
             "exported_at": datetime.now().isoformat(),
             "total_books": len(books),
