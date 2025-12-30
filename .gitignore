@@ -4,5 +4,7 @@
 .vscode/
 .idea/
 
+data/
+
 __pycache__/
 *.py[cod]
