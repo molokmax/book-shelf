@@ -41,11 +41,17 @@ class BookService:
         )
         return self.book_repo.add_book(book)
 
-    def get_all_books(self, user_id: Optional[str] = None) -> List[Book]:
-        """Получает все книги. Если указан user_id, возвращает только книги этого пользователя."""
-        if user_id is not None:
-            return self.book_repo.get_books_by_user_id(user_id)
-        return self.book_repo.get_all_books()
+    def get_all_books(self, user_id: Optional[str] = None, sort_by_priority: bool = True) -> List[Book]:
+        """Получает все книги. Если указан user_id, возвращает только книги этого пользователя.
+        По умолчанию сортирует по приоритету (от высокого к низкому)."""
+        books = self.book_repo.get_all_books() if user_id is None else self.book_repo.get_books_by_user_id(user_id)
+
+        if sort_by_priority:
+            # Сортировка по приоритету: high > medium > low
+            priority_order = {Priority.HIGH: 0, Priority.MEDIUM: 1, Priority.LOW: 2}
+            books.sort(key=lambda b: priority_order.get(b.priority, 2))
+
+        return books
 
     def get_book_by_id(self, book_id: str) -> Optional[Book]:
         """Получает книгу по ID."""

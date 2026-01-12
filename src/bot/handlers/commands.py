@@ -200,3 +200,47 @@ async def update_progress(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
     # Сохраняем состояние для следующих шагов
     context.user_data["state"] = "waiting_for_progress_update"
+    context.user_data["user_id"] = user.id
+
+async def change_priority(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обработчик команды /priority."""
+    # Получаем или создаём пользователя
+    user_service = UserService()
+    user = user_service.get_or_create_user(
+        update.effective_user.id,
+        username=update.effective_user.username,
+        first_name=update.effective_user.first_name,
+        last_name=update.effective_user.last_name
+    )
+
+    book_service = BookService()
+    books = book_service.get_all_books(user.id)
+
+    if not books:
+        await update.message.reply_text("Ваша библиотека пуста. Добавьте первую книгу с помощью /add")
+        return
+
+    # Показываем список книг с их текущим приоритетом
+    response = "🎯 Выберите книгу для изменения приоритета:\n\n"
+    for i, book in enumerate(books, 1):
+        status_emoji = {
+            "want_to_read": "📖",
+            "reading": "📚",
+            "read": "📕",
+            "postponed": "⏸️"
+        }.get(book.status, "📘")
+
+        priority_emoji = {
+            "high": "🔴",
+            "medium": "🟡",
+            "low": "🟢"
+        }.get(book.priority, "⚪")
+
+        response += f"{i}. {status_emoji} {priority_emoji} **{book.title}** - {book.priority}\n"
+
+    response += "\nПожалуйста, отправьте номер книги (например: '1'):"
+    await update.message.reply_text(response, parse_mode="Markdown", reply_markup=keyboards.cancel_keyboard())
+
+    # Сохраняем состояние для следующих шагов
+    context.user_data["state"] = "waiting_for_priority_change"
+    context.user_data["user_id"] = user.id

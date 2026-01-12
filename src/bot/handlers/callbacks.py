@@ -47,16 +47,26 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     elif data[0] == "change_priority":
         # Изменение приоритета книги
         try:
-            book_id = int(data[1])
-            new_priority = data[2]
+            if data[1] == "new_book":
+                # Это выбор приоритета для новой книги
+                await query.edit_message_text(
+                    f"Вы выбрали приоритет: {data[2]}",
+                    reply_markup=keyboards.main_menu()
+                )
+                # Отправляем приоритет в текстовый обработчик
+                await query.message.reply_text(data[2])
+            else:
+                # Это изменение приоритета существующей книги
+                book_id = data[1]
+                new_priority = data[2]
 
-            book_service = BookService()
-            book = book_service.update_book_priority(book_id, new_priority)
+                book_service = BookService()
+                book = book_service.update_book_priority(book_id, new_priority)
 
-            await query.edit_message_text(
-                f"✅ Приоритет книги '{book.title}' изменён на '{book.priority}'",
-                reply_markup=keyboards.main_menu()
-            )
+                await query.edit_message_text(
+                    f"✅ Приоритет книги '{book.title}' изменён на '{book.priority}'",
+                    reply_markup=keyboards.main_menu()
+                )
         except Exception as e:
             log.error(f"Ошибка при изменении приоритета: {e}")
             await query.edit_message_text("❌ Произошла ошибка при изменении приоритета")

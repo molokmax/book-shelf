@@ -46,42 +46,21 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         return
 
     if state == "waiting_for_pages":
-        # Сохраняем количество страниц и создаём книгу
+        # Сохраняем количество страниц и запрашиваем приоритет
         try:
             pages = int(text)
             if pages <= 0:
                 raise ValueError
 
-            # # Получаем или создаём пользователя
-            # user_service = UserService()
-            # user = user_service.get_or_create_user(
-            #     update.effective_user.id,
-            #     username=update.effective_user.username,
-            #     first_name=update.effective_user.first_name,
-            #     last_name=update.effective_user.last_name
-            # )
-            user_id = context.user_data["user_id"]
-
-            book_service = BookService()
-            book = book_service.create_book(
-                title=context.user_data["book_title"],
-                author=context.user_data["book_author"],
-                tags=context.user_data["book_tags"],
-                pages=pages,
-                user_id=user_id
-            )
-
-            # Очищаем состояние
-            context.user_data.clear()
-
+            context.user_data["book_pages"] = pages
             await update.message.reply_text(
-                f"✅ Книга '{book.title}' успешно добавлена в вашу библиотеку!\n\n"
-                "Вы можете:\n"
-                "/list - Посмотреть все книги\n"
-                "/add - Добавить ещё одну книгу",
-                reply_markup=keyboards.main_menu()
+                "Отлично! Теперь выберите приоритет книги:\n\n"
+                "🔴 Высокий - Книга, которую нужно прочитать в первую очередь\n"
+                "🟡 Средний - Книга со средним приоритетом (по умолчанию)\n"
+                "🟢 Низкий - Книга, которую можно прочитать позже",
+                reply_markup=keyboards.priority_keyboard("new_book")
             )
-
+            context.user_data["state"] = "waiting_for_priority"
         except ValueError:
             await update.message.reply_text(
                 "❌ Некорректное количество страниц. Пожалуйста, введите число.",
@@ -89,17 +68,35 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             )
         return
 
+    if state == "waiting_for_priority":
+        # Создаём книгу с указанным приоритетом
+        user_id = context.user_data["user_id"]
+
+        book_service = BookService()
+        book = book_service.create_book(
+            title=context.user_data["book_title"],
+            author=context.user_data["book_author"],
+            tags=context.user_data["book_tags"],
+            pages=context.user_data["book_pages"],
+            user_id=user_id,
+            priority=text
+        )
+
+        # Очищаем состояние
+        context.user_data.clear()
+
+        await update.message.reply_text(
+            f"✅ Книга '{book.title}' успешно добавлена в вашу библиотеку!\n\n"
+            "Вы можете:\n"
+            "/list - Посмотреть все книги\n"
+            "/add - Добавить ещё одну книгу",
+            reply_markup=keyboards.main_menu()
+        )
+        return
+
     if state == "waiting_for_progress_update":
         # Обрабатываем обновление прогресса чтения
         try:
-            # Получаем или создаём пользователя
-            # user_service = UserService()
-            # user = user_service.get_or_create_user(
-            #     update.effective_user.id,
-            #     username=update.effective_user.username,
-            #     first_name=update.effective_user.first_name,
-            #     last_name=update.effective_user.last_name
-            # )
             user_id = context.user_data["user_id"]
 
             # Парсим номер книги и страницу
@@ -188,6 +185,58 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 "❌ Обновление прогресса отменено.",
                 reply_markup=keyboards.main_menu()
             )
+        return
+
+    if state == "waiting_for_priority_change":
+        # Обрабатываем изменение приоритета книги
+        try:
+            user_id = context.user_data["user_id"]
+
+            # Парсим номер книги
+            book_index = int(text) - 1  # Преобразуем в индекс (0-based)
+
+            book_service = BookService()
+            books = book_service.get_all_books(user_id)
+
+            if book_index < 0 or book_index >= len(books):
+                raise ValueError("Некорректный номер книги")
+
+            book = books[book_index]
+
+            # Показываем клавиатуру для выбора нового приоритета
+            await update.message.reply_text(
+                f"Вы выбрали книгу: **{book.title}**\n\n"
+                "Пожалуйста, выберите новый приоритет:",
+                reply_markup=keyboards.priority_keyboard(book.id),
+                parse_mode="Markdown"
+            )
+
+            # Сохраняем ID книги для обновления
+            context.user_data["priority_change_book_id"] = book.id
+            context.user_data["state"] = "waiting_for_new_priority"
+
+        except ValueError as e:
+            await update.message.reply_text(
+                f"❌ Некорректный ввод. Пожалуйста, отправьте номер книги (например: '1').\n"
+                f"Ошибка: {str(e)}",
+                reply_markup=keyboards.cancel_keyboard()
+            )
+        return
+
+    if state == "waiting_for_new_priority":
+        # Обрабатываем выбор нового приоритета
+        book_id = context.user_data["priority_change_book_id"]
+
+        book_service = BookService()
+        book = book_service.update_book_priority(book_id, text)
+
+        # Очищаем состояние
+        context.user_data.clear()
+
+        await update.message.reply_text(
+            f"✅ Приоритет книги '{book.title}' изменён на '{book.priority}'!",
+            reply_markup=keyboards.main_menu()
+        )
         return
 
     # Если нет активного диалога, показываем помощь

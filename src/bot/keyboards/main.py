@@ -6,13 +6,14 @@ def main_menu() -> ReplyKeyboardMarkup:
     """Главное меню с кнопками."""
     keyboard = [
         [
-            "/add 📖",
-            "/list 📚",
-            "/progress 📈"
+            InlineKeyboardButton("/add 📖"),
+            InlineKeyboardButton("/list 📚"),
+            InlineKeyboardButton("/progress 📈")
         ],
         [
-            "/stats 📊",
-            "/help ❓"
+            InlineKeyboardButton("/priority 🎯"),
+            InlineKeyboardButton("/stats 📊"),
+            InlineKeyboardButton("/help ❓")
         ]
     ]
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
@@ -43,25 +44,10 @@ def priority_keyboard(book_id: int) -> InlineKeyboardMarkup:
     keyboard = [
         [
             InlineKeyboardButton("🔴 Высокий", callback_data=f"change_priority:{book_id}:high"),
-            InlineKeyboardButton("🟡 Средний", callback_data=f"change_priority:{book_id}:medium")
-        ],
-        [
+            InlineKeyboardButton("🟡 Средний", callback_data=f"change_priority:{book_id}:medium"),
+        # ],
+        # [
             InlineKeyboardButton("🟢 Низкий", callback_data=f"change_priority:{book_id}:low")
-        ]
-    ]
-    return InlineKeyboardMarkup(keyboard)
-
-def progress_keyboard(book_id: int) -> InlineKeyboardMarkup:
-    """Инлайн-клавиатура для обновления прогресса чтения."""
-    keyboard = [
-        [
-            InlineKeyboardButton("0%", callback_data=f"update_progress:{book_id}:0"),
-            InlineKeyboardButton("25%", callback_data=f"update_progress:{book_id}:25"),
-            InlineKeyboardButton("50%", callback_data=f"update_progress:{book_id}:50")
-        ],
-        [
-            InlineKeyboardButton("75%", callback_data=f"update_progress:{book_id}:75"),
-            InlineKeyboardButton("100%", callback_data=f"update_progress:{book_id}:100")
         ]
     ]
     return InlineKeyboardMarkup(keyboard)
