@@ -13,8 +13,11 @@ from telegram.ext import (
     CallbackQueryHandler,
 )
 
+from bot.handlers.callbacks import handle_callback
 from utils.config import load_config
-from bot.handlers import commands, messages, callbacks
+from bot.handlers import messages
+from bot.handlers.book import add, list, progress, priority, stats, export, status
+from bot.handlers.commands import start, help
 from bot.keyboards import main as keyboards
 
 class BookShelfBot:
@@ -33,20 +36,20 @@ class BookShelfBot:
             return
 
         # Обработчики команд
-        self.application.add_handler(CommandHandler("start", commands.start))
-        self.application.add_handler(CommandHandler("help", commands.help))
-        self.application.add_handler(CommandHandler("add", commands.add_book))
-        self.application.add_handler(CommandHandler("list", commands.list_books))
-        self.application.add_handler(CommandHandler("stats", commands.stats))
-        self.application.add_handler(CommandHandler("export", commands.export))
-        self.application.add_handler(CommandHandler("progress", commands.update_progress))
-        self.application.add_handler(CommandHandler("priority", commands.change_priority))
+        self.application.add_handler(CommandHandler("start", start))
+        self.application.add_handler(CommandHandler("help", help))
+        self.application.add_handler(CommandHandler("add", add.add_book_command))
+        self.application.add_handler(CommandHandler("list", list.list_books_command))
+        self.application.add_handler(CommandHandler("stats", stats.stats_command))
+        self.application.add_handler(CommandHandler("export", export.export_command))
+        self.application.add_handler(CommandHandler("progress", progress.update_progress_command))
+        self.application.add_handler(CommandHandler("priority", priority.change_priority_command))
 
         # Обработчики сообщений
         self.application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, messages.handle_text))
 
         # Обработчики callback-queries
-        self.application.add_handler(CallbackQueryHandler(callbacks.handle_callback))
+        self.application.add_handler(CallbackQueryHandler(handle_callback))
 
     def run(self) -> None:
         """Запуск бота."""

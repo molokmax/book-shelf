@@ -4,8 +4,9 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from utils import logger
-from core.services import BookService
+from bot.handlers.book import add, progress, priority, status, delete
 from bot.keyboards import main as keyboards
+from core.services import BookService
 
 log = logger.setup_logger(__name__)
 
@@ -29,77 +30,16 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
     elif data[0] == "change_status":
         # Изменение статуса книги
-        try:
-            book_id = int(data[1])
-            new_status = data[2]
-
-            book_service = BookService()
-            book = book_service.update_book_status(book_id, new_status)
-
-            await query.edit_message_text(
-                f"✅ Статус книги '{book.title}' изменён на '{book.status}'",
-                reply_markup=keyboards.main_menu()
-            )
-        except Exception as e:
-            log.error(f"Ошибка при изменении статуса: {e}")
-            await query.edit_message_text("❌ Произошла ошибка при изменении статуса")
+        await status.handle_status_callback(update, context)
 
     elif data[0] == "change_priority":
         # Изменение приоритета книги
-        try:
-            if data[1] == "new_book":
-                # Это выбор приоритета для новой книги
-                await query.edit_message_text(
-                    f"Вы выбрали приоритет: {data[2]}",
-                    reply_markup=keyboards.main_menu()
-                )
-                # Отправляем приоритет в текстовый обработчик
-                await query.message.reply_text(data[2])
-            else:
-                # Это изменение приоритета существующей книги
-                book_id = data[1]
-                new_priority = data[2]
-
-                book_service = BookService()
-                book = book_service.update_book_priority(book_id, new_priority)
-
-                await query.edit_message_text(
-                    f"✅ Приоритет книги '{book.title}' изменён на '{book.priority}'",
-                    reply_markup=keyboards.main_menu()
-                )
-        except Exception as e:
-            log.error(f"Ошибка при изменении приоритета: {e}")
-            await query.edit_message_text("❌ Произошла ошибка при изменении приоритета")
+        await priority.handle_priority_callback(update, context)
 
     elif data[0] == "update_progress":
         # Обновление прогресса чтения
-        try:
-            book_id = int(data[1])
-            new_progress = int(data[2])
-
-            book_service = BookService()
-            book = book_service.update_book_progress(book_id, new_progress)
-
-            await query.edit_message_text(
-                f"✅ Прогресс чтения книги '{book.title}' обновлён до {book.progress}%",
-                reply_markup=keyboards.main_menu()
-            )
-        except Exception as e:
-            log.error(f"Ошибка при обновлении прогресса: {e}")
-            await query.edit_message_text("❌ Произошла ошибка при обновлении прогресса")
+        await progress.handle_progress_callback(update, context)
 
     elif data[0] == "delete_book":
         # Удаление книги
-        try:
-            book_id = int(data[1])
-
-            book_service = BookService()
-            book = book_service.delete_book(book_id)
-
-            await query.edit_message_text(
-                f"🗑️ Книга '{book.title}' удалена из библиотеки",
-                reply_markup=keyboards.main_menu()
-            )
-        except Exception as e:
-            log.error(f"Ошибка при удалении книги: {e}")
-            await query.edit_message_text("❌ Произошла ошибка при удалении книги")
+        await delete.handle_delete_callback(update, context)
