@@ -35,12 +35,13 @@ def format_book_info(book) -> str:
 
     tags_text = ", ".join(book.tags) if book.tags else "Нет тегов"
 
+    progress_percent = round((book.current_page / book.pages * 100)) if book.pages > 0 else 0
     return (
         f"{status_emoji} {priority_emoji} **{book.title}**\n"
         f"*Автор:* {book.author}\n"
         f"*Теги:* {tags_text}\n"
         f"*Страниц:* {book.pages}\n"
-        f"*Прогресс:* {book.progress}%\n"
+        f"*Прогресс:* {book.current_page}/{book.pages} ({progress_percent}%)\n"
     )
 
 def validate_book_data(title: str, author: str, pages: int) -> bool:

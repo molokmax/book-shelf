@@ -24,7 +24,10 @@ async def handle_status_callback(update: Update, context: ContextTypes.DEFAULT_T
             book = book_service.update_book_status(book_id, new_status)
 
             await query.edit_message_text(
-                f"✅ Статус книги '{book.title}' изменён на '{book.status}'",
+                f"✅ Статус книги '{book.title}' изменён на '{book.status}'"
+            )
+            await query.message.reply_text(
+                "Что вы хотите сделать дальше?",
                 reply_markup=keyboards.main_menu()
             )
         except Exception as e:

@@ -27,7 +27,7 @@ class Book:
     author: str = ""
     tags: list[str] = field(default_factory=list)
     pages: int = 0
-    progress: int = 0
+    current_page: int = 0
     status: ReadingStatus = ReadingStatus.WANT_TO_READ
     priority: Priority = Priority.MEDIUM
     created_at: datetime = field(default_factory=datetime.now)
@@ -38,9 +38,9 @@ class Book:
     reading_end_date: Optional[datetime] = None
     user_id: str = ""
 
-    def update_progress(self, new_progress: int) -> None:
-        """Обновляет прогресс чтения."""
-        self.progress = max(0, min(100, new_progress))
+    def update_progress(self, new_page: int) -> None:
+        """Обновляет прогресс чтения по текущей странице."""
+        self.current_page = max(0, min(self.pages, new_page))
         self.updated_at = datetime.now()
 
     def to_dict(self) -> dict:
@@ -51,7 +51,7 @@ class Book:
             "author": self.author,
             "tags": self.tags,
             "pages": self.pages,
-            "progress": self.progress,
+            "current_page": self.current_page,
             "status": self.status.value,
             "priority": self.priority.value,
             "created_at": self.created_at.isoformat(),
@@ -72,7 +72,7 @@ class Book:
             author=data.get("author", ""),
             tags=data.get("tags", []),
             pages=data.get("pages", 0),
-            progress=data.get("progress", 0),
+            current_page=data.get("current_page", data.get("progress", 0)),  # Поддержка миграции
             status=ReadingStatus(data.get("status", ReadingStatus.WANT_TO_READ.value)),
             priority=Priority(data.get("priority", Priority.MEDIUM.value)),
             created_at=datetime.fromisoformat(data.get("created_at", datetime.now().isoformat())),

@@ -8,10 +8,9 @@ def main_menu() -> ReplyKeyboardMarkup:
         [
             InlineKeyboardButton("/add 📖"),
             InlineKeyboardButton("/list 📚"),
-            InlineKeyboardButton("/progress 📈")
+            InlineKeyboardButton("/edit ✏️")
         ],
         [
-            InlineKeyboardButton("/priority 🎯"),
             InlineKeyboardButton("/stats 📊"),
             InlineKeyboardButton("/help ❓")
         ]
@@ -45,8 +44,8 @@ def priority_keyboard(book_id: int) -> InlineKeyboardMarkup:
         [
             InlineKeyboardButton("🔴 Высокий", callback_data=f"change_priority:{book_id}:high"),
             InlineKeyboardButton("🟡 Средний", callback_data=f"change_priority:{book_id}:medium"),
-        # ],
-        # [
+        ],
+        [
             InlineKeyboardButton("🟢 Низкий", callback_data=f"change_priority:{book_id}:low")
         ]
     ]

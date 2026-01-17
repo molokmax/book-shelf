@@ -21,9 +21,12 @@ async def handle_delete_callback(update: Update, context: ContextTypes.DEFAULT_T
 
             book_service = BookService()
             book = book_service.delete_book(book_id)
-
+            
             await query.edit_message_text(
-                f"🗑️ Книга '{book.title}' удалена из библиотеки",
+                f"🗑️ Книга '{book.title}' удалена из библиотеки"
+            )
+            await query.message.reply_text(
+                "Что вы хотите сделать дальше?",
                 reply_markup=keyboards.main_menu()
             )
         except Exception as e:

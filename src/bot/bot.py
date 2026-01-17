@@ -16,7 +16,7 @@ from telegram.ext import (
 from bot.handlers.callbacks import handle_callback
 from utils.config import load_config
 from bot.handlers import messages
-from bot.handlers.book import add, list, progress, priority, stats, export, status
+from bot.handlers.book import add, list, progress, priority, stats, export, status, edit
 from bot.handlers.commands import start, help
 from bot.keyboards import main as keyboards
 
@@ -40,9 +40,9 @@ class BookShelfBot:
         self.application.add_handler(CommandHandler("help", help))
         self.application.add_handler(CommandHandler("add", add.add_book_command))
         self.application.add_handler(CommandHandler("list", list.list_books_command))
+        self.application.add_handler(CommandHandler("edit", edit.edit_command))
         self.application.add_handler(CommandHandler("stats", stats.stats_command))
         self.application.add_handler(CommandHandler("export", export.export_command))
-        self.application.add_handler(CommandHandler("progress", progress.update_progress_command))
         self.application.add_handler(CommandHandler("priority", priority.change_priority_command))
 
         # Обработчики сообщений

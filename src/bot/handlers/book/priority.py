@@ -96,7 +96,10 @@ async def handle_priority_callback(update: Update, context: ContextTypes.DEFAULT
             book = book_service.update_book_priority(book_id, new_priority)
 
             await query.edit_message_text(
-                f"✅ Приоритет книги '{book.title}' изменён на '{book.priority}'",
+                f"✅ Приоритет книги '{book.title}' изменён на '{book.priority}'"
+            )
+            await query.message.reply_text(
+                "Что вы хотите сделать дальше?",
                 reply_markup=keyboards.main_menu()
             )
         except Exception as e:

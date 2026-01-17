@@ -30,24 +30,16 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         await add.handle_add_book_pages(update, context)
         return
 
-    if state == "waiting_for_priority":
-        await add.handle_add_book_priority(update, context)
-        return
-
-    if state == "waiting_for_progress_update":
-        await progress.handle_progress_update(update, context)
-        return
-
-    if state == "waiting_for_progress_confirm":
-        await progress.handle_progress_confirm(update, context)
-        return
-
     if state == "waiting_for_priority_change":
         await priority.handle_priority_book_selection(update, context)
         return
 
     if state == "waiting_for_new_priority":
         # Новый приоритет выбирается через callback
+        return
+
+    if state == "waiting_for_progress_input":
+        await progress.handle_progress_input(update, context)
         return
 
     # Если нет активного диалога, показываем помощь
