@@ -43,13 +43,17 @@ class BookService:
 
     def get_all_books(self, user_id: Optional[str] = None, sort_by_priority: bool = True) -> List[Book]:
         """Получает все книги. Если указан user_id, возвращает только книги этого пользователя.
-        По умолчанию сортирует по приоритету (от высокого к низкому)."""
+        По умолчанию сортирует по приоритету (от высокого к низкому).
+        Прочитанные книги всегда в конце списка."""
         books = self.book_repo.get_all_books() if user_id is None else self.book_repo.get_books_by_user_id(user_id)
 
         if sort_by_priority:
             # Сортировка по приоритету: high > medium > low
             priority_order = {Priority.HIGH: 0, Priority.MEDIUM: 1, Priority.LOW: 2}
             books.sort(key=lambda b: priority_order.get(b.priority, 2))
+
+        # Прочитанные книги всегда в конце
+        books.sort(key=lambda b: b.status == ReadingStatus.READ)
 
         return books
 
