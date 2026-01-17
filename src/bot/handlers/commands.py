@@ -24,6 +24,15 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         reply_markup=keyboards.main_menu()
     )
 
+async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обработчик команды /cancel."""
+    context.user_data.clear()
+
+    await update.message.reply_text(
+        "Операция отменена",
+        reply_markup=keyboards.main_menu()
+    )
+
 async def help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработчик команды /help."""
     help_text = (
@@ -34,7 +43,8 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "• `/list` - Показать список книг\n"
         "• `/edit` - Редактировать книгу\n"
         "• `/stats` - Статистика чтения\n"
-        "• `/export` - Экспортировать библиотеку\n\n"
+        "• `/export` - Экспортировать библиотеку\n"
+        "• `/cancel` - Отмена текущей операции\n\n"
         "📖 **Добавление книги:**\n"
         "Используйте команду `/add` и следуйте инструкциям.\n"
         "Вы можете указать: название, автора, теги, количество страниц.\n\n"

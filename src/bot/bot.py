@@ -17,7 +17,7 @@ from bot.handlers.callbacks import handle_callback
 from utils.config import load_config
 from bot.handlers import messages
 from bot.handlers.book import add, list, progress, priority, stats, export, status, edit
-from bot.handlers.commands import start, help
+from bot.handlers.commands import start, help, cancel
 from bot.keyboards import main as keyboards
 
 class BookShelfBot:
@@ -38,6 +38,7 @@ class BookShelfBot:
         # Обработчики команд
         self.application.add_handler(CommandHandler("start", start))
         self.application.add_handler(CommandHandler("help", help))
+        self.application.add_handler(CommandHandler("cancel", cancel))
         self.application.add_handler(CommandHandler("add", add.add_book_command))
         self.application.add_handler(CommandHandler("list", list.list_books_command))
         self.application.add_handler(CommandHandler("edit", edit.edit_command))
