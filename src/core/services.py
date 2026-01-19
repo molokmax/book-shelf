@@ -82,10 +82,10 @@ class BookService:
         book.update_progress(current_page)
 
         # Автоматически обновляем статус
-        if current_page == book.pages:
+        if book.current_page == book.pages:
             book.status = ReadingStatus.READ
             book.reading_end_date = datetime.now()
-        elif current_page > 0 and book.status == ReadingStatus.WANT_TO_READ:
+        elif book.current_page > 0 and book.status == ReadingStatus.WANT_TO_READ:
             book.status = ReadingStatus.READING
             if not book.reading_start_date:
                 book.reading_start_date = datetime.now()
