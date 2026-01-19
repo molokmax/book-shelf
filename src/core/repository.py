@@ -91,11 +91,6 @@ class BookRepository:
         books = self.get_all_books()
         return [book for book in books if book.status.value == status]
 
-    def get_books_by_priority(self, priority: str) -> List[Book]:
-        """Получает книги по приоритету."""
-        books = self.get_all_books()
-        return [book for book in books if book.priority.value == priority]
-
     def get_books_by_user_id(self, user_id: str) -> List[Book]:
         """Получает книги по ID пользователя."""
         books = self.get_all_books()

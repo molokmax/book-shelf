@@ -67,8 +67,7 @@ async def handle_add_book_pages(update: Update, context: ContextTypes.DEFAULT_TY
         author=context.user_data["book_author"],
         tags=context.user_data["book_tags"],
         pages=pages,
-        user_id=user_id,
-        priority="medium"
+        user_id=user_id
     )
 
     # Очищаем состояние

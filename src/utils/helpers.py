@@ -18,26 +18,15 @@ def sanitize_text(text: str) -> str:
 
     return text.strip()
 
-def format_book_info(book) -> str:
+def format_book_info(index, book) -> str:
     """Форматирует информацию о книге для отображения."""
-    status_emoji = {
-        "want_to_read": "📖",
-        "reading": "📚",
-        "read": "📕",
-        "postponed": "⏸️"
-    }.get(book.status, "📘")
-
-    priority_emoji = {
-        "high": "🔴",
-        "medium": "🟡",
-        "low": "🟢"
-    }.get(book.priority, "⚪")
+    status_emoji = get_status_emoji(book.status)
 
     tags_text = ", ".join(book.tags) if book.tags else "Нет тегов"
 
     progress_percent = round((book.current_page / book.pages * 100)) if book.pages > 0 else 0
     return (
-        f"{status_emoji} {priority_emoji} **{book.title}**\n"
+        f"{index}. {status_emoji} **{book.title}**\n"
         f"*Автор:* {book.author}\n"
         f"*Теги:* {tags_text}\n"
         f"*Страниц:* {book.pages}\n"
@@ -66,3 +55,34 @@ def get_or_create_user(update: Update) -> User:
         first_name=update.effective_user.first_name,
         last_name=update.effective_user.last_name
     )
+
+def get_status_emoji(status: str) -> str:
+    """Возвращает эмодзи для статуса книги."""
+    emoji_map = {
+        "want_to_read": "📖",
+        "reading": "📚",
+        "read": "📕",
+        "postponed": "⏸️"
+    }
+    return emoji_map.get(status, "📘")
+
+def get_status_name(status: str) -> str:
+    """Возвращает название статуса книги на русском языке."""
+    name_map = {
+        "want_to_read": "Хочу прочитать",
+        "reading": "Читаю",
+        "read": "Прочитал",
+        "postponed": "Отложил"
+    }
+    return name_map.get(status, "Неизвестный статус")
+
+def sort_books_by_status(books: list) -> list:
+    """Сортирует книги по статусам в порядке: читаю, хочу прочитать, отложено, прочитано."""
+    status_order = {
+        "reading": 0,
+        "want_to_read": 1,
+        "postponed": 2,
+        "read": 3
+    }
+
+    return sorted(books, key=lambda book: status_order.get(book.status, 999))

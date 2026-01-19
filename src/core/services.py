@@ -4,7 +4,7 @@ from utils import logger
 from typing import List, Dict, Optional
 from datetime import datetime
 
-from core.models import Book, User, ReadingStatus, Priority
+from core.models import Book, User, ReadingStatus
 from core.repository import BookRepository, UserRepository
 
 log = logger.setup_logger(__name__)
@@ -25,8 +25,7 @@ class BookService:
         pages: int,
         user_id: str,
         current_page: int = 0,
-        status: str = ReadingStatus.WANT_TO_READ.value,
-        priority: str = Priority.MEDIUM.value
+        status: str = ReadingStatus.WANT_TO_READ.value
     ) -> Book:
         """Создаёт новую книгу."""
         book = Book(
@@ -36,21 +35,15 @@ class BookService:
             pages=pages,
             user_id=user_id,
             current_page=current_page,
-            status=ReadingStatus(status),
-            priority=Priority(priority)
+            status=ReadingStatus(status)
         )
         return self.book_repo.add_book(book)
 
-    def get_all_books(self, user_id: Optional[str] = None, sort_by_priority: bool = True) -> List[Book]:
+    def get_all_books(self, user_id: Optional[str] = None) -> List[Book]:
         """Получает все книги. Если указан user_id, возвращает только книги этого пользователя.
         По умолчанию сортирует по приоритету (от высокого к низкому).
         Прочитанные книги всегда в конце списка."""
         books = self.book_repo.get_all_books() if user_id is None else self.book_repo.get_books_by_user_id(user_id)
-
-        if sort_by_priority:
-            # Сортировка по приоритету: high > medium > low
-            priority_order = {Priority.HIGH: 0, Priority.MEDIUM: 1, Priority.LOW: 2}
-            books.sort(key=lambda b: priority_order.get(b.priority, 2))
 
         # Прочитанные книги всегда в конце
         books.sort(key=lambda b: b.status == ReadingStatus.READ)
@@ -78,16 +71,6 @@ class BookService:
         if status == ReadingStatus.READ.value and book.current_page == book.pages:
             book.reading_end_date = datetime.now()
 
-        return self.book_repo.update_book(book)
-
-    def update_book_priority(self, book_id: str, priority: str) -> Book:
-        """Обновляет приоритет книги."""
-        book = self.book_repo.get_book_by_id(book_id)
-        if not book:
-            raise ValueError(f"Книга с ID {book_id} не найдена")
-
-        book.priority = Priority(priority)
-        book.updated_at = datetime.now()
         return self.book_repo.update_book(book)
 
     def update_book_progress(self, book_id: str, current_page: int) -> Book:

@@ -2,7 +2,7 @@
 
 from . import messages, callbacks
 from .commands import start, help
-from .book import add, list, progress, priority, stats, export, status
+from .book import add, list, progress, stats, export, status
 
 __all__ = [
     "messages",
@@ -12,7 +12,6 @@ __all__ = [
     "add",
     "list",
     "progress",
-    "priority",
     "stats",
     "export",
     "status"

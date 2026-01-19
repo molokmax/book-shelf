@@ -4,9 +4,8 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from utils import logger
-from bot.handlers.book import add, progress, priority, status, delete, edit
+from bot.handlers.book import progress, status, delete, edit
 from bot.keyboards import main as keyboards
-from core.services import BookService
 
 log = logger.setup_logger(__name__)
 
@@ -32,13 +31,13 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             reply_markup=keyboards.main_menu()
         )
 
+    elif data[0] == "select_status":
+        # Выбор статуса книги
+        await status.handle_status_callback(update, context)
+
     elif data[0] == "change_status":
         # Изменение статуса книги
         await status.handle_status_callback(update, context)
-
-    elif data[0] == "change_priority":
-        # Изменение приоритета книги
-        await priority.handle_priority_callback(update, context)
 
     elif data[0] == "update_progress":
         # Обновление прогресса чтения

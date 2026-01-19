@@ -4,6 +4,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 
 from utils import logger
+from utils import helpers
 from utils.helpers import get_or_create_user
 from core.services import BookService
 from bot.keyboards import main as keyboards
@@ -16,6 +17,7 @@ async def edit_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
     book_service = BookService()
     books = book_service.get_all_books(user.id)
+    books = helpers.sort_books_by_status(books)
 
     if not books:
         await update.message.reply_text(
@@ -54,20 +56,11 @@ async def handle_edit_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         context.user_data["selected_book_id"] = book_id
 
         # Создаём клавиатуру с действиями
-        keyboard = [
-            [
-                InlineKeyboardButton("📊 Обновить прогресс", callback_data=f"update_progress:{book_id}:0"),
-                InlineKeyboardButton("🎯 Изменить приоритет", callback_data=f"change_priority:{book_id}:high")
-            ],
-            [
-                InlineKeyboardButton("📋 Изменить статус", callback_data=f"change_status:{book_id}:want_to_read"),
-                InlineKeyboardButton("🗑️ Удалить", callback_data=f"delete_book:{book_id}")
-            ]
-        ]
+        keyboard = keyboards.book_actions_keyboard(book_id)
 
         await query.edit_message_text(
             "Выберите действие для книги:",
-            reply_markup=InlineKeyboardMarkup(keyboard)
+            reply_markup=keyboard
         )
 
         context.user_data["edit_state"] = "selecting_action"

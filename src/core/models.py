@@ -13,12 +13,6 @@ class ReadingStatus(str, Enum):
     READ = "read"
     POSTPONED = "postponed"
 
-class Priority(str, Enum):
-    """Приоритеты книги."""
-    HIGH = "high"
-    MEDIUM = "medium"
-    LOW = "low"
-
 @dataclass
 class Book:
     """Модель книги."""
@@ -29,7 +23,6 @@ class Book:
     pages: int = 0
     current_page: int = 0
     status: ReadingStatus = ReadingStatus.WANT_TO_READ
-    priority: Priority = Priority.MEDIUM
     created_at: datetime = field(default_factory=datetime.now)
     updated_at: datetime = field(default_factory=datetime.now)
     cover_image: Optional[str] = None
@@ -53,7 +46,6 @@ class Book:
             "pages": self.pages,
             "current_page": self.current_page,
             "status": self.status.value,
-            "priority": self.priority.value,
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
             "cover_image": self.cover_image,
@@ -74,7 +66,6 @@ class Book:
             pages=data.get("pages", 0),
             current_page=data.get("current_page", data.get("progress", 0)),  # Поддержка миграции
             status=ReadingStatus(data.get("status", ReadingStatus.WANT_TO_READ.value)),
-            priority=Priority(data.get("priority", Priority.MEDIUM.value)),
             created_at=datetime.fromisoformat(data.get("created_at", datetime.now().isoformat())),
             updated_at=datetime.fromisoformat(data.get("updated_at", datetime.now().isoformat())),
             cover_image=data.get("cover_image"),

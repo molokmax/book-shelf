@@ -14,6 +14,7 @@ async def list_books_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     book_service = BookService()
     books = book_service.get_all_books(user.id)
+    books = helpers.sort_books_by_status(books)
 
     if not books:
         await update.message.reply_text("Ваша библиотека пуста. Добавьте первую книгу с помощью /add")
@@ -21,27 +22,6 @@ async def list_books_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     response = "📚 Ваша библиотека:\n\n"
     for i, book in enumerate(books, 1):
-        status_emoji = {
-            "want_to_read": "📖",
-            "reading": "📚",
-            "read": "📕",
-            "postponed": "⏸️"
-        }.get(book.status, "📘")
-
-        priority_emoji = {
-            "high": "🔴",
-            "medium": "🟡",
-            "low": "🟢"
-        }.get(book.priority, "⚪")
-
-        tags_text = ", ".join(book.tags) if book.tags else "Нет тегов"
-        progress_percent = round((book.current_page / book.pages * 100)) if book.pages > 0 else 0
-        response += (
-            f"{i}. {status_emoji} {priority_emoji} **{book.title}**\n"
-            f"   *Автор:* {book.author}\n"
-            f"   *Теги:* {tags_text}\n"
-            f"   *Страниц:* {book.pages}\n"
-            f"   *Прогресс:* {book.current_page}/{book.pages} ({progress_percent}%)\n\n"
-        )
+        response += helpers.format_book_info(i, book) + "\n"
 
     await update.message.reply_text(response, parse_mode="Markdown")

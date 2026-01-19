@@ -4,7 +4,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from utils import logger
-from bot.handlers.book import add, progress, priority
+from bot.handlers.book import add, progress
 from bot.keyboards import main as keyboards
 
 log = logger.setup_logger(__name__)
@@ -28,14 +28,6 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
     if state == "waiting_for_pages":
         await add.handle_add_book_pages(update, context)
-        return
-
-    if state == "waiting_for_priority_change":
-        await priority.handle_priority_book_selection(update, context)
-        return
-
-    if state == "waiting_for_new_priority":
-        # Новый приоритет выбирается через callback
         return
 
     if state == "waiting_for_progress_input":
