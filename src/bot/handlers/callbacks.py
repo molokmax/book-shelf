@@ -4,7 +4,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from utils import logger
-from bot.handlers.book import progress, status, delete, edit
+from bot.handlers.book import progress, status, delete, edit, add
 from bot.keyboards import main as keyboards
 
 log = logger.setup_logger(__name__)
@@ -22,9 +22,9 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     if data[0] == "cancel":
         # Отмена текущей операции
         context.user_data.clear()
-        
+
         await query.edit_message_text(
-            f"Операция отменена"
+            "Операция отменена"
         )
         await query.message.reply_text(
             "Что вы хотите сделать дальше?",
@@ -50,3 +50,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     elif data[0] == "select_book_for_edit":
         # Редактирование книги
         await edit.handle_edit_callback(update, context)
+
+    elif data[0] == "add_method":
+        # Выбор метода добавления книги
+        await add.handle_add_method_callback(update, context)

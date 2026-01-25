@@ -6,6 +6,7 @@ from telegram.ext import ContextTypes
 from utils import logger, helpers
 from core.services import BookService
 from bot.keyboards import main as keyboards
+from bot.keyboards.add_method import add_method_selection
 
 log = logger.setup_logger(__name__)
 
@@ -15,11 +16,11 @@ async def add_book_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
     await update.message.reply_text(
         "📖 Добавление новой книги\n\n"
-        "Пожалуйста, введите название книги:",
-        reply_markup=keyboards.cancel_keyboard()
+        "Пожалуйста, выберите способ добавления книги:",
+        reply_markup=add_method_selection()
     )
-    # Сохраняем состояние для следующих шагов
-    context.user_data["state"] = "waiting_for_title"
+    # Сохраняем состояние для выбора метода
+    context.user_data["state"] = "selecting_add_method"
     context.user_data["user_id"] = user.id
 
 async def handle_add_book_title(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -80,3 +81,23 @@ async def handle_add_book_pages(update: Update, context: ContextTypes.DEFAULT_TY
         "/add - Добавить ещё одну книгу",
         reply_markup=keyboards.main_menu()
     )
+
+async def handle_add_method_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обработчик выбора метода добавления книги."""
+    query = update.callback_query
+    data = query.data.split(":")
+
+    if len(data) < 2:
+        return
+
+    method = data[1]
+
+    if method == "manual":
+        # Ручное добавление книги
+        await query.edit_message_text(
+            "📖 Добавление новой книги\n\n"
+            "Пожалуйста, введите название книги:",
+            reply_markup=keyboards.cancel_keyboard()
+        )
+        # Сохраняем состояние для следующих шагов
+        context.user_data["state"] = "waiting_for_title"

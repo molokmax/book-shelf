@@ -16,7 +16,8 @@ from bot.handlers.book.add import (
     handle_add_book_title,
     handle_add_book_author,
     handle_add_book_tags,
-    handle_add_book_pages
+    handle_add_book_pages,
+    handle_add_method_callback
 )
 
 @pytest.fixture
@@ -137,12 +138,12 @@ def test_add_book_command_initializes_state(mock_update, mock_context):
         import asyncio
         asyncio.run(run_test())
 
-        assert mock_context.user_data["state"] == "waiting_for_title"
+        assert mock_context.user_data["state"] == "selecting_add_method"
         assert mock_context.user_data["user_id"] == "user1"
         mock_update.message.reply_text.assert_called_once()
         call_args = mock_update.message.reply_text.call_args
         assert "📖 Добавление новой книги" in call_args[0][0]
-        assert "Пожалуйста, введите название книги:" in call_args[0][0]
+        assert "Пожалуйста, выберите способ добавления книги:" in call_args[0][0]
 
 def test_handle_add_book_title(mock_update, mock_context):
     """Тестирует обработчик названия книги."""
@@ -295,8 +296,40 @@ def test_handle_add_book_pages_zero(mock_update, mock_context):
     except ValueError:
         pass
 
+def test_add_method_callback_manual(mock_update, mock_context):
+    """Тестирует обработчик выбора метода добавления (ручной ввод)."""
+    from telegram import CallbackQuery
+
+    # Создаём моковый callback query
+    mock_query = Mock(spec=CallbackQuery)
+    mock_query.data = "add_method:manual"
+    mock_query.message = mock_update.message
+    # Мокаем async метод edit_message_text
+    async def mock_edit_message_text(*args, **kwargs):
+        return None
+    mock_query.edit_message_text = Mock(side_effect=mock_edit_message_text)
+
+    mock_update.callback_query = mock_query
+
+    mock_context.user_data["state"] = "selecting_add_method"
+    mock_context.user_data["user_id"] = "user1"
+
+    async def run_test():
+        await handle_add_method_callback(mock_update, mock_context)
+
+    import asyncio
+    asyncio.run(run_test())
+
+    assert mock_context.user_data["state"] == "waiting_for_title"
+    mock_query.edit_message_text.assert_called_once()
+    call_args = mock_query.edit_message_text.call_args
+    assert "📖 Добавление новой книги" in call_args[0][0]
+    assert "Пожалуйста, введите название книги:" in call_args[0][0]
+
 def test_book_creation_integration(mock_update, mock_context):
     """Тестирует полный цикл создания книги."""
+    from telegram import CallbackQuery
+
     with patch('utils.helpers.get_or_create_user') as mock_get_user:
         with patch('bot.handlers.book.add.BookService') as mock_service_class:
             mock_get_user.return_value = User(id="user1", telegram_id=12345)
@@ -312,9 +345,22 @@ def test_book_creation_integration(mock_update, mock_context):
                 user_id="user1"
             )
 
+            # Создаём моковый callback query для выбора метода
+            mock_query = Mock(spec=CallbackQuery)
+            mock_query.data = "add_method:manual"
+            mock_query.message = mock_update.message
+            # Мокаем async метод edit_message_text
+            async def mock_edit_message_text(*args, **kwargs):
+                return None
+            mock_query.edit_message_text = Mock(side_effect=mock_edit_message_text)
+            mock_update.callback_query = mock_query
+
             # Шаг 1: Команда /add
             async def run_add_command():
                 await add_book_command(mock_update, mock_context)
+
+            async def run_method_callback():
+                await handle_add_method_callback(mock_update, mock_context)
 
             async def run_title():
                 await handle_add_book_title(mock_update, mock_context)
@@ -330,6 +376,7 @@ def test_book_creation_integration(mock_update, mock_context):
 
             import asyncio
             asyncio.run(run_add_command())
+            asyncio.run(run_method_callback())
 
             mock_update.message.text = "Интеграционная книга"
             asyncio.run(run_title())
