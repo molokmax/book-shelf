@@ -5,15 +5,8 @@ from telegram import ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMa
 def main_menu() -> ReplyKeyboardMarkup:
     """Главное меню с кнопками."""
     keyboard = [
-        [
-            InlineKeyboardButton("/add 📖"),
-            InlineKeyboardButton("/list 📚"),
-            InlineKeyboardButton("/edit ✏️")
-        ],
-        [
-            InlineKeyboardButton("/stats 📊"),
-            InlineKeyboardButton("/help ❓")
-        ]
+        ["/add 📖", "/list 📚", "/edit ✏️"],
+        ["/stats 📊", "/help ❓"]
     ]
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
@@ -60,3 +53,13 @@ def confirm_keyboard(callback_data: str) -> ReplyKeyboardMarkup:
         ]
     ]
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
+
+def confirm_add_keyboard() -> InlineKeyboardMarkup:
+    """Инлайн-клавиатура для подтверждения добавления книги."""
+    keyboard = [
+        [
+            InlineKeyboardButton("✅ Подтвердить", callback_data="confirm_add:confirm"),
+            InlineKeyboardButton("❌ Отмена", callback_data="confirm_add:cancel")
+        ]
+    ]
+    return InlineKeyboardMarkup(keyboard)

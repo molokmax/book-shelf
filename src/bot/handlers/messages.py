@@ -30,6 +30,14 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         await add.handle_add_book_pages(update, context)
         return
 
+    if state == "waiting_for_litres_url":
+        await add.handle_add_book_from_litres(update, context)
+        return
+
+    if state == "waiting_for_litres_tags":
+        await add.handle_litres_book_tags(update, context)
+        return
+
     if state == "waiting_for_progress_input":
         await progress.handle_progress_input(update, context)
         return

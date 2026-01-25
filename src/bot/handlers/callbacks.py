@@ -54,3 +54,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     elif data[0] == "add_method":
         # Выбор метода добавления книги
         await add.handle_add_method_callback(update, context)
+
+    elif data[0] == "confirm_add":
+        # Подтверждение добавления книги из Литрес
+        await add.handle_confirm_litres_book(update, context)

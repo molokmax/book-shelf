@@ -1,4 +1,4 @@
-"""Тесты для функциональности добавления книг."""
+"""Тесты для функциональности добавления книг.""" 
 import pytest
 from unittest.mock import Mock, patch, MagicMock
 from telegram import Update, User as TelegramUser, Message
@@ -17,7 +17,10 @@ from bot.handlers.book.add import (
     handle_add_book_author,
     handle_add_book_tags,
     handle_add_book_pages,
-    handle_add_method_callback
+    handle_add_method_callback,
+    handle_add_book_from_litres,
+    handle_confirm_litres_book,
+    handle_litres_book_tags
 )
 
 @pytest.fixture
@@ -321,10 +324,14 @@ def test_add_method_callback_manual(mock_update, mock_context):
     asyncio.run(run_test())
 
     assert mock_context.user_data["state"] == "waiting_for_title"
+    # Проверяем оба вызова: edit_message_text и reply_text
     mock_query.edit_message_text.assert_called_once()
-    call_args = mock_query.edit_message_text.call_args
-    assert "📖 Добавление новой книги" in call_args[0][0]
-    assert "Пожалуйста, введите название книги:" in call_args[0][0]
+    edit_call_args = mock_query.edit_message_text.call_args
+    assert "📖 Добавление новой книги" in edit_call_args[0][0]
+
+    mock_query.message.reply_text.assert_called_once()
+    reply_call_args = mock_query.message.reply_text.call_args
+    assert "Пожалуйста, введите название книги:" in reply_call_args[0][0]
 
 def test_book_creation_integration(mock_update, mock_context):
     """Тестирует полный цикл создания книги."""
@@ -398,3 +405,222 @@ def test_book_creation_integration(mock_update, mock_context):
                 user_id="user1"
             )
             assert mock_context.user_data == {}
+
+def test_add_method_callback_litres(mock_update, mock_context):
+    """Тестирует обработчик выбора метода добавления (Литрес)."""
+    from telegram import CallbackQuery
+
+    # Создаём моковый callback query
+    mock_query = Mock(spec=CallbackQuery)
+    mock_query.data = "add_method:litres"
+    mock_query.message = mock_update.message
+    # Мокаем async метод edit_message_text
+    async def mock_edit_message_text(*args, **kwargs):
+        return None
+    mock_query.edit_message_text = Mock(side_effect=mock_edit_message_text)
+    # Мокаем async метод answer
+    async def mock_answer(*args, **kwargs):
+        return None
+    mock_query.answer = Mock(side_effect=mock_answer)
+
+    mock_update.callback_query = mock_query
+
+    mock_context.user_data["state"] = "selecting_add_method"
+    mock_context.user_data["user_id"] = "user1"
+
+    async def run_test():
+        await handle_add_method_callback(mock_update, mock_context)
+
+    import asyncio
+    asyncio.run(run_test())
+
+    assert mock_context.user_data["state"] == "waiting_for_litres_url"
+    # Проверяем оба вызова: edit_message_text и reply_text
+    mock_query.edit_message_text.assert_called_once()
+    edit_call_args = mock_query.edit_message_text.call_args
+    assert "🔗 Добавление книги из Литрес" in edit_call_args[0][0]
+
+    mock_query.message.reply_text.assert_called_once()
+    reply_call_args = mock_query.message.reply_text.call_args
+    assert "Пожалуйста, введите ссылку на книгу с Литрес:" in reply_call_args[0][0]
+
+def test_handle_add_book_from_litres_success(mock_update, mock_context):
+    """Тестирует успешный обработчик ссылки на книгу из Литрес."""
+    from utils.litres_parser import parse_litres_book
+
+    mock_context.user_data["user_id"] = "user1"
+    mock_context.user_data["state"] = "waiting_for_litres_url"
+    mock_update.message.text = "https://www.litres.ru/book/test-123456789"
+
+    with patch('bot.handlers.book.add.parse_litres_book') as mock_parse:
+        mock_parse.return_value = {
+            'title': 'Тестовая книга',
+            'author': 'Тестовый автор',
+            'pages': 200,
+            'cover_image': 'https://example.com/cover.jpg',
+            'description': 'Описание тестовой книги'
+        }
+
+        async def run_test():
+            await handle_add_book_from_litres(mock_update, mock_context)
+
+        import asyncio
+        asyncio.run(run_test())
+
+        assert mock_context.user_data["book_title"] == "Тестовая книга"
+        assert mock_context.user_data["book_author"] == "Тестовый автор"
+        assert mock_context.user_data["book_pages"] == 200
+        assert mock_context.user_data["book_cover"] == "https://example.com/cover.jpg"
+        assert mock_context.user_data["state"] == "confirming_litres_book"
+        mock_update.message.reply_text.assert_called_once()
+        response = mock_update.message.reply_text.call_args[0][0]
+        assert "📖 Нашли книгу на Литрес!" in response
+        assert "Тестовая книга" in response
+        assert "Тестовый автор" in response
+        assert "200" in response
+
+def test_handle_add_book_from_litres_missing_required(mock_update, mock_context):
+    """Тестирует обработчик с отсутствующими обязательными параметрами."""
+    from utils.litres_parser import LitresParserError
+
+    mock_context.user_data["user_id"] = "user1"
+    mock_context.user_data["state"] = "waiting_for_litres_url"
+    mock_update.message.text = "https://www.litres.ru/book/test-123456789"
+
+    with patch('bot.handlers.book.add.parse_litres_book') as mock_parse:
+        mock_parse.side_effect = LitresParserError("Не удалось получить обязательные параметры книги")
+
+        async def run_test():
+            await handle_add_book_from_litres(mock_update, mock_context)
+
+        import asyncio
+        asyncio.run(run_test())
+
+        mock_update.message.reply_text.assert_called_once()
+        response = mock_update.message.reply_text.call_args[0][0]
+        assert "❌ Ошибка при получении информации о книге" in response
+        assert mock_context.user_data["state"] == "waiting_for_litres_url"
+
+def test_handle_add_book_from_litres_invalid_url(mock_update, mock_context):
+    """Тестирует обработчик с невалидной ссылкой."""
+    from utils.litres_parser import LitresParserError
+
+    mock_context.user_data["user_id"] = "user1"
+    mock_context.user_data["state"] = "waiting_for_litres_url"
+    mock_update.message.text = "https://www.ozon.ru/product/test"
+
+    with patch('bot.handlers.book.add.parse_litres_book') as mock_parse:
+        mock_parse.side_effect = LitresParserError("URL не является ссылкой на Литрес")
+
+        async def run_test():
+            await handle_add_book_from_litres(mock_update, mock_context)
+
+        import asyncio
+        asyncio.run(run_test())
+
+        mock_update.message.reply_text.assert_called_once()
+        response = mock_update.message.reply_text.call_args[0][0]
+        assert "❌ Ошибка при получении информации о книге" in response
+        assert "не является ссылкой на Литрес" in response
+
+def test_handle_confirm_litres_book_confirm(mock_update, mock_context):
+    """Тестирует подтверждение добавления книги из Литрес."""
+    from telegram import CallbackQuery
+
+    mock_context.user_data["user_id"] = "user1"
+    mock_context.user_data["book_title"] = "Тестовая книга"
+    mock_context.user_data["book_author"] = "Тестовый автор"
+    mock_context.user_data["book_pages"] = 200
+
+    # Создаём моковый callback query
+    mock_query = Mock(spec=CallbackQuery)
+    mock_query.data = "confirm_add:confirm"
+    mock_query.message = mock_update.message
+    # Мокаем async метод edit_message_text
+    async def mock_edit_message_text(*args, **kwargs):
+        return None
+    mock_query.edit_message_text = Mock(side_effect=mock_edit_message_text)
+
+    mock_update.callback_query = mock_query
+
+    async def run_test():
+        await handle_confirm_litres_book(mock_update, mock_context)
+
+    import asyncio
+    asyncio.run(run_test())
+
+    # После подтверждения должен быть запрос тегов
+    assert mock_context.user_data["state"] == "waiting_for_litres_tags"
+    mock_query.edit_message_text.assert_called_once()
+    response = mock_query.edit_message_text.call_args[0][0]
+    assert "введите теги книги" in response
+
+def test_handle_confirm_litres_book_cancel(mock_update, mock_context):
+    """Тестирует отмену добавления книги из Литрес."""
+    from telegram import CallbackQuery
+
+    mock_context.user_data["user_id"] = "user1"
+    mock_context.user_data["book_title"] = "Тестовая книга"
+    mock_context.user_data["book_author"] = "Тестовый автор"
+    mock_context.user_data["book_pages"] = 200
+
+    # Создаём моковый callback query
+    mock_query = Mock(spec=CallbackQuery)
+    mock_query.data = "confirm_add:cancel"
+    mock_query.message = mock_update.message
+    # Мокаем async метод edit_message_text
+    async def mock_edit_message_text(*args, **kwargs):
+        return None
+    mock_query.edit_message_text = Mock(side_effect=mock_edit_message_text)
+
+    mock_update.callback_query = mock_query
+
+    async def run_test():
+        await handle_confirm_litres_book(mock_update, mock_context)
+
+    import asyncio
+    asyncio.run(run_test())
+
+    assert mock_context.user_data == {}
+    mock_query.edit_message_text.assert_called_once()
+    response = mock_query.edit_message_text.call_args[0][0]
+    assert "❌ Добавление книги отменено" in response
+
+def test_handle_litres_book_tags(mock_update, mock_context):
+    """Тестирует обработчик тегов книги из Литрес."""
+    mock_context.user_data["user_id"] = "user1"
+    mock_context.user_data["state"] = "waiting_for_litres_tags"
+    mock_context.user_data["book_title"] = "Тестовая книга"
+    mock_context.user_data["book_author"] = "Тестовый автор"
+    mock_context.user_data["book_pages"] = 200
+    mock_update.message.text = "тест, litres, книга"
+
+    with patch('bot.handlers.book.add.BookService') as mock_service_class:
+        mock_service = MagicMock()
+        mock_service_class.return_value = mock_service
+        mock_service.create_book.return_value = Book(
+            id="new-book-id",
+            title="Тестовая книга",
+            author="Тестовый автор",
+            tags=["тест", "litres", "книга"],
+            pages=200,
+            user_id="user1"
+        )
+
+        async def run_test():
+            await handle_litres_book_tags(mock_update, mock_context)
+
+        import asyncio
+        asyncio.run(run_test())
+
+        mock_service.create_book.assert_called_once_with(
+            title="Тестовая книга",
+            author="Тестовый автор",
+            tags=["тест", "litres", "книга"],
+            pages=200,
+            user_id="user1"
+        )
+        assert mock_context.user_data == {}
+        mock_update.message.reply_text.assert_called_once()
+        response = mock_update.message.reply_text.call_args[0][0]
+        assert "Книга 'Тестовая книга' успешно добавлена" in response
