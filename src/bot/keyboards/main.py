@@ -39,6 +39,9 @@ def book_actions_keyboard(book_id: str) -> InlineKeyboardMarkup:
         ],
         [
             InlineKeyboardButton("📋 Изменить статус", callback_data=f"select_status:{book_id}"),
+            InlineKeyboardButton("🏷️ Изменить тэги", callback_data=f"edit_tags:{book_id}")
+        ],
+        [
             InlineKeyboardButton("🗑️ Удалить", callback_data=f"delete_book:{book_id}")
         ]
     ]
@@ -60,6 +63,15 @@ def confirm_add_keyboard() -> InlineKeyboardMarkup:
         [
             InlineKeyboardButton("✅ Подтвердить", callback_data="confirm_add:confirm"),
             InlineKeyboardButton("❌ Отмена", callback_data="confirm_add:cancel")
+        ]
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+def cancel_inline_keyboard() -> InlineKeyboardMarkup:
+    """Инлайн-клавиатура с кнопкой отмены."""
+    keyboard = [
+        [
+            InlineKeyboardButton("❌ Отмена", callback_data="cancel_operation")
         ]
     ]
     return InlineKeyboardMarkup(keyboard)

@@ -51,6 +51,10 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         # Редактирование книги
         await edit.handle_edit_callback(update, context)
 
+    elif data[0] == "edit_tags":
+        # Редактирование тэгов книги
+        await edit.handle_edit_callback(update, context)
+
     elif data[0] == "add_method":
         # Выбор метода добавления книги
         await add.handle_add_method_callback(update, context)
@@ -58,3 +62,14 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     elif data[0] == "confirm_add":
         # Подтверждение добавления книги из Литрес
         await add.handle_confirm_litres_book(update, context)
+
+    elif data[0] == "cancel_operation":
+        # Отмена текущей операции
+        context.user_data.clear()
+        await query.edit_message_text(
+            "Операция отменена"
+        )
+        await query.message.reply_text(
+            "Что вы хотите сделать дальше?",
+            reply_markup=keyboards.main_menu()
+        )

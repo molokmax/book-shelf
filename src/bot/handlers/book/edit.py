@@ -64,3 +64,64 @@ async def handle_edit_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         )
 
         context.user_data["edit_state"] = "selecting_action"
+
+    elif data[0] == "edit_tags":
+        # Пользователь выбрал изменение тэгов
+        book_id = data[1]
+        book_service = BookService()
+        book = book_service.get_book_by_id(book_id)
+
+        if not book:
+            await query.edit_message_text("Книга не найдена")
+            return
+
+        # Показываем текущие тэги
+        tags_text = ", ".join(book.tags) if book.tags else "Нет тэгов"
+        await query.edit_message_text(
+            f"Текущие тэги книги:\n{tags_text}\n\n"
+            f"Отправьте новые тэги через запятую (например: фантастика, наука, приключения).\n"
+            f"Или нажмите кнопку отмены ниже.",
+            reply_markup=keyboards.cancel_inline_keyboard()
+        )
+
+        # Сохраняем состояние
+        context.user_data["edit_state"] = "editing_tags"
+        context.user_data["selected_book_id"] = book_id
+
+async def handle_edit_tags_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обработчик сообщения с новыми тэгами для книги."""
+    if context.user_data.get("edit_state") != "editing_tags":
+        return
+
+    message_text = update.message.text.strip()
+
+    book_id = context.user_data.get("selected_book_id")
+    if not book_id:
+        await update.message.reply_text("Ошибка: книга не выбрана")
+        return
+
+    book_service = BookService()
+    book = book_service.get_book_by_id(book_id)
+
+    if not book:
+        await update.message.reply_text("Книга не найдена")
+        return
+
+    # Парсим тэги
+    tags = [tag.strip() for tag in message_text.split(",") if tag.strip()]
+
+    # Обновляем тэги
+    updated_book = book_service.update_book_tags(book_id, tags)
+
+    # Форматируем новые тэги для отображения
+    new_tags_text = ", ".join(updated_book.tags) if updated_book.tags else "Нет тэгов"
+
+    await update.message.reply_text(
+        f"Тэги книги успешно обновлены!\n\n"
+        f"Новые тэги: {new_tags_text}\n\n"
+        f"Что вы хотите сделать дальше?",
+        reply_markup=keyboards.main_menu()
+    )
+
+    # Сбрасываем состояние
+    context.user_data.clear()

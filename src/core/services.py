@@ -7,15 +7,18 @@ from datetime import datetime
 from core.models import Book, User, ReadingStatus
 from core.repository import BookRepository, UserRepository
 
+from core.db import get_db
+
 log = logger.setup_logger(__name__)
 
 class BookService:
     """Сервис для работы с книгами."""
 
-    def __init__(self) -> None:
+    def __init__(self, db_path: str = "data/database.db") -> None:
         """Инициализация сервиса."""
-        self.book_repo = BookRepository()
-        self.user_repo = UserRepository()
+        db = get_db(db_path)
+        self.book_repo = BookRepository(db)
+        self.user_repo = UserRepository(db)
 
     def create_book(
         self,
@@ -96,6 +99,17 @@ class BookService:
         """Удаляет книгу."""
         return self.book_repo.delete_book(book_id)
 
+    def update_book_tags(self, book_id: str, tags: list[str]) -> Book:
+        """Обновляет тэги книги."""
+        book = self.book_repo.get_book_by_id(book_id)
+        if not book:
+            raise ValueError(f"Книга с ID {book_id} не найдена")
+
+        book.tags = tags
+        book.updated_at = datetime.now()
+
+        return self.book_repo.update_book(book)
+
     def get_stats(self, user_id: Optional[str] = None) -> Dict:
         """Получает статистику чтения. Если указан user_id, возвращает статистику только для книг этого пользователя."""
         books = self.get_all_books(user_id)
@@ -133,9 +147,10 @@ class BookService:
 class UserService:
     """Сервис для работы с пользователями."""
 
-    def __init__(self) -> None:
+    def __init__(self, db_path: str = "data/database.db") -> None:
         """Инициализация сервиса."""
-        self.user_repo = UserRepository()
+        db = get_db(db_path)
+        self.user_repo = UserRepository(db)
 
     def get_or_create_user(self, telegram_id: int, **kwargs) -> User:
         """Получает пользователя или создаёт нового."""
