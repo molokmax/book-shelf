@@ -6,6 +6,7 @@ from utils.config import load_config
 import json
 
 from vk_bot.handlers.start import handle_start_command
+from vk_bot.handlers.help import handle_help_command
 
 class VkBookShelfBot:
 
@@ -33,6 +34,8 @@ class VkBookShelfBot:
 
                         if command == "/start" or command == "начать":
                             handle_start_command(self.api, event.user_id)
+                        elif command == "/help":
+                            handle_help_command(self.api, event.user_id)
 
             except Exception as e:
                 self.logger.error(f"Возникла ошибка при обработке сообщения: {e}")

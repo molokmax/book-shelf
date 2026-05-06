@@ -27,6 +27,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **src/vk_bot/** – Vk bot layer:
   - `bot.py` contains `VkBookShelfBot`, which uses `vk_api`, loads configuration, and runs handlers.
   - `handlers/` are split by use cases. Each file in this folder is responsible for some command (`start`, `add`, `edit`, `list`).
+  - `keyboards.py` – Shared keyboard layouts used by the several commands. Specific keyboards should be in command handler file.
 - **src/core/** – Core application logic, independent of Telegram:
   - `models.py` – Pydantic data models for books and related entities.
   - `database.py` – Simple JSON‑file based persistence (loads/saves `data/books.json`).
