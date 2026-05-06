@@ -79,7 +79,7 @@ class Book:
 class User:
     """Модель пользователя."""
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
-    telegram_id: int = 0
+    external_id: int = 0
     username: Optional[str] = None
     first_name: Optional[str] = None
     last_name: Optional[str] = None
@@ -90,7 +90,7 @@ class User:
         """Конвертирует пользователя в словарь для сохранения."""
         return {
             "id": self.id,
-            "telegram_id": self.telegram_id,
+            "external_id": self.external_id,
             "username": self.username,
             "first_name": self.first_name,
             "last_name": self.last_name,
@@ -103,7 +103,7 @@ class User:
         """Создаёт пользователя из словаря."""
         return cls(
             id=data.get("id", str(uuid.uuid4())),
-            telegram_id=data.get("telegram_id", 0),
+            external_id=data.get("external_id", 0),
             username=data.get("username"),
             first_name=data.get("first_name"),
             last_name=data.get("last_name"),

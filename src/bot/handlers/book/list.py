@@ -3,7 +3,8 @@
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from utils import helpers, tg_helpers, logger
+from bot import tg_helpers
+from utils import helpers, logger
 from core.services import BookService
 
 log = logger.setup_logger(__name__)

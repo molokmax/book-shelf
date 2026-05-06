@@ -23,11 +23,11 @@ def format_book_info(index, book) -> str:
 
     progress_percent = round((book.current_page / book.pages * 100)) if book.pages > 0 else 0
     return (
-        f"{index}. {status_emoji} **{book.title}**\n"
-        f"*Автор:* {book.author}\n"
-        f"*Теги:* {tags_text}\n"
-        f"*Страниц:* {book.pages}\n"
-        f"*Прогресс:* {book.current_page}/{book.pages} ({progress_percent}%)\n"
+        f"{index}. {status_emoji} {book.title}\n"
+        f"Автор: {book.author}\n"
+        f"Теги: {tags_text}\n"
+        f"Страниц: {book.pages}\n"
+        f"Прогресс: {book.current_page}/{book.pages} ({progress_percent}%)\n"
     )
 
 def validate_book_data(title: str, author: str, pages: int) -> bool:
@@ -46,12 +46,12 @@ def validate_book_data(title: str, author: str, pages: int) -> bool:
 def get_status_emoji(status: str) -> str:
     """Возвращает эмодзи для статуса книги."""
     emoji_map = {
-        "want_to_read": "📖",
-        "reading": "📚",
-        "read": "📕",
-        "postponed": "⏸️"
+        "want_to_read": "📄",
+        "reading": "📖",
+        "read": "📗",
+        "postponed": "📘"
     }
-    return emoji_map.get(status, "📘")
+    return emoji_map.get(status, "📙")
 
 def get_status_name(status: str) -> str:
     """Возвращает название статуса книги на русском языке."""

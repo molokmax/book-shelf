@@ -133,7 +133,7 @@ def test_create_book_with_custom_page():
 def test_add_book_command_initializes_state(mock_update, mock_context):
     """Тестирует инициализацию состояния при команде /add."""
     with patch('utils.tg_helpers.get_or_create_user') as mock_get_user:
-        mock_get_user.return_value = User(id="user1", telegram_id=12345)
+        mock_get_user.return_value = User(id="user1", external_id=12345)
 
         async def run_test():
             await add_book_command(mock_update, mock_context)
@@ -339,7 +339,7 @@ def test_book_creation_integration(mock_update, mock_context):
 
     with patch('utils.tg_helpers.get_or_create_user') as mock_get_user:
         with patch('bot.handlers.book.add.BookService') as mock_service_class:
-            mock_get_user.return_value = User(id="user1", telegram_id=12345)
+            mock_get_user.return_value = User(id="user1", external_id=12345)
 
             mock_service = MagicMock()
             mock_service_class.return_value = mock_service

@@ -3,7 +3,8 @@
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from utils import logger, tg_helpers
+from bot import tg_helpers
+from utils import logger
 from utils.litres_parser import parse_litres_book, is_litres_url, LitresParserError
 from core.services import BookService
 from bot.keyboards import main as keyboards

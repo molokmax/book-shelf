@@ -1,7 +1,7 @@
 """Сервисный слой для работы с книгами."""
 
 from utils import logger
-from typing import List, Dict, Optional
+from typing import Callable, List, Dict, Optional
 from datetime import datetime
 
 from core.models import Book, User, ReadingStatus
@@ -152,17 +152,12 @@ class UserService:
         db = get_db(db_path)
         self.user_repo = UserRepository(db)
 
-    def get_or_create_user(self, telegram_id: int, **kwargs) -> User:
+    def get_or_create_user(self, user_external_id: int, user_factory: Callable[[int], User]) -> User:
         """Получает пользователя или создаёт нового."""
-        user = self.user_repo.get_user_by_telegram_id(telegram_id)
+        user = self.user_repo.get_user_by_external_id(user_external_id)
 
         if not user:
-            user = User(
-                telegram_id=telegram_id,
-                username=kwargs.get("username"),
-                first_name=kwargs.get("first_name"),
-                last_name=kwargs.get("last_name")
-            )
+            user = user_factory(user_external_id)
             user = self.user_repo.add_user(user)
 
         # Обновляем последнюю активность

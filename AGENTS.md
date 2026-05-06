@@ -1,1 +1,0 @@
-Информация о структуре проекта - [project_structure](./docs/project_structure.md)

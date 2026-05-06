@@ -1,5 +1,5 @@
 from vk_api.vk_api import VkApiMethod
-from keyboards import start_keyboard
+from vk_bot.keyboards import start_keyboard
 
 def handle_start_command(vk: VkApiMethod, user_id):
     """Generate greeting text for the /start command."""

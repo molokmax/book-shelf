@@ -31,7 +31,7 @@ class Database:
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS users (
             id TEXT PRIMARY KEY,
-            telegram_id INTEGER UNIQUE NOT NULL,
+            external_id INTEGER UNIQUE NOT NULL,
             username TEXT,
             first_name TEXT,
             last_name TEXT,
@@ -95,11 +95,11 @@ class Database:
         with self.get_cursor() as cursor:
             cursor.execute("""
             INSERT OR REPLACE INTO users
-            (id, telegram_id, username, first_name, last_name, created_at, last_active)
+            (id, external_id, username, first_name, last_name, created_at, last_active)
             VALUES (?, ?, ?, ?, ?, ?, ?)
             """, (
                 user.id,
-                user.telegram_id,
+                user.external_id,
                 user.username,
                 user.first_name,
                 user.last_name,
@@ -113,7 +113,7 @@ class Database:
             if row:
                 return User.from_dict({
                     "id": row[0],
-                    "telegram_id": row[1],
+                    "external_id": row[1],
                     "username": row[2],
                     "first_name": row[3],
                     "last_name": row[4],
@@ -132,7 +132,7 @@ class Database:
             if row:
                 return User.from_dict({
                     "id": row[0],
-                    "telegram_id": row[1],
+                    "external_id": row[1],
                     "username": row[2],
                     "first_name": row[3],
                     "last_name": row[4],
@@ -141,17 +141,17 @@ class Database:
                 })
             return None
 
-    def get_user_by_telegram_id(self, telegram_id: int) -> Optional["User"]:
+    def get_user_by_external_id(self, external_id: int) -> Optional["User"]:
         """Получает пользователя по Telegram ID."""
 
         with self.get_cursor() as cursor:
-            cursor.execute("SELECT * FROM users WHERE telegram_id = ?", (telegram_id,))
+            cursor.execute("SELECT * FROM users WHERE external_id = ?", (external_id,))
             row = cursor.fetchone()
 
             if row:
                 return User.from_dict({
                     "id": row[0],
-                    "telegram_id": row[1],
+                    "external_id": row[1],
                     "username": row[2],
                     "first_name": row[3],
                     "last_name": row[4],
@@ -335,7 +335,7 @@ class Database:
             return [
                 User.from_dict({
                     "id": row[0],
-                    "telegram_id": row[1],
+                    "external_id": row[1],
                     "username": row[2],
                     "first_name": row[3],
                     "last_name": row[4],

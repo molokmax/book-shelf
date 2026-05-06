@@ -126,7 +126,7 @@ def test_list_books_command_empty_library(mock_update, mock_context):
     with patch('core.services.BookService.get_all_books') as mock_get_books:
         with patch('utils.tg_helpers.get_or_create_user') as mock_get_user:
             with patch('utils.helpers.sort_books_by_status') as mock_sort:
-                mock_get_user.return_value = User(id="user1", telegram_id=12345)
+                mock_get_user.return_value = User(id="user1", external_id=12345)
                 mock_get_books.return_value = []
                 mock_sort.return_value = []
 
@@ -148,7 +148,7 @@ def test_list_books_command_with_books(mock_update, mock_context, sample_books):
         with patch('utils.tg_helpers.get_or_create_user') as mock_get_user:
             with patch('utils.helpers.sort_books_by_status') as mock_sort:
                 with patch('utils.helpers.format_book_info') as mock_format:
-                    mock_get_user.return_value = User(id="user1", telegram_id=12345)
+                    mock_get_user.return_value = User(id="user1", external_id=12345)
                     mock_get_books.return_value = user_books
                     mock_sort.return_value = user_books
                     mock_format.side_effect = lambda idx, book: f"Book {idx}: {book.title}"
@@ -265,7 +265,7 @@ def test_list_books_command_integration(mock_update, mock_context):
     with patch('core.services.BookService.get_all_books') as mock_get_books:
         with patch('utils.helpers.get_or_create_user') as mock_get_user:
             with patch('utils.helpers.sort_books_by_status') as mock_sort:
-                mock_get_user.return_value = User(id="user1", telegram_id=12345)
+                mock_get_user.return_value = User(id="user1", external_id=12345)
                 mock_get_books.return_value = test_books
                 mock_sort.return_value = test_books
 

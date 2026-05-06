@@ -54,9 +54,9 @@ class UserRepository:
         """Инициализация репозитория."""
         self.db = db if db is not None else Database(db_path)
 
-    def get_user_by_telegram_id(self, telegram_id: int) -> Optional[User]:
+    def get_user_by_external_id(self, external_id: int) -> Optional[User]:
         """Получает пользователя по Telegram ID."""
-        return self.db.get_user_by_telegram_id(telegram_id)
+        return self.db.get_user_by_external_id(external_id)
 
     def add_user(self, user: User) -> User:
         """Добавляет нового пользователя."""

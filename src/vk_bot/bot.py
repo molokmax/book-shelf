@@ -7,6 +7,7 @@ import json
 
 from vk_bot.handlers.start import handle_start_command
 from vk_bot.handlers.help import handle_help_command
+from vk_bot.handlers.list import handle_list_command
 
 class VkBookShelfBot:
 
@@ -15,7 +16,7 @@ class VkBookShelfBot:
         self.logger = logger.setup_logger(__name__)
         self.config = load_config()
 
-    def setup(self):
+    def create_longpoll(self):
         self.logger.info("Инициализация бота...")
         token = self.config.vk_bot_token
         vk = VkApi(token=token)
@@ -24,21 +25,25 @@ class VkBookShelfBot:
 
     def run(self) -> None:
         """Start the VK bot."""
-        longpoll = self.setup()        
+        longpoll = self.create_longpoll()        
         self.logger.info("Бот запущен и ожидает сообщений...")
         for event in longpoll.listen():
             try:
                 if event.type == VkEventType.MESSAGE_NEW:
                     if event.to_me:
                         command = self.get_command(event)
+                        self.logger.debug(f"Получили команду {command} от пользователя {event.user_id}")
 
                         if command == "/start" or command == "начать":
                             handle_start_command(self.api, event.user_id)
                         elif command == "/help":
                             handle_help_command(self.api, event.user_id)
+                        elif command == "/list":
+                            handle_list_command(self.api, event.user_id)
 
             except Exception as e:
                 self.logger.error(f"Возникла ошибка при обработке сообщения: {e}")
+                self.api.messages.send(user_id=event.user_id, message="Возникла ошибка при обработке сообщения", random_id=0)
 
     
     def get_command(self, event):
