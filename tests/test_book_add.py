@@ -132,7 +132,7 @@ def test_create_book_with_custom_page():
 
 def test_add_book_command_initializes_state(mock_update, mock_context):
     """Тестирует инициализацию состояния при команде /add."""
-    with patch('utils.helpers.get_or_create_user') as mock_get_user:
+    with patch('utils.tg_helpers.get_or_create_user') as mock_get_user:
         mock_get_user.return_value = User(id="user1", telegram_id=12345)
 
         async def run_test():
@@ -337,7 +337,7 @@ def test_book_creation_integration(mock_update, mock_context):
     """Тестирует полный цикл создания книги."""
     from telegram import CallbackQuery
 
-    with patch('utils.helpers.get_or_create_user') as mock_get_user:
+    with patch('utils.tg_helpers.get_or_create_user') as mock_get_user:
         with patch('bot.handlers.book.add.BookService') as mock_service_class:
             mock_get_user.return_value = User(id="user1", telegram_id=12345)
 

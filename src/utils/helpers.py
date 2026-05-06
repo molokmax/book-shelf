@@ -1,9 +1,6 @@
 """Вспомогательные функции для Book Shelf."""
 
 import re
-from telegram import Update
-from core.models import User
-from core.services import UserService
 
 def sanitize_text(text: str) -> str:
     """Очищает текст от нежелательных символов."""
@@ -45,16 +42,6 @@ def validate_book_data(title: str, author: str, pages: int) -> bool:
         return False
 
     return True
-
-def get_or_create_user(update: Update) -> User:
-    """Получает или создаёт пользователя в системе."""
-    user_service = UserService()
-    return user_service.get_or_create_user(
-        update.effective_user.id,
-        username=update.effective_user.username,
-        first_name=update.effective_user.first_name,
-        last_name=update.effective_user.last_name
-    )
 
 def get_status_emoji(status: str) -> str:
     """Возвращает эмодзи для статуса книги."""

@@ -3,16 +3,15 @@
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from utils import helpers, logger
-from core.services import BookService, UserService
-from bot.keyboards import main as keyboards
+from utils import tg_helpers, logger
+from core.services import BookService
 
 log = logger.setup_logger(__name__)
 
 async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработчик команды /stats."""
     # Получаем или создаём пользователя
-    user = helpers.get_or_create_user(update)
+    user = tg_helpers.get_or_create_user(update)
 
     book_service = BookService()
     stats_data = book_service.get_stats(user.id)

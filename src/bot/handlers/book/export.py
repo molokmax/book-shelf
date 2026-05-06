@@ -6,7 +6,7 @@ from datetime import datetime
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from utils import helpers, logger
+from utils import tg_helpers, logger
 from core.services import BookService
 from bot.keyboards import main as keyboards
 
@@ -14,7 +14,7 @@ log = logger.setup_logger(__name__)
 
 async def export_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработчик команды /export."""
-    user = helpers.get_or_create_user(update)
+    user = tg_helpers.get_or_create_user(update)
 
     book_service = BookService()
     books = book_service.get_all_books(user.id)
