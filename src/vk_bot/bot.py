@@ -6,10 +6,13 @@ from utils import logger
 from utils.config import load_config
 import json
 
+from vk_bot.states import active_states
 from vk_bot.handlers.start import handle_start_command
 from vk_bot.handlers.help import handle_help_command
 from vk_bot.handlers.list import handle_list_command
 from vk_bot.handlers.stats import handle_stats_command
+from vk_bot.handlers.add import handle_add_command
+from vk_bot.handlers.add import handle_add_command_step
 
 class VkBookShelfBot:
 
@@ -42,6 +45,8 @@ class VkBookShelfBot:
                 command = self.get_command(event)
                 self.logger.debug(f"Получили команду {command} от пользователя {event.user_id}")
 
+                # TODO: В какие моменты нужно сбратывать текущий стейт?
+                # TODO: реализовать механизм роутинга
                 if command == "/start" or command == "начать":
                     handle_start_command(self.api, event.user_id)
                 elif command == "/help":
@@ -50,6 +55,16 @@ class VkBookShelfBot:
                     handle_list_command(self.api, event.user_id)
                 elif command == "/stats":
                     handle_stats_command(self.api, event.user_id)
+                elif command == "/add":
+                    handle_add_command(self.api, event.user_id)
+                elif event.user_id in active_states:
+                    state_info = active_states[event.user_id]
+                    state_command = state_info["command"]
+                    if state_command == "/add":
+                        handle_add_command_step(event.user_id, self.api, event.text)
+                    else:
+                        # TODO: Обработать отсутствие обработчика команды
+                        pass
 
             except Exception as e:
                 self.logger.error(f"Возникла ошибка при обработке сообщения: {e}")

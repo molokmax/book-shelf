@@ -48,6 +48,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `docs/project_structure.md` – Detailed directory overview (mirrored above).
 - `requirements.txt` – Python dependencies, including `pydantic`, `pytest`, `flake8`, etc.
 
+## Implementation Tips
+- В сообщениях обращайся к пользователю на "ты"
+- Комментарии в коде пиши на русском языке
+
 ## Development Tips
 
 - Keep configuration values in a `.env` file (ignored by git) and load them with `python-dotenv`.

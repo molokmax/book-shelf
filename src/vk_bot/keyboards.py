@@ -9,3 +9,8 @@ def start_keyboard() -> VkKeyboard:
     kb.add_button('/stats')
     kb.add_button('/help')
     return kb
+
+def cancel_keyboard() -> VkKeyboard:
+    kb = VkKeyboard()
+    kb.add_button('Отмена', payload={'command': '/cancel'})
+    return kb
