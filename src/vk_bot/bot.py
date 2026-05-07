@@ -1,6 +1,7 @@
 from dotenv import load_dotenv
 from vk_api import VkApi
 from vk_api.longpoll import VkLongPoll, VkEventType
+from vk_api.utils import get_random_id
 from utils import logger
 from utils.config import load_config
 import json
@@ -30,23 +31,29 @@ class VkBookShelfBot:
         self.logger.info("Бот запущен и ожидает сообщений...")
         for event in longpoll.listen():
             try:
-                if event.type == VkEventType.MESSAGE_NEW:
-                    if event.to_me:
-                        command = self.get_command(event)
-                        self.logger.debug(f"Получили команду {command} от пользователя {event.user_id}")
+                if event.type != VkEventType.MESSAGE_NEW:
+                    continue
+                if not event.to_me:
+                    continue
+                if not event.user_id:
+                    self.logger.warning("Сообщение не будет обработано так как неизвестен идентификатор текущего пользователя")
+                    continue
 
-                        if command == "/start" or command == "начать":
-                            handle_start_command(self.api, event.user_id)
-                        elif command == "/help":
-                            handle_help_command(self.api, event.user_id)
-                        elif command == "/list":
-                            handle_list_command(self.api, event.user_id)
-                        elif command == "/stats":
-                            handle_stats_command(self.api, event.user_id)
+                command = self.get_command(event)
+                self.logger.debug(f"Получили команду {command} от пользователя {event.user_id}")
+
+                if command == "/start" or command == "начать":
+                    handle_start_command(self.api, event.user_id)
+                elif command == "/help":
+                    handle_help_command(self.api, event.user_id)
+                elif command == "/list":
+                    handle_list_command(self.api, event.user_id)
+                elif command == "/stats":
+                    handle_stats_command(self.api, event.user_id)
 
             except Exception as e:
                 self.logger.error(f"Возникла ошибка при обработке сообщения: {e}")
-                self.api.messages.send(user_id=event.user_id, message="Возникла ошибка при обработке сообщения", random_id=0)
+                self.api.messages.send(user_id=event.user_id, message="Возникла ошибка при обработке сообщения", random_id=get_random_id())
 
     
     def get_command(self, event):

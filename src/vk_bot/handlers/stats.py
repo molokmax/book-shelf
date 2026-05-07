@@ -1,6 +1,7 @@
 """Handler for the /stats command in the VK bot."""
 
 from vk_api.vk_api import VkApiMethod
+from vk_api.utils import get_random_id
 
 from core.services import BookService
 from vk_bot.user_helpers import get_or_create_user
@@ -33,4 +34,4 @@ def handle_stats_command(vk: VkApiMethod, user_id: int) -> None:
     )
 
     # Send the message via VK API.
-    vk.messages.send(user_id=user_id, message=stats_text, random_id=0)
+    vk.messages.send(user_id=user_id, message=stats_text, random_id=get_random_id())

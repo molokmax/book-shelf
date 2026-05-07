@@ -1,13 +1,14 @@
 """Handler for the /list command in the VK bot."""
 
 from vk_api.vk_api import VkApiMethod
+from vk_api.utils import get_random_id
 
 from core.services import BookService
 from utils import helpers
 from vk_bot.user_helpers import get_or_create_user
 
 
-def handle_list_command(vk: VkApiMethod, user_id) -> None:
+def handle_list_command(vk: VkApiMethod, user_id: int) -> None:
     """Send the list of books for the given VK ``user_id``."""
     # 1. Ensure we have a user entry in the system.
     user = get_or_create_user(vk, user_id)
@@ -27,4 +28,4 @@ def handle_list_command(vk: VkApiMethod, user_id) -> None:
         message = "".join(lines)
 
     # 4. Send the message via VK API.
-    vk.messages.send(user_id=user_id, message=message, random_id=0)
+    vk.messages.send(user_id=user_id, message=message, random_id=get_random_id())
