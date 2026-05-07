@@ -8,6 +8,7 @@ import json
 from vk_bot.handlers.start import handle_start_command
 from vk_bot.handlers.help import handle_help_command
 from vk_bot.handlers.list import handle_list_command
+from vk_bot.handlers.stats import handle_stats_command
 
 class VkBookShelfBot:
 
@@ -40,6 +41,8 @@ class VkBookShelfBot:
                             handle_help_command(self.api, event.user_id)
                         elif command == "/list":
                             handle_list_command(self.api, event.user_id)
+                        elif command == "/stats":
+                            handle_stats_command(self.api, event.user_id)
 
             except Exception as e:
                 self.logger.error(f"Возникла ошибка при обработке сообщения: {e}")
