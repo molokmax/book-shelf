@@ -14,5 +14,9 @@ def handle_start_command(vk: VkApiMethod, user_id: int):
         "/help - Помощь\n\n"
         "Начни с добавления первой книги!"
     )
-    keyboard = start_keyboard()
-    vk.messages.send(user_id=user_id, message=greeting, keyboard=keyboard.get_keyboard(), random_id=get_random_id())
+    vk.messages.send(
+        user_id=user_id,
+        message=greeting,
+        keyboard=start_keyboard().get_keyboard(),
+        random_id=get_random_id()
+    )

@@ -13,6 +13,7 @@ from vk_bot.handlers.list import handle_list_command
 from vk_bot.handlers.stats import handle_stats_command
 from vk_bot.handlers.add import handle_add_command
 from vk_bot.handlers.add import handle_add_command_step
+from vk_bot.handlers.cancel import handle_cancel_command
 
 class VkBookShelfBot:
 
@@ -47,7 +48,9 @@ class VkBookShelfBot:
 
                 # TODO: В какие моменты нужно сбратывать текущий стейт?
                 # TODO: реализовать механизм роутинга
-                if command == "/start" or command == "начать":
+                if command == "/cancel" or command == "отмена":
+                    handle_cancel_command(self.api, event.user_id)
+                elif command == "/start" or command == "начать":
                     handle_start_command(self.api, event.user_id)
                 elif command == "/help":
                     handle_help_command(self.api, event.user_id)

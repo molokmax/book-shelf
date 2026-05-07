@@ -5,6 +5,7 @@ from vk_api.utils import get_random_id
 
 from core.services import BookService
 from utils import helpers
+from vk_bot.keyboards import start_keyboard
 from vk_bot.user_helpers import get_or_create_user
 
 
@@ -20,12 +21,17 @@ def handle_list_command(vk: VkApiMethod, user_id: int) -> None:
 
     # 3. Build response text.
     if not books:
-        message = "Ваша библиотека пуста. Добавьте первую книгу с помощью /add"
+        message = "Твоя библиотека пуста. Добавь первую книгу с помощью /add"
     else:
-        lines = ["📚 Ваша библиотека:\n\n"]
+        lines = ["📚 Твоя библиотека:\n\n"]
         for i, book in enumerate(books, 1):
             lines.append(helpers.format_book_info(i, book) + "\n")
         message = "".join(lines)
 
     # 4. Send the message via VK API.
-    vk.messages.send(user_id=user_id, message=message, random_id=get_random_id())
+    vk.messages.send(
+        user_id=user_id,
+        message=message,
+        keyboard=start_keyboard().get_keyboard(),
+        random_id=get_random_id()
+    )

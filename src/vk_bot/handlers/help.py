@@ -25,5 +25,9 @@ def handle_help_command(vk: VkApiMethod, user_id: int):
         "🎯 Приоритеты\n"
         "Установите приоритет: Высокий, Средний, Низкий"
     )
-    keyboard = start_keyboard()
-    vk.messages.send(user_id=user_id, message=help_text, keyboard=keyboard.get_keyboard(), random_id=get_random_id())
+    vk.messages.send(
+        user_id=user_id,
+        message=help_text,
+        keyboard=start_keyboard().get_keyboard(),
+        random_id=get_random_id()
+    )

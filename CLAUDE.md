@@ -51,6 +51,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Implementation Tips
 - В сообщениях обращайся к пользователю на "ты"
 - Комментарии в коде пиши на русском языке
+- Все импорты добавляй вверху файла, а не в середине кода
 
 ## Development Tips
 
