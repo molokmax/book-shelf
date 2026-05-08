@@ -4,7 +4,7 @@ from vk_api.vk_api import VkApiMethod
 from vk_api.utils import get_random_id
 
 from core.services import BookService
-from vk_bot.keyboards import start_keyboard
+from vk_bot.keyboards import main_keyboard
 from vk_bot.user_helpers import get_or_create_user
 
 
@@ -38,6 +38,6 @@ def handle_stats_command(vk: VkApiMethod, user_id: int) -> None:
     vk.messages.send(
         user_id=user_id,
         message=stats_text,
-        keyboard=start_keyboard().get_keyboard(),
+        keyboard=main_keyboard().get_keyboard(),
         random_id=get_random_id()
     )

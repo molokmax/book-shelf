@@ -64,7 +64,7 @@ class VkBookShelfBot:
                     state_info = active_states[event.user_id]
                     state_command = state_info["command"]
                     if state_command == "/add":
-                        handle_add_command_step(event.user_id, self.api, event.text)
+                        handle_add_command_step(self.api, event.user_id, event.text)
                     else:
                         # TODO: Обработать отсутствие обработчика команды
                         pass

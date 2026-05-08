@@ -7,22 +7,24 @@ from vk_api.utils import get_random_id
 from core.services import BookService
 from vk_bot.user_helpers import get_or_create_user
 from vk_bot.states import active_states
-from vk_bot.keyboards import cancel_keyboard, start_keyboard
+from vk_bot.keyboards import cancel_keyboard, main_keyboard
+from utils.litres_parser import is_litres_url, parse_litres_book, LitresParserError
 
-# TODO: Везде добавить клавиатуру cancel + добавить обработку команды cancel
+# TODO: Везде добавить клавиатуру cancel
+# TODO: Разбить файл на функцию. Изучить как сделать через StateMachine
 
 def handle_add_command(vk: VkApiMethod, user_id: int) -> None:
-    """Entry point for the /add command. Starts a manual add flow."""
+    """Entry point for the /add command. Starts method selection flow."""
     # Initialise state for this user
-    active_states[user_id] = {"command": "/add", "state": "waiting_for_title", "data": {}}
+    active_states[user_id] = {"command": "/add", "state": "choose_method", "data": {}}
     vk.messages.send(
         user_id=user_id,
-        message="➕ Добавление новой книги\n\nПожалуйста, введи название книги:",
-        keyboard=cancel_keyboard().get_keyboard(),
+        message="➕ Добавление новой книги. Выбери способ добавления:",
+        keyboard=create_add_method_keyboard().get_keyboard(),
         random_id=get_random_id()
     )
 
-def handle_add_command_step(user_id: int, vk: VkApiMethod, text: str) -> None:
+def handle_add_command_step(vk: VkApiMethod, user_id: int, text: str) -> None:
     """Process a message from a user that is currently in the add flow."""
     if user_id not in active_states:
         # Not in add flow – ignore
@@ -31,6 +33,33 @@ def handle_add_command_step(user_id: int, vk: VkApiMethod, text: str) -> None:
     state_info = active_states[user_id]
     state = state_info["state"]
     data = state_info["data"]
+
+    # New state: choose method
+    if state == "choose_method":
+        if text == "Ручное":
+            state_info["state"] = "waiting_for_title"
+            vk.messages.send(
+                user_id=user_id,
+                message="Отлично! Теперь введи название книги:",
+                keyboard=cancel_keyboard().get_keyboard(),
+                random_id=get_random_id()
+            )
+        elif text == "Из LitRes":
+            state_info["state"] = "waiting_for_litres_url"
+            vk.messages.send(
+                user_id=user_id,
+                message="Пожалуйста, введи ссылку на книгу с LitRes:",
+                keyboard=cancel_keyboard().get_keyboard(),
+                random_id=get_random_id()
+            )
+        else:
+            vk.messages.send(
+                user_id=user_id,
+                message="Пожалуйста, выбери один из вариантов: Ручное или Из LitRes.",
+                keyboard=create_add_method_keyboard().get_keyboard(),
+                random_id=get_random_id()
+            )
+        return
 
     if state == "waiting_for_title":
         data["title"] = text.strip()
@@ -93,9 +122,101 @@ def handle_add_command_step(user_id: int, vk: VkApiMethod, text: str) -> None:
         )
         # Clear state
         del active_states[user_id]
+        message_text=(
+            f"✅ Книга '{book.title}' успешно добавлена в твою библиотеку!\n"
+            "\nТы можешь\n"
+            "/list - Показать список книг\n"
+            "/add - Добавить ещё одну книгу"
+        )
         vk.messages.send(
             user_id=user_id,
-            message=f"✅ Книга '{book.title}' успешно добавлена в твою библиотеку!\n\nТы можешь\n/list - Показать список книг\n/add - Добавить ещё одну книгу",
+            message=message_text,
+            keyboard=create_book_added_keyboard().get_keyboard(),
+            random_id=get_random_id()
+        )
+        return
+
+    # New state: waiting for LitRes URL
+    if state == "waiting_for_litres_url":
+        url = text.strip()
+        if not is_litres_url(url):
+            vk.messages.send(
+                user_id=user_id,
+                message="⚠️ Пожалуйста, введи корректную ссылку на LitRes.",
+                keyboard=cancel_keyboard().get_keyboard(),
+                random_id=get_random_id()
+            )
+            return
+        
+        try:
+            book_data = parse_litres_book(url)
+            # Validate essential fields
+            if not book_data.get('title') or not book_data.get('author') or not book_data.get('pages'):
+                raise LitresParserError('Недостаточно данных о книге')
+            
+            data.update({
+                'title': book_data['title'],
+                'author': book_data['author'],
+                'pages': book_data['pages'],
+                # optional cover/image could be stored if needed
+            })
+            # Ask user to confirm the parsed book data before proceeding
+            state_info["state"] = "waiting_for_litres_confirm"
+            vk.messages.send(
+                user_id=user_id,
+                message=(
+                    f"✅ Найдены данные книги:\n"
+                    f"\nНазвание: {book_data.get('title', '—')}\n"
+                    f"Автор: {book_data.get('author', '—')}\n"
+                    f"Страниц: {book_data.get('pages', '—')}\n"
+                    "\nПродолжить добавление?"
+                ),
+                keyboard=create_confirm_litres_keyboard().get_keyboard(),
+                random_id=get_random_id()
+            )
+        except LitresParserError as e:
+            vk.messages.send(
+                user_id=user_id,
+                message=f"❌ Не удалось получить информацию о книге: {e}",
+                keyboard=cancel_keyboard().get_keyboard(),
+                random_id=get_random_id()
+            )
+        return
+
+    if state == "waiting_for_litres_confirm":
+        # User confirms parsed LitRes data before proceeding
+        if text == "Продолжить":
+            state_info["state"] = "waiting_for_litres_tags"
+            vk.messages.send(
+                user_id=user_id,
+                message="Отлично! Теперь введи теги книги через запятую (например: Tech, Программирование):",
+                keyboard=cancel_keyboard().get_keyboard(),
+                random_id=get_random_id()
+            )
+        return
+    
+    if state == "waiting_for_litres_tags":
+        tags = [tag.strip() for tag in text.split(",") if tag.strip()]
+        data["tags"] = tags
+        user = get_or_create_user(vk, user_id)
+        book_service = BookService()
+        book = book_service.create_book(
+            title=data["title"],
+            author=data["author"],
+            tags=data["tags"],
+            pages=data["pages"],
+            user_id=user.id
+        )
+        del active_states[user_id]
+        message_text=(
+            f"✅ Книга '{book.title}' успешно добавлена в твою библиотеку!\n"
+            "\nТы можешь\n"
+            "/list - Показать список книг\n"
+            "/add - Добавить ещё одну книгу"
+        )
+        vk.messages.send(
+            user_id=user_id,
+            message=message_text,
             keyboard=create_book_added_keyboard().get_keyboard(),
             random_id=get_random_id()
         )
@@ -106,12 +227,30 @@ def handle_add_command_step(user_id: int, vk: VkApiMethod, text: str) -> None:
     vk.messages.send(
         user_id=user_id,
         message="Состояние добавления книги сброшено. Пожалуйста, повтори команду /add.",
-        keyboard=start_keyboard().get_keyboard(),
+        keyboard=main_keyboard().get_keyboard(),
         random_id=get_random_id()
     )
+
 
 def create_book_added_keyboard() -> VkKeyboard:
     kb = VkKeyboard()
     kb.add_button('/list')
     kb.add_button('/add')
+    return kb
+
+
+def create_add_method_keyboard() -> VkKeyboard:
+    """Keyboard for selecting add method (manual or LitRes)."""
+    kb = VkKeyboard()
+    kb.add_button('Ручное', payload={'command': '/add_manual'})
+    kb.add_button('Из LitRes', payload={'command': '/add_litres'})
+    kb.add_button('Отмена', payload={'command': '/cancel'})
+    return kb
+
+
+def create_confirm_litres_keyboard() -> VkKeyboard:
+    """Keyboard for confirming parsed LitRes book data."""
+    kb = VkKeyboard()
+    kb.add_button('Продолжить', payload={'command': '/confirm_litres'})
+    kb.add_button('Отмена', payload={'command': '/cancel'})
     return kb

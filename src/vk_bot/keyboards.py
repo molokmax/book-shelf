@@ -1,6 +1,6 @@
 from vk_api.keyboard import VkKeyboard
 
-def start_keyboard() -> VkKeyboard:
+def main_keyboard() -> VkKeyboard:
     """Create the keyboard for the /start command."""
     kb = VkKeyboard()
     kb.add_button('/add')
