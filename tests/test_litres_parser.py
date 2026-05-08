@@ -37,6 +37,40 @@ def mock_html_content():
     </html>
     """
 
+@pytest.fixture
+def mock_html_content_list_authors():
+    """Возвращает моковый HTML контент страницы книги на Литрес."""
+    return """
+    <html>
+        <head>
+            <title>Книга: Тестовая книга - Автор Тестов | Литрес</title>
+            <meta property="og:image" content="https://example.com/cover.jpg">
+            <meta name="description" content="Описание тестовой книги">
+            <script type="application/ld+json">
+            {
+                "@context": "https://schema.org",
+                "@type": "Book",
+                "name": "Тестовая книга",
+                "author": [{
+                    "@type": "Person",
+                    "name": "Тестов Автор"
+                }, {
+                    "@type": "Person",
+                    "name": "Иванов Иван"
+                }],
+                "numberOfPages": 200,
+                "image": "https://example.com/cover.jpg",
+                "description": "Описание тестовой книги"
+            }
+            </script>
+        </head>
+        <body>
+            <div>Автор: <a href="/author/testov">Тестов Автор</a></div>
+            <div>Количество страниц: 200</div>
+        </body>
+    </html>
+    """
+
 def test_is_litres_url_valid():
     """Тестирует проверку валидного URL Литрес."""
     assert is_litres_url("https://www.litres.ru/book/test-123456789") == True
@@ -62,6 +96,22 @@ def test_parse_litres_book_success(mock_html_content):
 
         assert result['title'] == "Тестовая книга"
         assert result['author'] == "Тестов Автор"
+        assert result['pages'] == 200
+        assert result['cover_image'] == "https://example.com/cover.jpg"
+        assert result['description'] == "Описание тестовой книги"
+
+def test_parse_litres_book_with_several_authors_success(mock_html_content_list_authors):
+    """Тестирует успешный парсинг книги с Литрес."""
+    with patch('requests.get') as mock_get:
+        mock_response = Mock()
+        mock_response.text = mock_html_content_list_authors
+        mock_response.raise_for_status = Mock()
+        mock_get.return_value = mock_response
+
+        result = parse_litres_book("https://www.litres.ru/book/test-123456789")
+
+        assert result['title'] == "Тестовая книга"
+        assert result['author'] == "Тестов Автор, Иванов Иван"
         assert result['pages'] == 200
         assert result['cover_image'] == "https://example.com/cover.jpg"
         assert result['description'] == "Описание тестовой книги"

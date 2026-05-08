@@ -76,7 +76,12 @@ def parse_litres_book(url: str) -> Dict:
 
         # Извлекаем информацию из JSON-LD
         title = data.get('name', 'Неизвестное название')
-        author = data.get('author', {}).get('name', 'Неизвестный автор') if isinstance(data.get('author'), dict) else 'Неизвестный автор'
+        if isinstance(data.get('author'), dict):
+            author = data.get('author', {}).get('name', 'Неизвестный автор')
+        elif isinstance(data.get('author'), list):
+            author = ', '.join([x.get('name', 'Неизвестный автор') for x in data.get('author', [])])
+        else:
+            author = 'Неизвестный автор'
         pages = data.get('numberOfPages', 0)
         cover_image = data.get('image')
         description = data.get('description')
