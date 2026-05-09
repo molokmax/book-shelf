@@ -1,0 +1,70 @@
+---
+name: VK edit handler (delete only)
+description: План реализации обработчика /edit в VK‑боте с поддержкой удаления книги.
+type: project
+---
+
+## Context
+Пользователь хочет добавить в VK‑бот обработку команды `/edit`, аналогично реализованному в Telegram (`src/bot/handlers/book/edit.py`). Сейчас требуется реализовать только удаление книги; позже будут добавлены обновление прогресса, изменение тэгов и статуса.
+
+## Implementation Plan
+1. **Создать файл `src/vk_bot/handlers/edit.py`**
+   - Импортировать необходимые модули:
+     ```python
+     from vk_api.vk_api import VkApiMethod
+     from vk_api.utils import get_random_id
+     from core.services import BookService
+     from utils import helpers
+     from vk_bot.keyboards import main_keyboard, cancel_keyboard
+     from vk_bot.user_helpers import get_or_create_user
+     ```
+   - **`handle_edit_command(vk: VkApiMethod, user_id: int) -> None`**
+     - Получить пользователя (`get_or_create_user`).
+     - Получить список книг (`BookService().get_all_books(user.id)`), отсортировать (`helpers.sort_books_by_status`).
+     - Если книг нет – отправить сообщение «У тебя нет книг…», клавиатура `main_keyboard()`.
+     - Иначе построить текст списка, аналогично `handle_list_command`, но каждый элемент будет содержать кнопку «Удалить».
+     - Для каждой книги создать `VkKeyboard` с одной кнопкой:
+       ```python
+       kb = VkKeyboard()
+       kb.add_button('🗑️ Удалить', payload={'command': '/delete_book', 'book_id': book.id})
+       ```
+     - Отправить сообщение с `vk.messages.send(..., keyboard=kb.get_keyboard())`.
+   - **`handle_delete_book(vk: VkApiMethod, user_id: int, payload: dict) -> None`**
+     - Из `payload` извлечь `book_id`.
+     - Вызвать `BookService().delete_book(book_id)`.
+     - При успехе отправить подтверждение «Книга «{title}» удалена», клавиатура `main_keyboard()`.
+     - При ошибке логировать и отправить сообщение об ошибке.
+   - Добавить вспомогательную функцию `create_book_keyboard(book_id: int) -> VkKeyboard` для создания клавиатуры удаления.
+
+2. **Обновить роутер в `src/vk_bot/bot.py`**
+   - Импортировать новые функции:
+     ```python
+     from vk_bot.handlers.edit import handle_edit_command, handle_delete_book
+     ```
+   - В `run` добавить обработку новых команд:
+     ```python
+     elif command == "/edit":
+         handle_edit_command(self.api, event.user_id)
+     elif command == "/delete_book":
+         # payload уже разобран в get_command, но нам нужны остальные поля
+         payload = json.loads(event.payload) if event.payload else {}
+         handle_delete_book(self.api, event.user_id, payload)
+     ```
+   - При необходимости добавить комментарий о том, что другие действия (прогресс, тэги, статус) будут реализованы позже.
+
+3. **Тестировать**
+   - Запустить бота (`python src/vk_main.py`), убедиться, что `/edit` выводит список книг с кнопкой удаления.
+   - Нажать «Удалить», проверить, что книга исчезает и пользователь получает подтверждение.
+   - Проверить, что после удаления состояние не оставляет «висячих» записей в `active_states`.
+   - При отсутствии книги – корректно обработать ошибку.
+
+4. **Документация**
+   - Добавить короткое описание нового обработчика в `README.md` или `docs/project_structure.md` при необходимости.
+   - Обновить `src/vk_bot/keyboards.py` при возникнет потребность в отдельной клавиатуре, но пока используем `VkKeyboard` внутри обработчика.
+
+## Verification
+- Запустить бота и выполнить команды `/edit` → список книг → нажать кнопку «🗑️ Удалить» → убедиться, что сообщение «Книга «<title>» удалена» приходит и клавиатура главного меню показывается.
+- Прогон тестов (`pytest`) – новые функции не ломают существующий код.
+- Логи должны содержать запись об удалении (при необходимости добавить `logger`).
+
+**Следующий шаг** – после одобрения плана приступить к реализации файлов и обновлению роутера.

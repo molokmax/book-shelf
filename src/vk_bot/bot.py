@@ -13,6 +13,7 @@ from vk_bot.handlers.list import handle_list_command
 from vk_bot.handlers.stats import handle_stats_command
 from vk_bot.handlers.add import handle_add_command
 from vk_bot.handlers.add import handle_add_command_step
+from vk_bot.handlers.edit import handle_edit_command, handle_edit_command_step
 from vk_bot.handlers.cancel import handle_cancel_command
 
 class VkBookShelfBot:
@@ -60,11 +61,15 @@ class VkBookShelfBot:
                     handle_stats_command(self.api, event.user_id)
                 elif command == "/add":
                     handle_add_command(self.api, event.user_id)
+                elif command == "/edit":
+                    handle_edit_command(self.api, event.user_id)
                 elif event.user_id in active_states:
                     state_info = active_states[event.user_id]
                     state_command = state_info["command"]
                     if state_command == "/add":
                         handle_add_command_step(self.api, event.user_id, event.text)
+                    elif state_command == "/edit":
+                        handle_edit_command_step(self.api, event.user_id, event.text)
                     else:
                         # TODO: Обработать отсутствие обработчика команды
                         pass
@@ -73,16 +78,19 @@ class VkBookShelfBot:
                 self.logger.error(f"Возникла ошибка при обработке сообщения: {e}")
                 self.api.messages.send(user_id=event.user_id, message="Возникла ошибка при обработке сообщения", random_id=get_random_id())
 
+    def get_payload(self, event):
+        if hasattr(event, 'payload') and event.payload:
+            return json.loads(event.payload)
+        else:
+            return {}
     
     def get_command(self, event):
         command = None
-        if hasattr(event, 'payload') and event.payload:
-            try:
-                payload_data = json.loads(event.payload)
-                command = payload_data.get('command')
-            except Exception as e:
-                self.logger.error(f"Возникла ошибка при получении названия команды: {e}")
-            
+        try:
+            command = self.get_payload(event).get('command')
+        except Exception as e:
+            self.logger.error(f"Возникла ошибка при получении названия команды: {e}")
+        
         if not command:
             command = event.text.lower()
 

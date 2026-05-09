@@ -251,6 +251,6 @@ def create_add_method_keyboard() -> VkKeyboard:
 def create_confirm_litres_keyboard() -> VkKeyboard:
     """Keyboard for confirming parsed LitRes book data."""
     kb = VkKeyboard()
-    kb.add_button('Продолжить', payload={'command': '/confirm_litres'})
+    kb.add_button('Продолжить')
     kb.add_button('Отмена', payload={'command': '/cancel'})
     return kb
