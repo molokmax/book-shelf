@@ -46,7 +46,7 @@ def validate_book_data(title: str, author: str, pages: int) -> bool:
 def get_status_emoji(status: str) -> str:
     """Возвращает эмодзи для статуса книги."""
     emoji_map = {
-        "want_to_read": "📄",
+        "want_to_read": "📎",
         "reading": "📖",
         "read": "📗",
         "postponed": "📘"

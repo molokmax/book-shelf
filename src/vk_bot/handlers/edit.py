@@ -127,14 +127,105 @@ def handle_edit_command_step(vk: VkApiMethod, user_id: int, text: str) -> None:
                 random_id=get_random_id()
             )
             return
-            
-    # Другие состояния пока не реализованы
+        
+        elif text.lower() == "прогресс":
+            # Начинаем процесс обновления прогресса чтения
+            book_id = state_info["data"]["selected_book_id"]
+            book_service = BookService()
+            book = book_service.get_book_by_id(book_id)
+            if not book:
+                vk.messages.send(
+                    user_id=user_id,
+                    message="⚠️ Книга не найдена.",
+                    keyboard=cancel_keyboard().get_keyboard(),
+                    random_id=get_random_id()
+                )
+                return
 
+            # Сохраняем состояние ожидания ввода текущей страницы
+            state_info["state"] = "waiting_for_progress_input"
+            state_info["data"]["progress_book_pages"] = book.pages
+            vk.messages.send(
+                user_id=user_id,
+                message=(
+                    f"📖 Выбрана книга '{book.title}'. Введи текущую страницу (от 0 до {book.pages}):"
+                ),
+                keyboard=cancel_keyboard().get_keyboard(),
+                random_id=get_random_id()
+            )
+            return
+
+    elif state == "waiting_for_progress_input":
+        # Обработка ввода текущей страницы пользователем
+        try:
+            current_page = int(text.strip())
+        except ValueError:
+            vk.messages.send(
+                user_id=user_id,
+                message="❌ Некорректный ввод. Пожалуйста, введи число (например: '50').",
+                keyboard=cancel_keyboard().get_keyboard(),
+                random_id=get_random_id()
+            )
+            return
+
+        total_pages = state_info["data"].get("progress_book_pages")
+        if total_pages is None:
+            vk.messages.send(
+                user_id=user_id,
+                message="⚠️ Ошибка: неизвестное количество страниц книги.",
+                keyboard=cancel_keyboard().get_keyboard(),
+                random_id=get_random_id()
+            )
+            return
+
+        if current_page < 0:
+            vk.messages.send(
+                user_id=user_id,
+                message="❌ Страница не может быть отрицательной.",
+                keyboard=cancel_keyboard().get_keyboard(),
+                random_id=get_random_id()
+            )
+            return
+        if current_page > total_pages:
+            vk.messages.send(
+                user_id=user_id,
+                message=f"❌ Книга содержит только {total_pages} страниц.",
+                keyboard=cancel_keyboard().get_keyboard(),
+                random_id=get_random_id()
+            )
+            return
+
+        book_id = state_info["data"].get("selected_book_id")
+        if not book_id:
+            vk.messages.send(
+                user_id=user_id,
+                message="⚠️ Идентификатор книги не найден.",
+                keyboard=cancel_keyboard().get_keyboard(),
+                random_id=get_random_id()
+            )
+            return
+
+        book_service = BookService()
+        updated_book = book_service.update_book_progress(book_id, current_page)
+
+        vk.messages.send(
+            user_id=user_id,
+            message=(
+                f"✅ Прогресс чтения книги '{updated_book.title}' обновлён.\n"
+                f"Прочитано {updated_book.current_page} из {total_pages} страниц."
+            ),
+            keyboard=main_keyboard().get_keyboard(),
+            random_id=get_random_id()
+        )
+        # Очистить состояние
+        del active_states[user_id]
+        return
 
 
 def create_book_keyboard(book_id: str) -> VkKeyboard:
-    """Создаёт клавиатуру с единственной кнопкой удаления книги."""
+    """Создаёт клавиатуру с кнопками действий над книгой: удалить и обновить прогресс."""
     kb = VkKeyboard()
     kb.add_button('Удалить')
+    kb.add_button('Прогресс')
     kb.add_button('Отмена', payload={'command': '/cancel'})
     return kb
