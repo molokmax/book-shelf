@@ -6,6 +6,7 @@ from vk_api.utils import get_random_id
 
 from core.services import BookService
 from utils import helpers
+from utils.helpers import get_status_name
 from utils import logger
 from vk_bot.keyboards import main_keyboard, cancel_keyboard
 from vk_bot.user_helpers import get_or_create_user
@@ -100,7 +101,7 @@ def handle_edit_command_step(vk: VkApiMethod, user_id: int, text: str) -> None:
         vk.messages.send(
             user_id=user_id,
             message=f"Выбрана книга '{selected_book.title}'. Что нужно сделать?",
-            keyboard=create_book_keyboard(str(book_id)).get_keyboard(),
+            keyboard=create_book_keyboard().get_keyboard(),
             random_id=get_random_id()
         )
         return
@@ -151,6 +152,30 @@ def handle_edit_command_step(vk: VkApiMethod, user_id: int, text: str) -> None:
                     f"📖 Выбрана книга '{book.title}'. Введи текущую страницу (от 0 до {book.pages}):"
                 ),
                 keyboard=cancel_keyboard().get_keyboard(),
+                random_id=get_random_id()
+            )
+            return
+        
+        elif text.lower() == "статус":
+            book_id = state_info["data"]["selected_book_id"]
+            book_service = BookService()
+            book = book_service.get_book_by_id(book_id)
+            if not book:
+                vk.messages.send(
+                    user_id=user_id,
+                    message="⚠️ Книга не найдена.",
+                    keyboard=cancel_keyboard().get_keyboard(),
+                    random_id=get_random_id()
+                )
+                return
+
+            state_info["state"] = "selecting_status"
+            vk.messages.send(
+                user_id=user_id,
+                message=(
+                    f"📖 Выбрана книга '{book.title}'. Выбери новый статус:"
+                ),
+                keyboard=create_status_keyboard().get_keyboard(),
                 random_id=get_random_id()
             )
             return
@@ -221,11 +246,55 @@ def handle_edit_command_step(vk: VkApiMethod, user_id: int, text: str) -> None:
         del active_states[user_id]
         return
 
+    elif state == "selecting_status":
+        # Обрабатываем выбор нового статуса книги
+        status_map = {
+            "хочу прочитать": "want_to_read",
+            "читаю сейчас": "reading",
+            "прочитано": "read",
+            "отложено": "postponed",
+        }
+        new_status = status_map.get(text.lower())
+        if not new_status:
+            vk.messages.send(
+                user_id=user_id,
+                message="⚠️ Неизвестный статус. Выбери один из предложенных.",
+                keyboard=create_status_keyboard().get_keyboard(),
+                random_id=get_random_id()
+            )
+            return
 
-def create_book_keyboard(book_id: str) -> VkKeyboard:
-    """Создаёт клавиатуру с кнопками действий над книгой: удалить и обновить прогресс."""
+        book_id = state_info["data"]["selected_book_id"]
+        book_service = BookService()
+        updated_book = book_service.update_book_status(book_id, new_status)
+
+        vk.messages.send(
+            user_id=user_id,
+            message=f"✅ Статус книги '{updated_book.title}' изменён на '{get_status_name(updated_book.status.value)}'",
+            keyboard=main_keyboard().get_keyboard(),
+            random_id=get_random_id()
+        )
+        del active_states[user_id]
+        return
+
+
+def create_book_keyboard() -> VkKeyboard:
+    """Создаёт клавиатуру с кнопками действий над книгой: удалить, обновить прогресс и изменить статус."""
     kb = VkKeyboard()
     kb.add_button('Удалить')
     kb.add_button('Прогресс')
+    kb.add_button('Статус')
+    kb.add_button('Отмена', payload={'command': '/cancel'})
+    return kb
+
+
+def create_status_keyboard() -> VkKeyboard:
+    """Создаёт клавиатуру для выбора нового статуса книги без payload."""
+    kb = VkKeyboard()
+    # Кнопки с названием статуса, без payload; обработка будет по тексту сообщения
+    kb.add_button('Хочу прочитать')
+    kb.add_button('Читаю сейчас')
+    kb.add_button('Прочитано')
+    kb.add_button('Отложено')
     kb.add_button('Отмена', payload={'command': '/cancel'})
     return kb
