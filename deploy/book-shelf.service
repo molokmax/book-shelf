@@ -1,0 +1,14 @@
+[Unit]
+Description=Book Shelf
+After=network.target
+
+[Service]
+User=molokmax
+Group=molokmax
+WorkingDirectory=/home/molokmax/book-shelf
+Environment="PATH=/home/molokmax/book-shelf/.venv/bin"
+ExecStart=python3 ./app/vk_main.py
+# AmbientCapabilities=CAP_NET_BIND_SERVICE
+
+[Install]
+WantedBy=multi-user.target

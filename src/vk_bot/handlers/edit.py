@@ -179,7 +179,157 @@ def handle_edit_command_step(vk: VkApiMethod, user_id: int, text: str) -> None:
                 random_id=get_random_id()
             )
             return
+        
+        elif text.lower() == "изменить":
+            book_id = state_info["data"]["selected_book_id"]
+            book_service = BookService()
+            book = book_service.get_book_by_id(book_id)
+            if not book:
+                vk.messages.send(
+                    user_id=user_id,
+                    message="⚠️ Книга не найдена.",
+                    keyboard=cancel_keyboard().get_keyboard(),
+                    random_id=get_random_id()
+                )
+                return
 
+            state_info["state"] = "editing_title"
+            vk.messages.send(
+                user_id=user_id,
+                message=f"Текущее название книги: '{book.title}'. Введи новое название или нажми 'Дальше' чтобы оставить текущего.",
+                keyboard=create_edit_keyboard().get_keyboard(),
+                random_id=get_random_id()
+            )
+            return
+
+    elif state == "editing_title":
+        # Ожидаем ввод нового названия книги или пропуск
+        if text.lower() == "дальше":
+            # Оставляем текущее название
+            new_title = None
+        else:
+            new_title = text.strip()
+        # Сохраняем в состоянии и переходим к автору
+        state_info["data"]["new_title"] = new_title
+        state_info["state"] = "editing_author"
+        book_id = state_info["data"]["selected_book_id"]
+        book = BookService().get_book_by_id(book_id)
+        if not book:
+            vk.messages.send(
+                user_id=user_id,
+                message="⚠️ Книга не найдена.",
+                keyboard=cancel_keyboard().get_keyboard(),
+                random_id=get_random_id()
+            )
+            return
+    
+        vk.messages.send(
+            user_id=user_id,
+            message=f"Текущий автор книги: '{book.author}'. Введи нового автора или нажми 'Дальше' чтобы оставить текущего.",
+            keyboard=create_edit_keyboard().get_keyboard(),
+            random_id=get_random_id()
+        )
+        return
+    
+    elif state == "editing_author":
+        if text.lower() == "дальше":
+            new_author = None
+        else:
+            new_author = text.strip()
+        state_info["data"]["new_author"] = new_author
+        state_info["state"] = "editing_pages"
+        book_id = state_info["data"]["selected_book_id"]
+        book = BookService().get_book_by_id(book_id)
+        if not book:
+            vk.messages.send(
+                user_id=user_id,
+                message="⚠️ Книга не найдена.",
+                keyboard=cancel_keyboard().get_keyboard(),
+                random_id=get_random_id()
+            )
+            return
+        
+        vk.messages.send(
+            user_id=user_id,
+            message=f"Текущее количество страниц: {book.pages}. Введи новое количество страниц или нажми 'Дальше' чтобы оставить текущие.",
+            keyboard=create_edit_keyboard().get_keyboard(),
+            random_id=get_random_id()
+        )
+        return
+    
+    elif state == "editing_pages":
+        if text.lower() == "дальше":
+            new_pages = None
+        else:
+            try:
+                new_pages = int(text.strip())
+            except ValueError:
+                vk.messages.send(
+                    user_id=user_id,
+                    message="⚠️ Введите корректное целое число для количества страниц.",
+                    keyboard=create_edit_keyboard().get_keyboard(),
+                    random_id=get_random_id()
+                )
+                return
+            
+        state_info["data"]["new_pages"] = new_pages
+        state_info["state"] = "editing_tags"
+        book_id = state_info["data"]["selected_book_id"]
+        book = BookService().get_book_by_id(book_id)
+        if not book:
+            vk.messages.send(
+                user_id=user_id,
+                message="⚠️ Книга не найдена.",
+                keyboard=cancel_keyboard().get_keyboard(),
+                random_id=get_random_id()
+            )
+            return
+        
+        tags_text = ", ".join(book.tags) if book.tags else "Нет тэгов"
+        vk.messages.send(
+            user_id=user_id,
+            message=f"Текущие тэги книги: {tags_text}. Введи новые тэги через запятую или нажми 'Дальше' чтобы оставить текущие.",
+            keyboard=create_edit_keyboard().get_keyboard(),
+            random_id=get_random_id()
+        )
+        return
+    
+    elif state == "editing_tags":
+        if text.lower() == "дальше":
+            new_tags = None
+        else:
+            new_tags = [t.strip() for t in text.split(',') if t.strip()]
+        # Применяем изменения
+        book_id = state_info["data"]["selected_book_id"]
+        book_service = BookService()
+        book = book_service.get_book_by_id(book_id)
+        if not book:
+            vk.messages.send(
+                user_id=user_id,
+                message="⚠️ Книга не найдена.",
+                keyboard=cancel_keyboard().get_keyboard(),
+                random_id=get_random_id()
+            )
+            return
+        
+        if state_info["data"]["new_title"] is not None:
+            book.title = state_info["data"]["new_title"]
+        if state_info["data"]["new_author"] is not None:
+            book.author = state_info["data"]["new_author"]
+        if state_info["data"]["new_pages"] is not None:
+            book.pages = state_info["data"]["new_pages"]
+        if new_tags is not None:
+            book.tags = new_tags
+        book_service.book_repo.update_book(book)
+        vk.messages.send(
+            user_id=user_id,
+            message=f"✅ Книга обновлена: '{book.title}' от {book.author}.",
+            keyboard=main_keyboard().get_keyboard(),
+            random_id=get_random_id()
+        )
+        del active_states[user_id]
+        return
+    
     elif state == "waiting_for_progress_input":
         # Обработка ввода текущей страницы пользователем
         try:
@@ -279,11 +429,13 @@ def handle_edit_command_step(vk: VkApiMethod, user_id: int, text: str) -> None:
 
 
 def create_book_keyboard() -> VkKeyboard:
-    """Создаёт клавиатуру с кнопками действий над книгой: удалить, обновить прогресс и изменить статус."""
+    """Создаёт клавиатуру с кнопками действий над книгой: удалить, прогресс, статус и изменить."""
     kb = VkKeyboard()
-    kb.add_button('Удалить')
+    kb.add_button('Изменить')
     kb.add_button('Прогресс')
     kb.add_button('Статус')
+    kb.add_line()
+    kb.add_button('Удалить')
     kb.add_button('Отмена', payload={'command': '/cancel'})
     return kb
 
@@ -295,6 +447,15 @@ def create_status_keyboard() -> VkKeyboard:
     kb.add_button('Хочу прочитать')
     kb.add_button('Читаю сейчас')
     kb.add_button('Прочитано')
+    kb.add_line()
     kb.add_button('Отложено')
+    kb.add_button('Отмена', payload={'command': '/cancel'})
+    return kb
+
+
+def create_edit_keyboard() -> VkKeyboard:
+    """Keyboard with 'Дальше' and 'Отмена' buttons for sequential editing steps."""
+    kb = VkKeyboard()
+    kb.add_button('Дальше')
     kb.add_button('Отмена', payload={'command': '/cancel'})
     return kb

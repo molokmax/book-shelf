@@ -48,14 +48,14 @@ def handle_add_command_step(vk: VkApiMethod, user_id: int, text: str) -> None:
             state_info["state"] = "waiting_for_litres_url"
             vk.messages.send(
                 user_id=user_id,
-                message="Пожалуйста, введи ссылку на книгу с LitRes:",
+                message="Пожалуйста, введи ссылку на книгу с https://litres.ru:",
                 keyboard=cancel_keyboard().get_keyboard(),
                 random_id=get_random_id()
             )
         else:
             vk.messages.send(
                 user_id=user_id,
-                message="Пожалуйста, выбери один из вариантов: Ручное или Из LitRes.",
+                message="Пожалуйста, выбери один из вариантов: Ручное или Из https://litres.ru.",
                 keyboard=create_add_method_keyboard().get_keyboard(),
                 random_id=get_random_id()
             )
