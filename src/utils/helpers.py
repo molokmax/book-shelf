@@ -26,7 +26,6 @@ def format_book_info(index, book) -> str:
         f"{index}. {status_emoji} {book.title}\n"
         f"Автор: {book.author}\n"
         f"Теги: {tags_text}\n"
-        f"Страниц: {book.pages}\n"
         f"Прогресс: {book.current_page}/{book.pages} ({progress_percent}%)\n"
     )
 
