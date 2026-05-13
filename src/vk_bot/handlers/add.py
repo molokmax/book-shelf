@@ -125,8 +125,8 @@ def handle_add_command_step(vk: VkApiMethod, user_id: int, text: str) -> None:
         message_text=(
             f"✅ Книга '{book.title}' успешно добавлена в твою библиотеку!\n"
             "\nТы можешь\n"
-            "/list - Показать список книг\n"
-            "/add - Добавить ещё одну книгу"
+            "/add - Добавить ещё одну книгу\n"
+            "/list - Показать список книг"
         )
         vk.messages.send(
             user_id=user_id,
@@ -211,8 +211,8 @@ def handle_add_command_step(vk: VkApiMethod, user_id: int, text: str) -> None:
         message_text=(
             f"✅ Книга '{book.title}' успешно добавлена в твою библиотеку!\n"
             "\nТы можешь\n"
-            "/list - Показать список книг\n"
-            "/add - Добавить ещё одну книгу"
+            "/add - Добавить ещё одну книгу\n"
+            "/list - Показать список книг"
         )
         vk.messages.send(
             user_id=user_id,
@@ -234,8 +234,8 @@ def handle_add_command_step(vk: VkApiMethod, user_id: int, text: str) -> None:
 
 def create_book_added_keyboard() -> VkKeyboard:
     kb = VkKeyboard()
-    kb.add_button('/list')
     kb.add_button('/add')
+    kb.add_button('/list')
     return kb
 
 
