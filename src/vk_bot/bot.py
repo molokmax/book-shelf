@@ -1,6 +1,8 @@
+import time
+
 from dotenv import load_dotenv
-from vk_api import VkApi
-from vk_api.longpoll import VkLongPoll, VkEventType
+from vk_api import ApiError, VkApi
+from vk_api.longpoll import VkLongPoll, VkEventType, Event
 from vk_api.utils import get_random_id
 from utils import logger
 from utils.config import load_config
@@ -32,51 +34,78 @@ class VkBookShelfBot:
 
     def run(self) -> None:
         """Start the VK bot."""
-        longpoll = self.create_longpoll()        
-        self.logger.info("Бот запущен и ожидает сообщений...")
-        for event in longpoll.listen():
+        while True:
             try:
-                if event.type != VkEventType.MESSAGE_NEW:
-                    continue
-                if not event.to_me:
-                    continue
-                if not event.user_id:
-                    self.logger.warning("Сообщение не будет обработано так как неизвестен идентификатор текущего пользователя")
-                    continue
+                self.logger.info("Бот запущен и выполняет подключение...")
+                longpoll = self.create_longpoll()
+                self.logger.info("Бот запущен и ожидает сообщений...")
+                for event in longpoll.listen():
+                    self.handle_event(event)
 
-                command = self.get_command(event)
-                self.logger.debug(f"Получили команду {command} от пользователя {event.user_id}")
-
-                # TODO: В какие моменты нужно сбратывать текущий стейт?
-                # TODO: реализовать механизм роутинга
-                if command == "/cancel" or command == "отмена":
-                    handle_cancel_command(self.api, event.user_id)
-                elif command == "/start" or command == "начать":
-                    handle_start_command(self.api, event.user_id)
-                elif command == "/help":
-                    handle_help_command(self.api, event.user_id)
-                elif command == "/list":
-                    handle_list_command(self.api, event.user_id)
-                elif command == "/stats":
-                    handle_stats_command(self.api, event.user_id)
-                elif command == "/add":
-                    handle_add_command(self.api, event.user_id)
-                elif command == "/edit":
-                    handle_edit_command(self.api, event.user_id)
-                elif event.user_id in active_states:
-                    state_info = active_states[event.user_id]
-                    state_command = state_info["command"]
-                    if state_command == "/add":
-                        handle_add_command_step(self.api, event.user_id, event.text)
-                    elif state_command == "/edit":
-                        handle_edit_command_step(self.api, event.user_id, event.text)
-                    else:
-                        # TODO: Обработать отсутствие обработчика команды
-                        pass
-
+            except ApiError as e:
+                # Специфичная ошибка VK API
+                print(f"[Ошибка VK API] Код: {e.code}. Сообщение: {e}")
+                if e.code == 5:  # Авторизация сломалась
+                    print("Неверный токен. Проверьте его.")
+                    time.sleep(60)
+                else:
+                    time.sleep(5)
+            
+            except (ConnectionError, TimeoutError) as e:
+                # Ошибки сети
+                print(f"[Сетевая ошибка] {e}. Переподключение через 10 сек...")
+                time.sleep(10)
+            
             except Exception as e:
-                self.logger.error(f"Возникла ошибка при обработке сообщения: {e}")
-                self.api.messages.send(user_id=event.user_id, message="Возникла ошибка при обработке сообщения", random_id=get_random_id())
+                # Любая другая неожиданная ошибка
+                print(f"[Критическая ошибка] {e}. Перезапуск через 30 сек...")
+                time.sleep(30)
+
+
+    def handle_event(self, event: Event):
+        try:
+            if event.type != VkEventType.MESSAGE_NEW:
+                return
+            if not event.to_me:
+                return
+            if not event.user_id:
+                self.logger.warning("Сообщение не будет обработано так как неизвестен идентификатор текущего пользователя")
+                return
+
+            command = self.get_command(event)
+            self.logger.debug(f"Получили команду {command} от пользователя {event.user_id}")
+
+            # TODO: В какие моменты нужно сбратывать текущий стейт?
+            # TODO: реализовать механизм роутинга
+            if command == "/cancel" or command == "отмена":
+                handle_cancel_command(self.api, event.user_id)
+            elif command == "/start" or command == "начать":
+                handle_start_command(self.api, event.user_id)
+            elif command == "/help":
+                handle_help_command(self.api, event.user_id)
+            elif command == "/list":
+                handle_list_command(self.api, event.user_id)
+            elif command == "/stats":
+                handle_stats_command(self.api, event.user_id)
+            elif command == "/add":
+                handle_add_command(self.api, event.user_id)
+            elif command == "/edit":
+                handle_edit_command(self.api, event.user_id)
+            elif event.user_id in active_states:
+                state_info = active_states[event.user_id]
+                state_command = state_info["command"]
+                if state_command == "/add":
+                    handle_add_command_step(self.api, event.user_id, event.text)
+                elif state_command == "/edit":
+                    handle_edit_command_step(self.api, event.user_id, event.text)
+                else:
+                    # TODO: Обработать отсутствие обработчика команды
+                    pass
+
+        except Exception as e:
+            self.logger.error(f"Возникла ошибка при обработке сообщения: {e}")
+            self.api.messages.send(user_id=event.user_id, message="Возникла ошибка при обработке сообщения", random_id=get_random_id())
+
 
     def get_payload(self, event):
         if hasattr(event, 'payload') and event.payload:
