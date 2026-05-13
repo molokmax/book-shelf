@@ -446,9 +446,10 @@ def create_status_keyboard() -> VkKeyboard:
     # Кнопки с названием статуса, без payload; обработка будет по тексту сообщения
     kb.add_button('Хочу прочитать')
     kb.add_button('Читаю сейчас')
-    kb.add_button('Прочитано')
     kb.add_line()
+    kb.add_button('Прочитано')
     kb.add_button('Отложено')
+    kb.add_line()
     kb.add_button('Отмена', payload={'command': '/cancel'})
     return kb
 
