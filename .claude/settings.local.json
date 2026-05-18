@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "Bash(openspec status *)",
-      "Bash(openspec instructions *)"
+      "Bash(openspec instructions *)",
+      "Bash(openspec new *)",
+      "Bash(openspec list *)"
     ]
   }
 }

@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 from vk_api import ApiError, VkApi
 from vk_api.longpoll import VkLongPoll, VkEventType, Event
 from vk_api.utils import get_random_id
+from vk_api.upload import VkUpload
 from utils import logger
 from utils.config import load_config
 import json
@@ -11,6 +12,7 @@ import json
 from vk_bot.states import active_states
 from vk_bot.handlers.start import handle_start_command
 from vk_bot.handlers.help import handle_help_command
+from vk_bot.handlers.export import handle_export_command
 from vk_bot.handlers.list import handle_list_command
 from vk_bot.handlers.stats import handle_stats_command
 from vk_bot.handlers.add import handle_add_command
@@ -28,9 +30,9 @@ class VkBookShelfBot:
     def create_longpoll(self):
         self.logger.info("Инициализация бота...")
         token = self.config.vk_bot_token
-        vk = VkApi(token=token)
-        self.api = vk.get_api()
-        return VkLongPoll(vk)
+        self.vk = VkApi(token=token)
+        self.api = self.vk.get_api()
+        return VkLongPoll(self.vk)
 
     def run(self) -> None:
         """Start the VK bot."""
@@ -71,6 +73,9 @@ class VkBookShelfBot:
             if not event.user_id:
                 self.logger.warning("Сообщение не будет обработано так как неизвестен идентификатор текущего пользователя")
                 return
+            if not event.peer_id:
+                self.logger.warning("Сообщение не будет обработано так как неизвестен идентификатор текущего чата")
+                return
 
             command = self.get_command(event)
             self.logger.debug(f"Получили команду {command} от пользователя {event.user_id}")
@@ -83,6 +88,9 @@ class VkBookShelfBot:
                 handle_start_command(self.api, event.user_id)
             elif command == "/help":
                 handle_help_command(self.api, event.user_id)
+            elif command == "/export":
+                upload = VkUpload(self.vk)
+                handle_export_command(self.api, event.user_id, upload, event.peer_id)
             elif command == "/list":
                 handle_list_command(self.api, event.user_id)
             elif command == "/stats":
@@ -113,6 +121,7 @@ class VkBookShelfBot:
         else:
             return {}
     
+
     def get_command(self, event):
         command = None
         try:
