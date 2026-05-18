@@ -29,7 +29,7 @@ class VkBookShelfBot:
 
     def create_longpoll(self):
         self.logger.info("Инициализация бота...")
-        token = self.config.vk_bot_token
+        token = self.config.bot_token
         self.vk = VkApi(token=token)
         self.api = self.vk.get_api()
         return VkLongPoll(self.vk)

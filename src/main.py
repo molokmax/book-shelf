@@ -1,21 +1,25 @@
 #!/usr/bin/env python3
-"""Основной файл запуска Telegram-бота для Book Shelf."""
+"""Entry point for VK bot.
+
+Runs the VkBookShelfBot defined in ``src/vk_bot/bot.py``. The bot reads
+``VK_BOT_TOKEN`` from the environment (see ``vk_bot.py``) and starts the event
+loop. Adjust any routing inside ``VkBookShelfBot.run`` as needed.
+"""
 
 from utils import logger
-from bot.bot import BookShelfBot
+from vk_bot.bot import VkBookShelfBot
+
 
 def main() -> None:
-    """Запускает Telegram-бота."""
-    # Настройка логирования
+    """Run the VK bot."""
     log = logger.setup_logger(__name__)
-
     try:
-        # Создание и запуск бота
-        bot = BookShelfBot()
+        bot = VkBookShelfBot()
         bot.run()
     except Exception as e:
         log.error(f"Ошибка при запуске бота: {e}")
         raise
+
 
 if __name__ == "__main__":
     main()
