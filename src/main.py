@@ -2,7 +2,7 @@
 """Entry point for VK bot.
 
 Runs the VkBookShelfBot defined in ``src/vk_bot/bot.py``. The bot reads
-``VK_BOT_TOKEN`` from the environment (see ``vk_bot.py``) and starts the event
+``BOT_TOKEN`` from the environment (see ``bot.py``) and starts the event
 loop. Adjust any routing inside ``VkBookShelfBot.run`` as needed.
 """
 

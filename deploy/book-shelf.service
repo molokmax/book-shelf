@@ -7,7 +7,6 @@ User=molokmax
 Group=molokmax
 WorkingDirectory=/home/molokmax/book-shelf
 Environment="PATH=/home/molokmax/book-shelf/.venv/bin"
-Environment="BOT_TOKEN=vk1.a.uDZEXLUXs33dMrI7dOl2LBjDKDSvJM6lBsyE9BRWMyG_Gvjl8z2hNBr8D0AX6Izh4e22n2USGrLADnEPSyeV-8nA9w7uDZCFwpRGqo4x4owwc8fClZUVrZQCMSqTXkxRsjDwzRL3gRdMWSStd0ofID-YfF_6qkdQ6deePu3wKjhKHn6Qe2ptB52woh1awQ5KG_e6zOtF1UB-Tm9EmBiZsQ"
 ExecStart=python3 ./app/main.py
 # AmbientCapabilities=CAP_NET_BIND_SERVICE
 
