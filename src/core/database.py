@@ -9,6 +9,24 @@ from core.models import User, Book
 class Database:
     """Класс для работы с базой данных SQLite."""
 
+    _book_column_list = [
+        "id",
+        "title",
+        "author",
+        "tags",
+        "pages",
+        "current_page",
+        "status",
+        "created_at",
+        "updated_at",
+        "cover_image",
+        "notes",
+        "link",
+        "reading_start_date",
+        "reading_end_date",
+        "user_id"
+    ]
+
     def __init__(self, db_path: str = "data/database.db") -> None:
         """Инициализация базы данных."""
         self.db_path = Path(db_path)
@@ -22,6 +40,14 @@ class Database:
 
         # Создаём таблицы при инициализации
         self._create_tables()
+
+        # TODO: Оформит миграции через отдельный механизм
+        # Добавляем колонку link, если её ещё нет
+        try:
+            self.conn.execute("ALTER TABLE books ADD COLUMN link TEXT")
+        except sqlite3.OperationalError:
+            pass  # колонка уже существует
+
 
     def _create_tables(self) -> None:
         """Создаёт таблицы в базе данных."""
@@ -54,6 +80,7 @@ class Database:
             updated_at TEXT NOT NULL,
             cover_image TEXT,
             notes TEXT,
+            link TEXT,
             reading_start_date TEXT,
             reading_end_date TEXT,
             user_id TEXT NOT NULL,
@@ -167,8 +194,8 @@ class Database:
             cursor.execute("""
             INSERT OR REPLACE INTO books
             (id, title, author, tags, pages, current_page, status, created_at, updated_at,
-             cover_image, notes, reading_start_date, reading_end_date, user_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              cover_image, notes, link, reading_start_date, reading_end_date, user_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 book.id,
                 book.title,
@@ -181,12 +208,14 @@ class Database:
                 book.updated_at.isoformat(),
                 book.cover_image,
                 book.notes,
+                book.link,
                 book.reading_start_date.isoformat() if book.reading_start_date else None,
                 book.reading_end_date.isoformat() if book.reading_end_date else None,
                 book.user_id
             ))
 
-            cursor.execute("SELECT * FROM books WHERE id = ?", (book.id,))
+            sql = f"SELECT {", ".join(self._book_column_list)} FROM books WHERE id = ?"
+            cursor.execute(sql, (book.id,))
             row = cursor.fetchone()
 
             if row:
@@ -202,9 +231,10 @@ class Database:
                     "updated_at": row[8],
                     "cover_image": row[9],
                     "notes": row[10],
-                    "reading_start_date": row[11],
-                    "reading_end_date": row[12],
-                    "user_id": row[13]
+                    "link": row[11],
+                    "reading_start_date": row[12],
+                    "reading_end_date": row[13],
+                    "user_id": row[14]
                 })
             return book
 
@@ -212,7 +242,8 @@ class Database:
         """Получает книгу по ID."""
 
         with self.get_cursor() as cursor:
-            cursor.execute("SELECT * FROM books WHERE id = ?", (book_id,))
+            sql = f"SELECT {", ".join(self._book_column_list)} FROM books WHERE id = ?"
+            cursor.execute(sql, (book_id,))
             row = cursor.fetchone()
 
             if row:
@@ -228,9 +259,10 @@ class Database:
                     "updated_at": row[8],
                     "cover_image": row[9],
                     "notes": row[10],
-                    "reading_start_date": row[11],
-                    "reading_end_date": row[12],
-                    "user_id": row[13]
+                    "link": row[11],
+                    "reading_start_date": row[12],
+                    "reading_end_date": row[13],
+                    "user_id": row[14]
                 })
             return None
 
@@ -238,7 +270,8 @@ class Database:
         """Получает все книги."""
 
         with self.get_cursor() as cursor:
-            cursor.execute("SELECT * FROM books ORDER BY updated_at DESC")
+            sql = f"SELECT {", ".join(self._book_column_list)} FROM books ORDER BY updated_at DESC"
+            cursor.execute(sql)
             rows = cursor.fetchall()
 
             return [
@@ -254,9 +287,10 @@ class Database:
                     "updated_at": row[8],
                     "cover_image": row[9],
                     "notes": row[10],
-                    "reading_start_date": row[11],
-                    "reading_end_date": row[12],
-                    "user_id": row[13]
+                    "link": row[11],
+                    "reading_start_date": row[12],
+                    "reading_end_date": row[13],
+                    "user_id": row[14]
                 }) for row in rows
             ]
 
@@ -264,7 +298,8 @@ class Database:
         """Получает книги по ID пользователя."""
 
         with self.get_cursor() as cursor:
-            cursor.execute("SELECT * FROM books WHERE user_id = ? ORDER BY updated_at DESC", (user_id,))
+            sql = f"SELECT {", ".join(self._book_column_list)} FROM books WHERE user_id = ? ORDER BY updated_at DESC"
+            cursor.execute(sql, (user_id,))
             rows = cursor.fetchall()
 
             return [
@@ -280,9 +315,10 @@ class Database:
                     "updated_at": row[8],
                     "cover_image": row[9],
                     "notes": row[10],
-                    "reading_start_date": row[11],
-                    "reading_end_date": row[12],
-                    "user_id": row[13]
+                    "link": row[11],
+                    "reading_start_date": row[12],
+                    "reading_end_date": row[13],
+                    "user_id": row[14]
                 }) for row in rows
             ]
 
@@ -290,7 +326,8 @@ class Database:
         """Получает книги по статусу."""
 
         with self.get_cursor() as cursor:
-            cursor.execute("SELECT * FROM books WHERE status = ? ORDER BY updated_at DESC", (status,))
+            sql = f"SELECT {", ".join(self._book_column_list)} FROM books WHERE status = ? ORDER BY updated_at DESC"
+            cursor.execute(sql, (status,))
             rows = cursor.fetchall()
 
             return [
@@ -306,9 +343,10 @@ class Database:
                     "updated_at": row[8],
                     "cover_image": row[9],
                     "notes": row[10],
-                    "reading_start_date": row[11],
-                    "reading_end_date": row[12],
-                    "user_id": row[13]
+                    "link": row[11],
+                    "reading_start_date": row[12],
+                    "reading_end_date": row[13],
+                    "user_id": row[14]
                 }) for row in rows
             ]
 

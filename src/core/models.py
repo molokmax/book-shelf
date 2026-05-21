@@ -26,6 +26,7 @@ class Book:
     created_at: datetime = field(default_factory=datetime.now)
     updated_at: datetime = field(default_factory=datetime.now)
     cover_image: Optional[str] = None
+    link: Optional[str] = None
     notes: Optional[str] = None
     reading_start_date: Optional[datetime] = None
     reading_end_date: Optional[datetime] = None
@@ -50,9 +51,10 @@ class Book:
             "updated_at": self.updated_at.isoformat(),
             "cover_image": self.cover_image,
             "notes": self.notes,
+            "link": self.link,
             "reading_start_date": self.reading_start_date.isoformat() if self.reading_start_date else None,
             "reading_end_date": self.reading_end_date.isoformat() if self.reading_end_date else None,
-            "user_id": self.user_id
+            "user_id": self.user_id,
         }
 
     @classmethod
@@ -70,6 +72,7 @@ class Book:
             updated_at=datetime.fromisoformat(data.get("updated_at", datetime.now().isoformat())),
             cover_image=data.get("cover_image"),
             notes=data.get("notes"),
+            link=data.get("link"),
             reading_start_date=datetime.fromisoformat(data.get("reading_start_date")) if data.get("reading_start_date") else None,
             reading_end_date=datetime.fromisoformat(data.get("reading_end_date")) if data.get("reading_end_date") else None,
             user_id=data.get("user_id", "")

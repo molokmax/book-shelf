@@ -1,7 +1,5 @@
 import csv
-from sys import path
 import time
-import tempfile
 from pathlib import Path
 from typing import List
 
@@ -24,6 +22,7 @@ def export_to_csv(books: List[Book], user_id: str) -> Path:
         "pages",
         "current_page",
         "status",
+        "link",
         "created_at",
     ]
 
@@ -40,6 +39,7 @@ def export_to_csv(books: List[Book], user_id: str) -> Path:
                     "pages": book.pages,
                     "current_page": book.current_page,
                     "status": book.status.value,
+                    "link": book.link,
                     "created_at": book.created_at.isoformat(),
                 }
             )

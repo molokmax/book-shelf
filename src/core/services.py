@@ -28,7 +28,8 @@ class BookService:
         pages: int,
         user_id: str,
         current_page: int = 0,
-        status: str = ReadingStatus.WANT_TO_READ.value
+        status: str = ReadingStatus.WANT_TO_READ.value,
+        link: Optional[str] = None
     ) -> Book:
         """Создаёт новую книгу."""
         book = Book(
@@ -38,7 +39,8 @@ class BookService:
             pages=pages,
             user_id=user_id,
             current_page=current_page,
-            status=ReadingStatus(status)
+            status=ReadingStatus(status),
+            link=link
         )
         return self.book_repo.add_book(book)
 

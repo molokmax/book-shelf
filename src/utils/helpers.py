@@ -1,6 +1,7 @@
 """Вспомогательные функции для Book Shelf."""
 
 import re
+from urllib.parse import urlparse
 
 def sanitize_text(text: str) -> str:
     """Очищает текст от нежелательных символов."""
@@ -72,3 +73,11 @@ def sort_books_by_status(books: list) -> list:
     }
 
     return sorted(books, key=lambda book: status_order.get(book.status, 999))
+
+def is_valid_url(url: str) -> bool:
+    """Return True if URL has http/https scheme and netloc."""
+    try:
+        result = urlparse(url)
+        return result.scheme in ("http", "https") and bool(result.netloc)
+    except Exception:
+        return False

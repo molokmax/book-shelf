@@ -271,8 +271,34 @@ def handle_edit_command_step(vk: VkApiMethod, user_id: int, text: str) -> None:
                     random_id=get_random_id()
                 )
                 return
-            
+        
         state_info["data"]["new_pages"] = new_pages
+        state_info["state"] = "editing_link"
+        book_id = state_info["data"]["selected_book_id"]
+        book = BookService().get_book_by_id(book_id)
+        if not book:
+            vk.messages.send(
+                user_id=user_id,
+                message="⚠️ Книга не найдена.",
+                keyboard=cancel_keyboard().get_keyboard(),
+                random_id=get_random_id()
+            )
+            return
+        
+        vk.messages.send(
+            user_id=user_id,
+            message=f"Текущая ссылка на книгу - {book.link or 'Отсутствует'}. Введи новую ссылку на книгу или нажми 'Дальше' чтобы оставить текущую.",
+            keyboard=create_edit_keyboard().get_keyboard(),
+            random_id=get_random_id()
+        )
+        return
+    
+    elif state == "editing_link":
+        if text.lower() == "дальше":
+            new_link = None
+        else:
+            new_link = text.strip()
+        state_info["data"]["new_link"] = new_link
         state_info["state"] = "editing_tags"
         book_id = state_info["data"]["selected_book_id"]
         book = BookService().get_book_by_id(book_id)
@@ -318,6 +344,8 @@ def handle_edit_command_step(vk: VkApiMethod, user_id: int, text: str) -> None:
             book.author = state_info["data"]["new_author"]
         if state_info["data"]["new_pages"] is not None:
             book.pages = state_info["data"]["new_pages"]
+        if state_info["data"]["new_link"] is not None:
+            book.link = state_info["data"]["new_link"]
         if new_tags is not None:
             book.tags = new_tags
         book_service.book_repo.update_book(book)

@@ -5,12 +5,12 @@ from vk_api.keyboard import VkKeyboard
 from vk_api.utils import get_random_id
 
 from core.services import BookService
+from utils import helpers
 from vk_bot.user_helpers import get_or_create_user
 from vk_bot.states import active_states
 from vk_bot.keyboards import cancel_keyboard, main_keyboard
 from utils.litres_parser import is_litres_url, parse_litres_book, LitresParserError
 
-# TODO: Везде добавить клавиатуру cancel
 # TODO: Разбить файл на функцию. Изучить как сделать через StateMachine
 
 def handle_add_command(vk: VkApiMethod, user_id: int) -> None:
@@ -33,6 +33,8 @@ def handle_add_command_step(vk: VkApiMethod, user_id: int, text: str) -> None:
     state_info = active_states[user_id]
     state = state_info["state"]
     data = state_info["data"]
+
+    text = text.strip()
 
     # New state: choose method
     if state == "choose_method":
@@ -62,7 +64,7 @@ def handle_add_command_step(vk: VkApiMethod, user_id: int, text: str) -> None:
         return
 
     if state == "waiting_for_title":
-        data["title"] = text.strip()
+        data["title"] = text
         state_info["state"] = "waiting_for_author"
         vk.messages.send(
             user_id=user_id,
@@ -73,7 +75,7 @@ def handle_add_command_step(vk: VkApiMethod, user_id: int, text: str) -> None:
         return
 
     if state == "waiting_for_author":
-        data["author"] = text.strip()
+        data["author"] = text
         state_info["state"] = "waiting_for_pages"
         vk.messages.send(
             user_id=user_id,
@@ -85,7 +87,7 @@ def handle_add_command_step(vk: VkApiMethod, user_id: int, text: str) -> None:
 
     if state == "waiting_for_pages":
         try:
-            pages = int(text.strip())
+            pages = int(text)
             if pages <= 0:
                 raise ValueError
         except ValueError:
@@ -97,6 +99,30 @@ def handle_add_command_step(vk: VkApiMethod, user_id: int, text: str) -> None:
             )
             return
         data["pages"] = pages
+        # Prompt for optional link first
+        state_info["state"] = "waiting_for_link"
+        vk.messages.send(
+            user_id=user_id,
+            message="Отлично! Теперь можешь указать ссылку на книгу. Нажми Дальше чтобы оставить пустым.",
+            keyboard=create_link_keyboard().get_keyboard(),
+            random_id=get_random_id()
+        )
+        return
+    
+    if state == "waiting_for_link":
+        if not text or text.lower() == "дальше":
+            data["link"] = None
+        else:
+            link = text
+            if not helpers.is_valid_url(link):
+                vk.messages.send(
+                    user_id=user_id,
+                    message="⚠️ Пожалуйста, введи корректный URL (http/https) или нажми 'Дальше' to skip.",
+                    keyboard=create_link_keyboard().get_keyboard(),
+                    random_id=get_random_id()
+                )
+                return
+            data["link"] = link
         state_info["state"] = "waiting_for_tags"
         vk.messages.send(
             user_id=user_id,
@@ -109,7 +135,6 @@ def handle_add_command_step(vk: VkApiMethod, user_id: int, text: str) -> None:
     if state == "waiting_for_tags":
         tags = [tag.strip() for tag in text.split(",") if tag.strip()]
         data["tags"] = tags
-
         # All data collected – create the book
         user = get_or_create_user(vk, user_id)
         book_service = BookService()
@@ -118,7 +143,8 @@ def handle_add_command_step(vk: VkApiMethod, user_id: int, text: str) -> None:
             author=data["author"],
             tags=data["tags"],
             pages=data["pages"],
-            user_id=user.id
+            user_id=user.id,
+            link=data.get("link")
         )
         # Clear state
         del active_states[user_id]
@@ -160,6 +186,8 @@ def handle_add_command_step(vk: VkApiMethod, user_id: int, text: str) -> None:
                 'pages': book_data['pages'],
                 # optional cover/image could be stored if needed
             })
+            # Store LitRes URL as link
+            data["link"] = url
             # Ask user to confirm the parsed book data before proceeding
             state_info["state"] = "waiting_for_litres_confirm"
             vk.messages.send(
@@ -205,7 +233,8 @@ def handle_add_command_step(vk: VkApiMethod, user_id: int, text: str) -> None:
             author=data["author"],
             tags=data["tags"],
             pages=data["pages"],
-            user_id=user.id
+            user_id=user.id,
+            link=data["link"]
         )
         del active_states[user_id]
         message_text=(
@@ -244,6 +273,13 @@ def create_add_method_keyboard() -> VkKeyboard:
     kb = VkKeyboard()
     kb.add_button('Ручное', payload={'command': '/add_manual'})
     kb.add_button('Из LitRes', payload={'command': '/add_litres'})
+    kb.add_button('Отмена', payload={'command': '/cancel'})
+    return kb
+
+
+def create_link_keyboard() -> VkKeyboard:
+    kb = VkKeyboard()
+    kb.add_button('Дальше')
     kb.add_button('Отмена', payload={'command': '/cancel'})
     return kb
 
