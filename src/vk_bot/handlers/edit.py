@@ -14,6 +14,10 @@ from vk_bot.states import active_states
 
 log = logger.setup_logger(__name__)
 
+# TODO: Актуализировать DevNotes.md
+# TODO: пофиксить flake8 src/
+# TODO: код получения книги вынести в отдельный метод
+# TODO: сделать отдельный класс для обработчиков команд
 
 def handle_edit_command(vk: VkApiMethod, user_id: int) -> None:
     """Инициирует процесс /edit – выводит нумерованный список книг и просит выбрать номер."""

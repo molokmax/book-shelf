@@ -37,26 +37,6 @@ class Book:
         self.current_page = max(0, min(self.pages, new_page))
         self.updated_at = datetime.now()
 
-    def to_dict(self) -> dict:
-        """Конвертирует книгу в словарь для сохранения."""
-        return {
-            "id": self.id,
-            "title": self.title,
-            "author": self.author,
-            "tags": self.tags,
-            "pages": self.pages,
-            "current_page": self.current_page,
-            "status": self.status.value,
-            "created_at": self.created_at.isoformat(),
-            "updated_at": self.updated_at.isoformat(),
-            "cover_image": self.cover_image,
-            "notes": self.notes,
-            "link": self.link,
-            "reading_start_date": self.reading_start_date.isoformat() if self.reading_start_date else None,
-            "reading_end_date": self.reading_end_date.isoformat() if self.reading_end_date else None,
-            "user_id": self.user_id,
-        }
-
     @classmethod
     def from_dict(cls, data: dict) -> "Book":
         """Создаёт книгу из словаря."""
@@ -73,8 +53,8 @@ class Book:
             cover_image=data.get("cover_image"),
             notes=data.get("notes"),
             link=data.get("link"),
-            reading_start_date=datetime.fromisoformat(data.get("reading_start_date")) if data.get("reading_start_date") else None,
-            reading_end_date=datetime.fromisoformat(data.get("reading_end_date")) if data.get("reading_end_date") else None,
+            reading_start_date=datetime.fromisoformat(data.get("reading_start_date", "")) if data.get("reading_start_date") else None,
+            reading_end_date=datetime.fromisoformat(data.get("reading_end_date", "")) if data.get("reading_end_date") else None,
             user_id=data.get("user_id", "")
         )
 
@@ -89,18 +69,6 @@ class User:
     created_at: datetime = field(default_factory=datetime.now)
     last_active: datetime = field(default_factory=datetime.now)
 
-    def to_dict(self) -> dict:
-        """Конвертирует пользователя в словарь для сохранения."""
-        return {
-            "id": self.id,
-            "external_id": self.external_id,
-            "username": self.username,
-            "first_name": self.first_name,
-            "last_name": self.last_name,
-            "created_at": self.created_at.isoformat(),
-            "last_active": self.last_active.isoformat()
-        }
-
     @classmethod
     def from_dict(cls, data: dict) -> "User":
         """Создаёт пользователя из словаря."""
@@ -112,4 +80,22 @@ class User:
             last_name=data.get("last_name"),
             created_at=datetime.fromisoformat(data.get("created_at", datetime.now().isoformat())),
             last_active=datetime.fromisoformat(data.get("last_active", datetime.now().isoformat()))
+        )
+
+@dataclass
+class ReadStat:
+    """Модель статистики чтения книги."""
+    id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    book_id: str = ""
+    pages_read: int = 0
+    read_date: datetime = field(default_factory=datetime.now)
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "ReadStat":
+        """Создаёт объект ReadStat из словаря."""
+        return cls(
+            id=data.get("id", str(uuid.uuid4())),
+            book_id=data.get("book_id", ""),
+            pages_read=data.get("pages_read", 0),
+            read_date=datetime.fromisoformat(data.get("read_date", datetime.now().isoformat()))
         )

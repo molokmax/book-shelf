@@ -1,5 +1,7 @@
 """Сервисный слой для работы с книгами."""
 
+from pathlib import Path
+
 from utils import logger
 from typing import Callable, List, Dict, Optional
 from datetime import datetime
@@ -8,17 +10,20 @@ from core.models import Book, User, ReadingStatus
 from core.repository import BookRepository, UserRepository
 
 from core.db import get_db
+from utils.config import load_config
 
 log = logger.setup_logger(__name__)
 
 class BookService:
     """Сервис для работы с книгами."""
 
-    def __init__(self, db_path: str = "data/database.db") -> None:
+    def __init__(self, db_path: str | None = None) -> None:
         """Инициализация сервиса."""
+        db_path = db_path or get_default_db_path()
         db = get_db(db_path)
         self.book_repo = BookRepository(db)
         self.user_repo = UserRepository(db)
+        self.reading_stats_service = ReadingStatsService(db_path)
 
     def create_book(
         self,
@@ -79,11 +84,13 @@ class BookService:
         return self.book_repo.update_book(book)
 
     def update_book_progress(self, book_id: str, current_page: int) -> Book:
-        """Обновляет прогресс чтения книги по текущей странице."""
+        """Обновляет прогресс чтения книги по текущей странице и сохраняет статистику чтения."""
         book = self.book_repo.get_book_by_id(book_id)
         if not book:
             raise ValueError(f"Книга с ID {book_id} не найдена")
 
+        # запомним предыдущее количество прочитанных страниц
+        previous_page = book.current_page
         book.update_progress(current_page)
 
         # Автоматически обновляем статус
@@ -94,6 +101,13 @@ class BookService:
             book.status = ReadingStatus.READING
             if not book.reading_start_date:
                 book.reading_start_date = datetime.now()
+
+        # сохраняем запись о статистике чтения (кол-во новых страниц)
+        pages_read = max(0, book.current_page - previous_page)
+        try:
+            self.reading_stats_service.add_record(book.id, pages_read)
+        except Exception as e:
+            log.error(f"Failed to add reading stat for book {book.id}: {e}")
 
         return self.book_repo.update_book(book)
 
@@ -137,20 +151,12 @@ class BookService:
             "avg_progress": avg_progress
         }
 
-    def export_library(self, user_id: Optional[str] = None) -> Dict:
-        """Экспортирует библиотеку в формат для сохранения. Если указан user_id, экспортирует только книги этого пользователя."""
-        books = self.get_all_books(user_id)
-        return {
-            "exported_at": datetime.now().isoformat(),
-            "total_books": len(books),
-            "books": [book.to_dict() for book in books]
-        }
-
 class UserService:
     """Сервис для работы с пользователями."""
 
-    def __init__(self, db_path: str = "data/database.db") -> None:
+    def __init__(self, db_path: str | None = None) -> None:
         """Инициализация сервиса."""
+        db_path = db_path or get_default_db_path()
         db = get_db(db_path)
         self.user_repo = UserRepository(db)
 
@@ -165,3 +171,20 @@ class UserService:
         # Обновляем последнюю активность
         user.last_active = datetime.now()
         return self.user_repo.update_user(user)
+
+
+class ReadingStatsService:
+    """Сервис для работы со статистикой чтения книг."""
+
+    def __init__(self, db_path: str | None = None) -> None:
+        db_path = db_path or get_default_db_path()
+        self.db = get_db(db_path)
+
+    def add_record(self, book_id: str, pages_read: int, read_date: str | None = None) -> str:
+        """Добавляет запись статистики чтения."""
+        return self.db.add_reading_stat(book_id, pages_read, read_date)
+
+
+def get_default_db_path() -> str:
+    config = load_config()
+    return str(Path(config.data_dir) / "database.db")

@@ -1,9 +1,11 @@
 """Модуль для работы с базой данных SQLite."""
 
+from datetime import datetime
 import sqlite3
 from pathlib import Path
 from typing import Optional, List
 from contextlib import contextmanager
+import uuid
 from core.models import User, Book
 
 class Database:
@@ -87,6 +89,17 @@ class Database:
             FOREIGN KEY (user_id) REFERENCES users (id)
         )
         """)
+        
+        # Таблица статистики чтения
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS read_stats (
+            id TEXT PRIMARY KEY,
+            book_id TEXT NOT NULL,
+            pages_read INTEGER NOT NULL,
+            read_date TEXT NOT NULL,
+            FOREIGN KEY (book_id) REFERENCES books(id)
+        )
+        """)
 
         self.conn.commit()
 
@@ -115,6 +128,16 @@ class Database:
         """Закрывает подключение при выходе из контекста."""
         self.close()
 
+    def add_reading_stat(self, book_id: str, pages_read: int, read_date: str | None = None) -> str:
+        """Вставляет запись о статистике чтения в таблицу `read_stats`."""
+        if read_date is None:
+            read_date = datetime.now().isoformat()
+        with self.get_cursor() as cursor:
+            cursor.execute(
+                "INSERT INTO read_stats (id, book_id, pages_read, read_date) VALUES (?, ?, ?, ?)",
+                (str(uuid.uuid4()), book_id, pages_read, read_date)
+            )
+            return cursor.lastrowid
 
     def add_or_update_user(self, user: "User") -> "User":
         """Добавляет или обновляет пользователя в базе данных."""

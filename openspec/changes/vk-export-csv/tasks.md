@@ -11,7 +11,7 @@
     - Использовать модуль `csv`.
     - Писать заголовки `id,title,author,tags,pages,current_page,status,created_at`.
     - Сохранять файл во временный каталог (`tempfile.TemporaryDirectory`).
-- [ ] 2.2 В обработчике `export_csv` вызвать `export_to_csv`, затем отправить файл пользователю через VK API и удалить временный файл.
+- [x] 2.2 В обработчике `export_csv` вызвать `export_to_csv`, затем отправить файл пользователю через VK API и удалить временный файл.
 
 ## 3. Testing
 

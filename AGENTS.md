@@ -1,6 +1,6 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Open Code when working with code in this repository.
 
 ## Common Development Commands
 
@@ -14,23 +14,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## High‑Level Architecture
 
-- **src/main.py** – Entry point that creates and runs `BookShelfBot`.
-- **src/vk_main.py** – Entry point that creates and runs `VkBookShelfBot`.
-- **src/bot/** – Telegram bot layer:
-  - `bot.py` contains `BookShelfBot`, which sets up the `python‑telegram‑bot` `Application`, loads configuration, and registers handlers.
-  - `handlers/` are split by concern:
-    - `commands.py` – top‑level commands (`/start`, `/help`, `/cancel`).
-    - `messages.py` – generic text handling.
-    - `callbacks.py` – callback‑query handling.
-    - `book/` – CRUD‑style handlers for books (`add`, `list`, `edit`, `delete`, `progress`, `stats`, `export`).
-  - `keyboards/` – UI keyboard layouts used by the bot.
+- **src/main.py** – Entry point that creates and runs `VkBookShelfBot`.
 - **src/vk_bot/** – Vk bot layer:
   - `bot.py` contains `VkBookShelfBot`, which uses `vk_api`, loads configuration, and runs handlers.
   - `handlers/` are split by use cases. Each file in this folder is responsible for some command (`start`, `add`, `edit`, `list`).
   - `keyboards.py` – Shared keyboard layouts used by the several commands. Specific keyboards should be in command handler file.
 - **src/core/** – Core application logic, independent of Telegram:
   - `models.py` – Pydantic data models for books and related entities.
-  - `database.py` – Simple JSON‑file based persistence (loads/saves `data/books.json`).
+   - `database.py` – SQLite‑based persistence (stores data in `data/database.db`).
   - `db.py` – Low‑level database operations.
   - `repository.py` – Repository pattern exposing high‑level data access methods.
   - `services.py` – Business‑logic services (e.g., adding a book, updating status).
