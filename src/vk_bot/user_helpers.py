@@ -1,8 +1,9 @@
 """Utility functions for VK bot user management."""
 
+from vk_api.vk_api import VkApiMethod
+
 from core.models import User
 from core.services import UserService
-from vk_api.vk_api import VkApiMethod
 
 
 def get_or_create_user(vk: VkApiMethod, vk_user_id: int):

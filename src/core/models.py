@@ -1,10 +1,11 @@
 """Модели данных для Book Shelf."""
 
-from dataclasses import dataclass, field
-from typing import Optional
-from enum import Enum
 import uuid
+from dataclasses import dataclass, field
 from datetime import datetime
+from enum import Enum
+from typing import Optional
+
 
 class ReadingStatus(str, Enum):
     """Статусы чтения книги."""

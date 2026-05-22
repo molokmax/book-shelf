@@ -1,7 +1,7 @@
 """Handler for the /list command in the VK bot."""
 
-from vk_api.vk_api import VkApiMethod
 from vk_api.utils import get_random_id
+from vk_api.vk_api import VkApiMethod
 
 from core.services import BookService
 from utils import helpers

@@ -1,8 +1,10 @@
 """Репозиторий для работы с данными."""
 
 from typing import List, Optional
-from core.models import Book, User
+
 from core.database import Database
+from core.models import Book, User
+
 
 class BookRepository:
     """Репозиторий для работы с книгами."""

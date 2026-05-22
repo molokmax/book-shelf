@@ -3,6 +3,7 @@
 import re
 from urllib.parse import urlparse
 
+
 def sanitize_text(text: str) -> str:
     """Очищает текст от нежелательных символов."""
     if not text:

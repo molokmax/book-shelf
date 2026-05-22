@@ -1,9 +1,10 @@
 """Настройка логирования для Book Shelf."""
 
 import logging
-import sys
 import os
+import sys
 from typing import Optional
+
 
 def setup_logger(name: Optional[str] = None) -> logging.Logger:
     """Настраивает и возвращает логгер."""

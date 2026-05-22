@@ -1,8 +1,8 @@
-from vk_api.vk_api import VkApiMethod
 from vk_api.utils import get_random_id
+from vk_api.vk_api import VkApiMethod
 
-from vk_bot.states import active_states
 from vk_bot.keyboards import main_keyboard
+from vk_bot.states import active_states
 
 
 def handle_cancel_command(vk: VkApiMethod, user_id: int) -> None:

@@ -1,6 +1,8 @@
-from vk_api.vk_api import VkApiMethod
 from vk_api.utils import get_random_id
+from vk_api.vk_api import VkApiMethod
+
 from vk_bot.keyboards import main_keyboard
+
 
 def handle_help_command(vk: VkApiMethod, user_id: int):
     """Send help information for the bot."""

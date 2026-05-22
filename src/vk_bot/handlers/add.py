@@ -1,15 +1,16 @@
 '''VK bot handler for adding books (manual method only).'''
 
-from vk_api.vk_api import VkApiMethod
 from vk_api.keyboard import VkKeyboard
 from vk_api.utils import get_random_id
+from vk_api.vk_api import VkApiMethod
 
 from core.services import BookService
 from utils import helpers
-from vk_bot.user_helpers import get_or_create_user
-from vk_bot.states import active_states
+from utils.litres_parser import (LitresParserError, is_litres_url,
+                                 parse_litres_book)
 from vk_bot.keyboards import cancel_keyboard, main_keyboard
-from utils.litres_parser import is_litres_url, parse_litres_book, LitresParserError
+from vk_bot.states import active_states
+from vk_bot.user_helpers import get_or_create_user
 
 # TODO: Разбить файл на функцию. Изучить как сделать через StateMachine
 

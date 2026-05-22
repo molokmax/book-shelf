@@ -1,5 +1,6 @@
 from vk_api.keyboard import VkKeyboard
 
+
 def main_keyboard() -> VkKeyboard:
     """Create the keyboard for the /start command."""
     kb = VkKeyboard()

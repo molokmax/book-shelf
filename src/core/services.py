@@ -1,15 +1,13 @@
 """Сервисный слой для работы с книгами."""
 
-from pathlib import Path
-
-from utils import logger
-from typing import Callable, List, Dict, Optional
 from datetime import datetime
-
-from core.models import Book, User, ReadingStatus
-from core.repository import BookRepository, UserRepository
+from pathlib import Path
+from typing import Callable, Dict, List, Optional
 
 from core.db import get_db
+from core.models import Book, ReadingStatus, User
+from core.repository import BookRepository, UserRepository
+from utils import logger
 from utils.config import load_config
 
 log = logger.setup_logger(__name__)

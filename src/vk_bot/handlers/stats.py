@@ -1,7 +1,7 @@
 """Handler for the /stats command in the VK bot."""
 
-from vk_api.vk_api import VkApiMethod
 from vk_api.utils import get_random_id
+from vk_api.vk_api import VkApiMethod
 
 from core.services import BookService
 from vk_bot.keyboards import main_keyboard

@@ -1,12 +1,14 @@
 """Модуль для работы с базой данных SQLite."""
 
-from datetime import datetime
 import sqlite3
-from pathlib import Path
-from typing import Optional, List
-from contextlib import contextmanager
 import uuid
-from core.models import User, Book
+from contextlib import contextmanager
+from datetime import datetime
+from pathlib import Path
+from typing import List, Optional
+
+from core.models import Book, User
+
 
 class Database:
     """Класс для работы с базой данных SQLite."""

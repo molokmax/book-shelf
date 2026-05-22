@@ -1,9 +1,10 @@
 """Утилиты для парсинга книг с Литрес.""" 
 import json
 import re
-import requests
-from typing import Optional, Dict
+from typing import Dict, Optional
 from urllib.parse import urlparse
+
+import requests
 
 from utils import logger
 
