@@ -32,5 +32,5 @@ def handle_help_command(vk: VkApiMethod, user_id: int):
         user_id=user_id,
         message=help_text,
         keyboard=main_keyboard().get_keyboard(),
-        random_id=get_random_id()
+        random_id=get_random_id(),
     )

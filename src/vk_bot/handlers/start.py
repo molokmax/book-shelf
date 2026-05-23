@@ -20,5 +20,5 @@ def handle_start_command(vk: VkApiMethod, user_id: int):
         user_id=user_id,
         message=greeting,
         keyboard=main_keyboard().get_keyboard(),
-        random_id=get_random_id()
+        random_id=get_random_id(),
     )

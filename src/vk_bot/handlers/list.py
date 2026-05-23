@@ -33,5 +33,5 @@ def handle_list_command(vk: VkApiMethod, user_id: int) -> None:
         user_id=user_id,
         message=message,
         keyboard=main_keyboard().get_keyboard(),
-        random_id=get_random_id()
+        random_id=get_random_id(),
     )

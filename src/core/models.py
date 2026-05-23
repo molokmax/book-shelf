@@ -9,14 +9,17 @@ from typing import Optional
 
 class ReadingStatus(str, Enum):
     """Статусы чтения книги."""
+
     WANT_TO_READ = "want_to_read"
     READING = "reading"
     READ = "read"
     POSTPONED = "postponed"
 
+
 @dataclass
 class Book:
     """Модель книги."""
+
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
     title: str = ""
     author: str = ""
@@ -47,21 +50,37 @@ class Book:
             author=data.get("author", ""),
             tags=data.get("tags", []),
             pages=data.get("pages", 0),
-            current_page=data.get("current_page", data.get("progress", 0)),  # Поддержка миграции
+            current_page=data.get(
+                "current_page", data.get("progress", 0)
+            ),  # Поддержка миграции
             status=ReadingStatus(data.get("status", ReadingStatus.WANT_TO_READ.value)),
-            created_at=datetime.fromisoformat(data.get("created_at", datetime.now().isoformat())),
-            updated_at=datetime.fromisoformat(data.get("updated_at", datetime.now().isoformat())),
+            created_at=datetime.fromisoformat(
+                data.get("created_at", datetime.now().isoformat())
+            ),
+            updated_at=datetime.fromisoformat(
+                data.get("updated_at", datetime.now().isoformat())
+            ),
             cover_image=data.get("cover_image"),
             notes=data.get("notes"),
             link=data.get("link"),
-            reading_start_date=datetime.fromisoformat(data.get("reading_start_date", "")) if data.get("reading_start_date") else None,
-            reading_end_date=datetime.fromisoformat(data.get("reading_end_date", "")) if data.get("reading_end_date") else None,
-            user_id=data.get("user_id", "")
+            reading_start_date=(
+                datetime.fromisoformat(data.get("reading_start_date", ""))
+                if data.get("reading_start_date")
+                else None
+            ),
+            reading_end_date=(
+                datetime.fromisoformat(data.get("reading_end_date", ""))
+                if data.get("reading_end_date")
+                else None
+            ),
+            user_id=data.get("user_id", ""),
         )
+
 
 @dataclass
 class User:
     """Модель пользователя."""
+
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
     external_id: int = 0
     username: Optional[str] = None
@@ -79,13 +98,19 @@ class User:
             username=data.get("username"),
             first_name=data.get("first_name"),
             last_name=data.get("last_name"),
-            created_at=datetime.fromisoformat(data.get("created_at", datetime.now().isoformat())),
-            last_active=datetime.fromisoformat(data.get("last_active", datetime.now().isoformat()))
+            created_at=datetime.fromisoformat(
+                data.get("created_at", datetime.now().isoformat())
+            ),
+            last_active=datetime.fromisoformat(
+                data.get("last_active", datetime.now().isoformat())
+            ),
         )
+
 
 @dataclass
 class ReadStat:
     """Модель статистики чтения книги."""
+
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
     book_id: str = ""
     pages_read: int = 0
@@ -98,5 +123,7 @@ class ReadStat:
             id=data.get("id", str(uuid.uuid4())),
             book_id=data.get("book_id", ""),
             pages_read=data.get("pages_read", 0),
-            read_date=datetime.fromisoformat(data.get("read_date", datetime.now().isoformat()))
+            read_date=datetime.fromisoformat(
+                data.get("read_date", datetime.now().isoformat())
+            ),
         )

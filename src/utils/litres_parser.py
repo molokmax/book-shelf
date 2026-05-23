@@ -1,4 +1,5 @@
-"""Утилиты для парсинга книг с Литрес.""" 
+"""Утилиты для парсинга книг с Литрес."""
+
 import json
 import re
 from typing import Dict, Optional
@@ -10,17 +11,23 @@ from utils import logger
 
 log = logger.setup_logger(__name__)
 
+
 class LitresParserError(Exception):
     """Исключение для ошибок парсинга Литрес."""
+
     pass
+
 
 def is_litres_url(url: str) -> bool:
     """Проверяет, является ли URL ссылкой на Литрес."""
     try:
         parsed = urlparse(url)
-        return parsed.netloc.endswith('litres.ru') or parsed.netloc.endswith('litres.com')
+        return parsed.netloc.endswith("litres.ru") or parsed.netloc.endswith(
+            "litres.com"
+        )
     except:
         return False
+
 
 def parse_litres_book(url: str) -> Dict:
     """
@@ -48,7 +55,7 @@ def parse_litres_book(url: str) -> Dict:
     try:
         # Отправляем GET запрос к странице книги
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
         }
         response = requests.get(url, headers=headers, timeout=10)
         response.raise_for_status()
@@ -59,7 +66,7 @@ def parse_litres_book(url: str) -> Dict:
         json_ld_match = re.search(
             r'<script type="application/ld\+json"[^>]*>(.*?)</script>',
             html_content,
-            re.DOTALL
+            re.DOTALL,
         )
 
         if not json_ld_match:
@@ -67,32 +74,34 @@ def parse_litres_book(url: str) -> Dict:
 
         # Извлекаем JSON и парсим его
         json_str = json_ld_match.group(1).strip()
-    
+
         data = json.loads(json_str)
 
         # Проверяем, что это Book объект
-        if data.get('@type') != 'Book':
+        if data.get("@type") != "Book":
             # Попробуем найти другой JSON-LD элемент
             raise json.JSONDecodeError("JSON-LD не содержит Book данные")
 
         # Извлекаем информацию из JSON-LD
-        title = data.get('name', 'Неизвестное название')
-        if isinstance(data.get('author'), dict):
-            author = data.get('author', {}).get('name', 'Неизвестный автор')
-        elif isinstance(data.get('author'), list):
-            author = ', '.join([x.get('name', 'Неизвестный автор') for x in data.get('author', [])])
+        title = data.get("name", "Неизвестное название")
+        if isinstance(data.get("author"), dict):
+            author = data.get("author", {}).get("name", "Неизвестный автор")
+        elif isinstance(data.get("author"), list):
+            author = ", ".join(
+                [x.get("name", "Неизвестный автор") for x in data.get("author", [])]
+            )
         else:
-            author = 'Неизвестный автор'
-        pages = data.get('numberOfPages', 0)
-        cover_image = data.get('image')
-        description = data.get('description')
+            author = "Неизвестный автор"
+        pages = data.get("numberOfPages", 0)
+        cover_image = data.get("image")
+        description = data.get("description")
 
         return {
-            'title': title,
-            'author': author,
-            'pages': int(pages) if pages else 0,
-            'cover_image': cover_image,
-            'description': description
+            "title": title,
+            "author": author,
+            "pages": int(pages) if pages else 0,
+            "cover_image": cover_image,
+            "description": description,
         }
 
     except requests.RequestException as e:

@@ -39,5 +39,5 @@ def handle_stats_command(vk: VkApiMethod, user_id: int) -> None:
         user_id=user_id,
         message=stats_text,
         keyboard=main_keyboard().get_keyboard(),
-        random_id=get_random_id()
+        random_id=get_random_id(),
     )

@@ -19,6 +19,7 @@ log = logger.setup_logger(__name__)
 # TODO: сделать отдельный класс для обработчиков команд
 # TODO: можно удалять временные сообщения (например, список  книг для выбора) чтобы оставлять историю сообщений чистой
 
+
 def handle_edit_command(vk: VkApiMethod, user_id: int) -> None:
     """Инициирует процесс /edit – выводит нумерованный список книг и просит выбрать номер."""
     # 1. Получаем пользователя
@@ -35,12 +36,14 @@ def handle_edit_command(vk: VkApiMethod, user_id: int) -> None:
             user_id=user_id,
             message="У тебя нет книг в библиотеке. Добавь книгу с помощью /add",
             keyboard=main_keyboard().get_keyboard(),
-            random_id=get_random_id()
+            random_id=get_random_id(),
         )
         return
 
     # 4. Формируем нумерованный список в одном сообщении
-    lines = ["📚 Введи номер книги, которую хочешь отредактировать.\nТвоя библиотека:\n\n"]
+    lines = [
+        "📚 Введи номер книги, которую хочешь отредактировать.\nТвоя библиотека:\n\n"
+    ]
     for i, book in enumerate(books, 1):
         lines.append(helpers.format_book_info(i, book) + "\n")
     message_text = "".join(lines)
@@ -49,7 +52,7 @@ def handle_edit_command(vk: VkApiMethod, user_id: int) -> None:
     active_states[user_id] = {
         "command": "/edit",
         "state": "selecting_book",
-        "data": {"books": [book.id for book in books]}
+        "data": {"books": [book.id for book in books]},
     }
 
     # 6. Отправляем список и запрос номера
@@ -57,7 +60,7 @@ def handle_edit_command(vk: VkApiMethod, user_id: int) -> None:
         user_id=user_id,
         message=message_text,
         keyboard=cancel_keyboard().get_keyboard(),
-        random_id=get_random_id()
+        random_id=get_random_id(),
     )
 
 
@@ -66,7 +69,7 @@ def handle_edit_command_step(vk: VkApiMethod, user_id: int, text: str) -> None:
     state_info = active_states.get(user_id)
     if not state_info or state_info.get("command") != "/edit":
         return
-    
+
     state = state_info.get("state")
 
     if state == "selecting_book":
@@ -78,7 +81,7 @@ def handle_edit_command_step(vk: VkApiMethod, user_id: int, text: str) -> None:
                 user_id=user_id,
                 message="⚠️ Введи корректный номер книги.",
                 keyboard=cancel_keyboard().get_keyboard(),
-                random_id=get_random_id()
+                random_id=get_random_id(),
             )
             return
         books_ids = state_info["data"]["books"]
@@ -87,7 +90,7 @@ def handle_edit_command_step(vk: VkApiMethod, user_id: int, text: str) -> None:
                 user_id=user_id,
                 message="⚠️ Номер книги вне диапазона.",
                 keyboard=cancel_keyboard().get_keyboard(),
-                random_id=get_random_id()
+                random_id=get_random_id(),
             )
             return
         book_id = books_ids[selection - 1]
@@ -98,7 +101,7 @@ def handle_edit_command_step(vk: VkApiMethod, user_id: int, text: str) -> None:
                 user_id=user_id,
                 message="⚠️ Книга не найдена.",
                 keyboard=cancel_keyboard().get_keyboard(),
-                random_id=get_random_id()
+                random_id=get_random_id(),
             )
             return
 
@@ -110,10 +113,10 @@ def handle_edit_command_step(vk: VkApiMethod, user_id: int, text: str) -> None:
             user_id=user_id,
             message=f"Выбрана книга '{selected_book.title}'. Что нужно сделать?",
             keyboard=create_book_keyboard().get_keyboard(),
-            random_id=get_random_id()
+            random_id=get_random_id(),
         )
         return
-    
+
     if state == "selecting_action":
         if text.lower() == "удалить":
             book_service = BookService()
@@ -123,7 +126,7 @@ def handle_edit_command_step(vk: VkApiMethod, user_id: int, text: str) -> None:
                     user_id=user_id,
                     message="Ошибка при удалении книги. Идентификатор выбранной книги отсутствует.",
                     keyboard=cancel_keyboard().get_keyboard(),
-                    random_id=get_random_id()
+                    random_id=get_random_id(),
                 )
                 return
 
@@ -133,10 +136,10 @@ def handle_edit_command_step(vk: VkApiMethod, user_id: int, text: str) -> None:
                 user_id=user_id,
                 message=f"🗑️ Книга '{deleted_book.title}' удалена.",
                 keyboard=main_keyboard().get_keyboard(),
-                random_id=get_random_id()
+                random_id=get_random_id(),
             )
             return
-        
+
         elif text.lower() == "прогресс":
             # Начинаем процесс обновления прогресса чтения
             book_id = state_info["data"]["selected_book_id"]
@@ -147,7 +150,7 @@ def handle_edit_command_step(vk: VkApiMethod, user_id: int, text: str) -> None:
                     user_id=user_id,
                     message="⚠️ Книга не найдена.",
                     keyboard=cancel_keyboard().get_keyboard(),
-                    random_id=get_random_id()
+                    random_id=get_random_id(),
                 )
                 return
 
@@ -160,10 +163,10 @@ def handle_edit_command_step(vk: VkApiMethod, user_id: int, text: str) -> None:
                     f"📖 Выбрана книга '{book.title}'. Введи текущую страницу (от 0 до {book.pages}):"
                 ),
                 keyboard=cancel_keyboard().get_keyboard(),
-                random_id=get_random_id()
+                random_id=get_random_id(),
             )
             return
-        
+
         elif text.lower() == "статус":
             book_id = state_info["data"]["selected_book_id"]
             book_service = BookService()
@@ -173,21 +176,19 @@ def handle_edit_command_step(vk: VkApiMethod, user_id: int, text: str) -> None:
                     user_id=user_id,
                     message="⚠️ Книга не найдена.",
                     keyboard=cancel_keyboard().get_keyboard(),
-                    random_id=get_random_id()
+                    random_id=get_random_id(),
                 )
                 return
 
             state_info["state"] = "selecting_status"
             vk.messages.send(
                 user_id=user_id,
-                message=(
-                    f"📖 Выбрана книга '{book.title}'. Выбери новый статус:"
-                ),
+                message=(f"📖 Выбрана книга '{book.title}'. Выбери новый статус:"),
                 keyboard=create_status_keyboard().get_keyboard(),
-                random_id=get_random_id()
+                random_id=get_random_id(),
             )
             return
-        
+
         elif text.lower() == "изменить":
             book_id = state_info["data"]["selected_book_id"]
             book_service = BookService()
@@ -197,7 +198,7 @@ def handle_edit_command_step(vk: VkApiMethod, user_id: int, text: str) -> None:
                     user_id=user_id,
                     message="⚠️ Книга не найдена.",
                     keyboard=cancel_keyboard().get_keyboard(),
-                    random_id=get_random_id()
+                    random_id=get_random_id(),
                 )
                 return
 
@@ -206,7 +207,7 @@ def handle_edit_command_step(vk: VkApiMethod, user_id: int, text: str) -> None:
                 user_id=user_id,
                 message=f"Текущее название книги: '{book.title}'. Введи новое название или нажми 'Дальше' чтобы оставить текущего.",
                 keyboard=create_edit_keyboard().get_keyboard(),
-                random_id=get_random_id()
+                random_id=get_random_id(),
             )
             return
 
@@ -227,18 +228,18 @@ def handle_edit_command_step(vk: VkApiMethod, user_id: int, text: str) -> None:
                 user_id=user_id,
                 message="⚠️ Книга не найдена.",
                 keyboard=cancel_keyboard().get_keyboard(),
-                random_id=get_random_id()
+                random_id=get_random_id(),
             )
             return
-    
+
         vk.messages.send(
             user_id=user_id,
             message=f"Текущий автор книги: '{book.author}'. Введи нового автора или нажми 'Дальше' чтобы оставить текущего.",
             keyboard=create_edit_keyboard().get_keyboard(),
-            random_id=get_random_id()
+            random_id=get_random_id(),
         )
         return
-    
+
     elif state == "editing_author":
         if text.lower() == "дальше":
             new_author = None
@@ -253,18 +254,18 @@ def handle_edit_command_step(vk: VkApiMethod, user_id: int, text: str) -> None:
                 user_id=user_id,
                 message="⚠️ Книга не найдена.",
                 keyboard=cancel_keyboard().get_keyboard(),
-                random_id=get_random_id()
+                random_id=get_random_id(),
             )
             return
-        
+
         vk.messages.send(
             user_id=user_id,
             message=f"Текущее количество страниц: {book.pages}. Введи новое количество страниц или нажми 'Дальше' чтобы оставить текущие.",
             keyboard=create_edit_keyboard().get_keyboard(),
-            random_id=get_random_id()
+            random_id=get_random_id(),
         )
         return
-    
+
     elif state == "editing_pages":
         if text.lower() == "дальше":
             new_pages = None
@@ -276,10 +277,10 @@ def handle_edit_command_step(vk: VkApiMethod, user_id: int, text: str) -> None:
                     user_id=user_id,
                     message="⚠️ Введите корректное целое число для количества страниц.",
                     keyboard=create_edit_keyboard().get_keyboard(),
-                    random_id=get_random_id()
+                    random_id=get_random_id(),
                 )
                 return
-        
+
         state_info["data"]["new_pages"] = new_pages
         state_info["state"] = "editing_link"
         book_id = state_info["data"]["selected_book_id"]
@@ -289,18 +290,18 @@ def handle_edit_command_step(vk: VkApiMethod, user_id: int, text: str) -> None:
                 user_id=user_id,
                 message="⚠️ Книга не найдена.",
                 keyboard=cancel_keyboard().get_keyboard(),
-                random_id=get_random_id()
+                random_id=get_random_id(),
             )
             return
-        
+
         vk.messages.send(
             user_id=user_id,
             message=f"Текущая ссылка на книгу - {book.link or 'Отсутствует'}. Введи новую ссылку на книгу или нажми 'Дальше' чтобы оставить текущую.",
             keyboard=create_edit_keyboard().get_keyboard(),
-            random_id=get_random_id()
+            random_id=get_random_id(),
         )
         return
-    
+
     elif state == "editing_link":
         if text.lower() == "дальше":
             new_link = None
@@ -315,24 +316,24 @@ def handle_edit_command_step(vk: VkApiMethod, user_id: int, text: str) -> None:
                 user_id=user_id,
                 message="⚠️ Книга не найдена.",
                 keyboard=cancel_keyboard().get_keyboard(),
-                random_id=get_random_id()
+                random_id=get_random_id(),
             )
             return
-        
+
         tags_text = ", ".join(book.tags) if book.tags else "Нет тэгов"
         vk.messages.send(
             user_id=user_id,
             message=f"Текущие тэги книги: {tags_text}. Введи новые тэги через запятую или нажми 'Дальше' чтобы оставить текущие.",
             keyboard=create_edit_keyboard().get_keyboard(),
-            random_id=get_random_id()
+            random_id=get_random_id(),
         )
         return
-    
+
     elif state == "editing_tags":
         if text.lower() == "дальше":
             new_tags = None
         else:
-            new_tags = [t.strip() for t in text.split(',') if t.strip()]
+            new_tags = [t.strip() for t in text.split(",") if t.strip()]
         # Применяем изменения
         book_id = state_info["data"]["selected_book_id"]
         book_service = BookService()
@@ -342,10 +343,10 @@ def handle_edit_command_step(vk: VkApiMethod, user_id: int, text: str) -> None:
                 user_id=user_id,
                 message="⚠️ Книга не найдена.",
                 keyboard=cancel_keyboard().get_keyboard(),
-                random_id=get_random_id()
+                random_id=get_random_id(),
             )
             return
-        
+
         if state_info["data"]["new_title"] is not None:
             book.title = state_info["data"]["new_title"]
         if state_info["data"]["new_author"] is not None:
@@ -361,11 +362,11 @@ def handle_edit_command_step(vk: VkApiMethod, user_id: int, text: str) -> None:
             user_id=user_id,
             message=f"✅ Книга обновлена: '{book.title}' от {book.author}.",
             keyboard=main_keyboard().get_keyboard(),
-            random_id=get_random_id()
+            random_id=get_random_id(),
         )
         del active_states[user_id]
         return
-    
+
     elif state == "waiting_for_progress_input":
         # Обработка ввода текущей страницы пользователем
         try:
@@ -375,7 +376,7 @@ def handle_edit_command_step(vk: VkApiMethod, user_id: int, text: str) -> None:
                 user_id=user_id,
                 message="❌ Некорректный ввод. Пожалуйста, введи число (например: '50').",
                 keyboard=cancel_keyboard().get_keyboard(),
-                random_id=get_random_id()
+                random_id=get_random_id(),
             )
             return
 
@@ -385,7 +386,7 @@ def handle_edit_command_step(vk: VkApiMethod, user_id: int, text: str) -> None:
                 user_id=user_id,
                 message="⚠️ Ошибка: неизвестное количество страниц книги.",
                 keyboard=cancel_keyboard().get_keyboard(),
-                random_id=get_random_id()
+                random_id=get_random_id(),
             )
             return
 
@@ -394,7 +395,7 @@ def handle_edit_command_step(vk: VkApiMethod, user_id: int, text: str) -> None:
                 user_id=user_id,
                 message="❌ Страница не может быть отрицательной.",
                 keyboard=cancel_keyboard().get_keyboard(),
-                random_id=get_random_id()
+                random_id=get_random_id(),
             )
             return
         if current_page > total_pages:
@@ -402,7 +403,7 @@ def handle_edit_command_step(vk: VkApiMethod, user_id: int, text: str) -> None:
                 user_id=user_id,
                 message=f"❌ Книга содержит только {total_pages} страниц.",
                 keyboard=cancel_keyboard().get_keyboard(),
-                random_id=get_random_id()
+                random_id=get_random_id(),
             )
             return
 
@@ -412,7 +413,7 @@ def handle_edit_command_step(vk: VkApiMethod, user_id: int, text: str) -> None:
                 user_id=user_id,
                 message="⚠️ Идентификатор книги не найден.",
                 keyboard=cancel_keyboard().get_keyboard(),
-                random_id=get_random_id()
+                random_id=get_random_id(),
             )
             return
 
@@ -426,7 +427,7 @@ def handle_edit_command_step(vk: VkApiMethod, user_id: int, text: str) -> None:
                 f"Прочитано {updated_book.current_page} из {total_pages} страниц."
             ),
             keyboard=main_keyboard().get_keyboard(),
-            random_id=get_random_id()
+            random_id=get_random_id(),
         )
         # Очистить состояние
         del active_states[user_id]
@@ -446,7 +447,7 @@ def handle_edit_command_step(vk: VkApiMethod, user_id: int, text: str) -> None:
                 user_id=user_id,
                 message="⚠️ Неизвестный статус. Выбери один из предложенных.",
                 keyboard=create_status_keyboard().get_keyboard(),
-                random_id=get_random_id()
+                random_id=get_random_id(),
             )
             return
 
@@ -458,7 +459,7 @@ def handle_edit_command_step(vk: VkApiMethod, user_id: int, text: str) -> None:
             user_id=user_id,
             message=f"✅ Статус книги '{updated_book.title}' изменён на '{get_status_name(updated_book.status.value)}'",
             keyboard=main_keyboard().get_keyboard(),
-            random_id=get_random_id()
+            random_id=get_random_id(),
         )
         del active_states[user_id]
         return
@@ -467,12 +468,12 @@ def handle_edit_command_step(vk: VkApiMethod, user_id: int, text: str) -> None:
 def create_book_keyboard() -> VkKeyboard:
     """Создаёт клавиатуру с кнопками действий над книгой: удалить, прогресс, статус и изменить."""
     kb = VkKeyboard()
-    kb.add_button('Изменить')
-    kb.add_button('Прогресс')
-    kb.add_button('Статус')
+    kb.add_button("Изменить")
+    kb.add_button("Прогресс")
+    kb.add_button("Статус")
     kb.add_line()
-    kb.add_button('Удалить')
-    kb.add_button('Отмена', payload={'command': '/cancel'})
+    kb.add_button("Удалить")
+    kb.add_button("Отмена", payload={"command": "/cancel"})
     return kb
 
 
@@ -480,19 +481,19 @@ def create_status_keyboard() -> VkKeyboard:
     """Создаёт клавиатуру для выбора нового статуса книги без payload."""
     kb = VkKeyboard()
     # Кнопки с названием статуса, без payload; обработка будет по тексту сообщения
-    kb.add_button('Хочу прочитать')
-    kb.add_button('Читаю сейчас')
+    kb.add_button("Хочу прочитать")
+    kb.add_button("Читаю сейчас")
     kb.add_line()
-    kb.add_button('Прочитано')
-    kb.add_button('Отложено')
+    kb.add_button("Прочитано")
+    kb.add_button("Отложено")
     kb.add_line()
-    kb.add_button('Отмена', payload={'command': '/cancel'})
+    kb.add_button("Отмена", payload={"command": "/cancel"})
     return kb
 
 
 def create_edit_keyboard() -> VkKeyboard:
     """Keyboard with 'Дальше' and 'Отмена' buttons for sequential editing steps."""
     kb = VkKeyboard()
-    kb.add_button('Дальше')
-    kb.add_button('Отмена', payload={'command': '/cancel'})
+    kb.add_button("Дальше")
+    kb.add_button("Отмена", payload={"command": "/cancel"})
     return kb

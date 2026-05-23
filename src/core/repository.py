@@ -46,8 +46,9 @@ class BookRepository:
 
     def close(self) -> None:
         """Закрывает подключение к базе данных."""
-        if hasattr(self, 'db') and self.db is not None:
+        if hasattr(self, "db") and self.db is not None:
             self.db.close()
+
 
 class UserRepository:
     """Репозиторий для работы с пользователями."""
@@ -74,5 +75,5 @@ class UserRepository:
 
     def close(self) -> None:
         """Закрывает подключение к базе данных."""
-        if hasattr(self, 'db') and self.db is not None:
+        if hasattr(self, "db") and self.db is not None:
             self.db.close()

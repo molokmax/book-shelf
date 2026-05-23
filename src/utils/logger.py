@@ -18,7 +18,7 @@ def setup_logger(name: Optional[str] = None) -> logging.Logger:
     # Устанавливаем формат
     formatter = logging.Formatter(
         "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        datefmt='%Y-%m-%d %H:%M:%S'
+        datefmt="%Y-%m-%d %H:%M:%S",
     )
 
     # Настраиваем обработчики
@@ -31,11 +31,13 @@ def setup_logger(name: Optional[str] = None) -> logging.Logger:
 
     return logger
 
+
 def __create_console_handler(formatter: logging.Formatter, level):
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(formatter)
     handler.setLevel(level)
     return handler
+
 
 def __create_file_handler(formatter: logging.Formatter, level):
     log_dir = "logs"

@@ -12,6 +12,7 @@ from utils.config import load_config
 
 log = logger.setup_logger(__name__)
 
+
 class BookService:
     """Сервис для работы с книгами."""
 
@@ -32,7 +33,7 @@ class BookService:
         user_id: str,
         current_page: int = 0,
         status: str = ReadingStatus.WANT_TO_READ.value,
-        link: Optional[str] = None
+        link: Optional[str] = None,
     ) -> Book:
         """Создаёт новую книгу."""
         book = Book(
@@ -43,7 +44,7 @@ class BookService:
             user_id=user_id,
             current_page=current_page,
             status=ReadingStatus(status),
-            link=link
+            link=link,
         )
         return self.book_repo.add_book(book)
 
@@ -51,7 +52,11 @@ class BookService:
         """Получает все книги. Если указан user_id, возвращает только книги этого пользователя.
         По умолчанию сортирует по приоритету (от высокого к низкому).
         Прочитанные книги всегда в конце списка."""
-        books = self.book_repo.get_all_books() if user_id is None else self.book_repo.get_books_by_user_id(user_id)
+        books = (
+            self.book_repo.get_all_books()
+            if user_id is None
+            else self.book_repo.get_books_by_user_id(user_id)
+        )
 
         # Прочитанные книги всегда в конце
         books.sort(key=lambda b: b.status == ReadingStatus.READ)
@@ -131,12 +136,18 @@ class BookService:
         total_books = len(books)
         read_books = len([b for b in books if b.status == ReadingStatus.READ])
         reading_books = len([b for b in books if b.status == ReadingStatus.READING])
-        want_to_read_books = len([b for b in books if b.status == ReadingStatus.WANT_TO_READ])
+        want_to_read_books = len(
+            [b for b in books if b.status == ReadingStatus.WANT_TO_READ]
+        )
         postponed_books = len([b for b in books if b.status == ReadingStatus.POSTPONED])
 
         total_pages = sum(b.pages for b in books)
         read_pages = sum(b.current_page for b in books)
-        avg_progress = (sum(b.current_page for b in books) / sum(b.pages for b in books) * 100) if books and sum(b.pages for b in books) > 0 else 0
+        avg_progress = (
+            (sum(b.current_page for b in books) / sum(b.pages for b in books) * 100)
+            if books and sum(b.pages for b in books) > 0
+            else 0
+        )
 
         return {
             "total_books": total_books,
@@ -146,8 +157,9 @@ class BookService:
             "postponed_books": postponed_books,
             "total_pages": total_pages,
             "read_pages": int(read_pages),
-            "avg_progress": avg_progress
+            "avg_progress": avg_progress,
         }
+
 
 class UserService:
     """Сервис для работы с пользователями."""
@@ -158,7 +170,9 @@ class UserService:
         db = get_db(db_path)
         self.user_repo = UserRepository(db)
 
-    def get_or_create_user(self, user_external_id: int, user_factory: Callable[[int], User]) -> User:
+    def get_or_create_user(
+        self, user_external_id: int, user_factory: Callable[[int], User]
+    ) -> User:
         """Получает пользователя или создаёт нового."""
         user = self.user_repo.get_user_by_external_id(user_external_id)
 
@@ -178,7 +192,9 @@ class ReadingStatsService:
         db_path = db_path or get_default_db_path()
         self.db = get_db(db_path)
 
-    def add_record(self, book_id: str, pages_read: int, read_date: str | None = None) -> str:
+    def add_record(
+        self, book_id: str, pages_read: int, read_date: str | None = None
+    ) -> str:
         """Добавляет запись статистики чтения."""
         return self.db.add_reading_stat(book_id, pages_read, read_date)
 

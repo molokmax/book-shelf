@@ -53,17 +53,16 @@ class VkBookShelfBot:
                     time.sleep(60)
                 else:
                     time.sleep(5)
-            
+
             except (ConnectionError, TimeoutError) as e:
                 # Ошибки сети
                 print(f"[Сетевая ошибка] {e}. Переподключение через 10 сек...")
                 time.sleep(10)
-            
+
             except Exception as e:
                 # Любая другая неожиданная ошибка
                 print(f"[Критическая ошибка] {e}. Перезапуск через 30 сек...")
                 time.sleep(30)
-
 
     def handle_event(self, event: Event):
         try:
@@ -72,14 +71,20 @@ class VkBookShelfBot:
             if not event.to_me:
                 return
             if not event.user_id:
-                self.logger.warning("Сообщение не будет обработано так как неизвестен идентификатор текущего пользователя")
+                self.logger.warning(
+                    "Сообщение не будет обработано так как неизвестен идентификатор текущего пользователя"
+                )
                 return
             if not event.peer_id:
-                self.logger.warning("Сообщение не будет обработано так как неизвестен идентификатор текущего чата")
+                self.logger.warning(
+                    "Сообщение не будет обработано так как неизвестен идентификатор текущего чата"
+                )
                 return
 
             command = self.get_command(event)
-            self.logger.debug(f"Получили команду {command} от пользователя {event.user_id}")
+            self.logger.debug(
+                f"Получили команду {command} от пользователя {event.user_id}"
+            )
 
             # TODO: В какие моменты нужно сбратывать текущий стейт?
             # TODO: реализовать механизм роутинга
@@ -119,23 +124,25 @@ class VkBookShelfBot:
 
         except Exception as e:
             self.logger.error(f"Возникла ошибка при обработке сообщения: {e}")
-            self.api.messages.send(user_id=event.user_id, message="Возникла ошибка при обработке сообщения", random_id=get_random_id())
-
+            self.api.messages.send(
+                user_id=event.user_id,
+                message="Возникла ошибка при обработке сообщения",
+                random_id=get_random_id(),
+            )
 
     def get_payload(self, event):
-        if hasattr(event, 'payload') and event.payload:
+        if hasattr(event, "payload") and event.payload:
             return json.loads(event.payload)
         else:
             return {}
-    
 
     def get_command(self, event):
         command = None
         try:
-            command = self.get_payload(event).get('command')
+            command = self.get_payload(event).get("command")
         except Exception as e:
             self.logger.error(f"Возникла ошибка при получении названия команды: {e}")
-        
+
         if not command:
             command = event.text.lower()
 
