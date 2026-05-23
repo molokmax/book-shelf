@@ -17,6 +17,7 @@ log = logger.setup_logger(__name__)
 # TODO: пофиксить flake8 src/
 # TODO: код получения книги вынести в отдельный метод
 # TODO: сделать отдельный класс для обработчиков команд
+# TODO: можно удалять временные сообщения (например, список  книг для выбора) чтобы оставлять историю сообщений чистой
 
 def handle_edit_command(vk: VkApiMethod, user_id: int) -> None:
     """Инициирует процесс /edit – выводит нумерованный список книг и просит выбрать номер."""
@@ -45,7 +46,11 @@ def handle_edit_command(vk: VkApiMethod, user_id: int) -> None:
     message_text = "".join(lines)
 
     # 5. Сохраняем состояние
-    active_states[user_id] = {"command": "/edit", "state": "selecting_book", "data": {"books": [book.id for book in books]}}
+    active_states[user_id] = {
+        "command": "/edit",
+        "state": "selecting_book",
+        "data": {"books": [book.id for book in books]}
+    }
 
     # 6. Отправляем список и запрос номера
     vk.messages.send(

@@ -12,6 +12,7 @@ from utils.config import load_config
 from vk_bot.handlers.add import handle_add_command, handle_add_command_step
 from vk_bot.handlers.cancel import handle_cancel_command
 from vk_bot.handlers.edit import handle_edit_command, handle_edit_command_step
+from vk_bot.handlers.details import handle_details, handle_details_step
 from vk_bot.handlers.export import handle_export_command
 from vk_bot.handlers.help import handle_help_command
 from vk_bot.handlers.list import handle_list_command
@@ -96,9 +97,13 @@ class VkBookShelfBot:
             elif command == "/stats":
                 handle_stats_command(self.api, event.user_id)
             elif command == "/add":
+                # Existing
+                # ...
                 handle_add_command(self.api, event.user_id)
             elif command == "/edit":
                 handle_edit_command(self.api, event.user_id)
+            elif command == "/details":
+                handle_details(self.api, event.user_id)
             elif event.user_id in active_states:
                 state_info = active_states[event.user_id]
                 state_command = state_info["command"]
@@ -106,6 +111,8 @@ class VkBookShelfBot:
                     handle_add_command_step(self.api, event.user_id, event.text)
                 elif state_command == "/edit":
                     handle_edit_command_step(self.api, event.user_id, event.text)
+                elif state_command == "/details":
+                    handle_details_step(self.api, event.user_id, event.text)
                 else:
                     # TODO: Обработать отсутствие обработчика команды
                     pass

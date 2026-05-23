@@ -7,6 +7,7 @@ def main_keyboard() -> VkKeyboard:
     kb.add_button('/list')
     kb.add_button('/edit')
     kb.add_button('/add')
+    kb.add_button('/details')
     kb.add_line()
     kb.add_button('/stats')
     kb.add_button('/export')
