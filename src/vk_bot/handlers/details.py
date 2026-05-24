@@ -1,10 +1,10 @@
 """Обработчики команды /details в VK‑боте (просмотр подробной информации о книге)."""
 
-from vk_api.keyboard import VkKeyboard
 from vk_api.utils import get_random_id
 from vk_api.vk_api import VkApiMethod
+from datetime import datetime, timedelta
 
-from core.services import BookService
+from core.services import BookService, ReadingStatsService
 from utils import helpers, logger
 from utils.helpers import format_book_details, get_status_emoji, get_status_name
 from vk_bot.keyboards import cancel_keyboard, main_keyboard
@@ -91,7 +91,23 @@ def handle_details_step(vk: VkApiMethod, user_id: int, text: str) -> None:
         )
         return
 
-    details = format_book_details(book)
+    # Получаем статистику чтения
+    stats_service = ReadingStatsService()
+    today = datetime.now().date()
+    week_start = today - timedelta(days=7)
+    month_start = today - timedelta(days=30)
+    weekly_pages = stats_service.get_reading_stats(book.id, week_start, today)
+    monthly_pages = stats_service.get_reading_stats(book.id, month_start, today)
+    avg_pages = stats_service.avg_pages_per_day(book.id)
+    pred_date = stats_service.predict_completion_date(book.id)
+    # Формируем детали книги с добавленными данными
+    details = format_book_details(
+        book,
+        weekly_pages=weekly_pages,
+        monthly_pages=monthly_pages,
+        avg_pages=avg_pages,
+        predicted_date=pred_date,
+    )
     vk.messages.send(
         user_id=user_id,
         message=details,

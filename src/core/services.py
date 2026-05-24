@@ -1,12 +1,12 @@
 """Сервисный слой для работы с книгами."""
 
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Callable, Dict, List, Optional
 
 from core.db import get_db
 from core.models import Book, ReadingStatus, User
-from core.repository import BookRepository, UserRepository
+from core.repository import BookRepository, ReadStatsRepository, UserRepository
 from utils import logger
 from utils.config import load_config
 
@@ -184,19 +184,45 @@ class UserService:
         user.last_active = datetime.now()
         return self.user_repo.update_user(user)
 
-
+# TODO: перенести add_reading_stat в репозиторий
 class ReadingStatsService:
     """Сервис для работы со статистикой чтения книг."""
 
     def __init__(self, db_path: str | None = None) -> None:
         db_path = db_path or get_default_db_path()
         self.db = get_db(db_path)
+        self.read_stats_repo = ReadStatsRepository(self.db)
 
     def add_record(
         self, book_id: str, pages_read: int, read_date: str | None = None
     ) -> str:
         """Добавляет запись статистики чтения."""
         return self.db.add_reading_stat(book_id, pages_read, read_date)
+
+    def get_reading_stats(self, book_id: str, from_date: date, to_date: date) -> int:
+        """Возвращает количество прочитанных страниц за период."""
+        return self.read_stats_repo.fetch_reading_stats(
+            book_id, from_date, to_date
+        )
+
+    def avg_pages_per_day(self, book_id: str) -> float:
+        """Среднее количество страниц за последние 30 дней."""
+        return self.read_stats_repo.fetch_average_pages_per_day(book_id, days=30)
+
+    def predict_completion_date(self, book_id: str) -> date | None:
+        """Прогнозирует дату завершения чтения книги."""
+        # Получаем книгу
+        book = BookRepository(self.db).get_book_by_id(book_id)
+        if not book:
+            return None
+        remaining_pages = book.pages - book.current_page
+        if remaining_pages <= 0:
+            return date.today()
+        avg = self.avg_pages_per_day(book_id)
+        if avg == 0:
+            return None
+        days_needed = int((remaining_pages / avg) + 0.9999)  # округление вверх
+        return date.today() + timedelta(days=days_needed)
 
 
 def get_default_db_path() -> str:

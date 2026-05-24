@@ -23,7 +23,7 @@ class FakeVk:
             "random_id": random_id,
         })
 
-        
+
 class VkUsers:
     def get(self, user_ids, fields):
         return [{
@@ -61,8 +61,8 @@ def test_handle_details_shows_book_list():
     fake_vk = FakeVk()
     # Prepare two books
     books = [
-        FakeBook(id="1", title="Book One", author="Author A"),
-        FakeBook(id="2", title="Book Two", author="Author B"),
+        FakeBook(id="1", title="Book One", author="Author A", status="reading"),
+        FakeBook(id="2", title="Book Two", author="Author B", status="want_to_read"),
     ]
     with patch("vk_bot.handlers.details.BookService", return_value=FakeBookService(books)):
         with patch("core.services.UserService") as MockUserService:
@@ -71,9 +71,10 @@ def test_handle_details_shows_book_list():
     # One message should be sent
     assert len(fake_vk.sent_messages) == 1
     msg = fake_vk.sent_messages[0]["message"]
+    print(msg)
     # Verify both titles appear in order with numbers
-    assert "1. Book One – Author A" in msg
-    assert "2. Book Two – Author B" in msg
+    assert "1. 📖 Book One" in msg
+    assert "2. 📎 Book Two" in msg
     # Verify state is stored for user
     assert 123 in active_states
     assert active_states[123]["command"] == "/details"

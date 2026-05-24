@@ -1,5 +1,6 @@
 """Вспомогательные функции для Book Shelf."""
 
+from datetime import date
 import re
 from urllib.parse import urlparse
 
@@ -20,32 +21,50 @@ def sanitize_text(text: str) -> str:
 
 def format_book_info(index, book) -> str:
     """Форматирует информацию о книге для отображения."""
-    status_emoji = get_status_emoji(book.status)
+    status = getattr(book, "status", "unknown")
+    status_emoji = get_status_emoji(status)
 
-    tags_text = ", ".join(book.tags) if book.tags else "Нет тегов"
+    tags = getattr(book, "tags", [])
+    tags_text = ", ".join(tags) if tags else "Нет тегов"
 
+    current_page = getattr(book, "current_page", 0)
+    pages = getattr(book, "pages", 0)
     progress_percent = _get_read_book_progress(book)
+    title = getattr(book, "title", "")
     return (
-        f"{index}. {status_emoji} {book.title}\n"
+        f"{index}. {status_emoji} {title}\n"
         f"Теги: {tags_text}\n"
-        f"Прогресс: {book.current_page}/{book.pages} ({progress_percent}%)\n"
+        f"Прогресс: {current_page}/{pages} ({progress_percent}%)\n"
     )
 
 
-def format_book_details(book) -> str:
-    """Форматирует информацию о книге для отображения."""
-    status_emoji = get_status_emoji(book.status)
+def format_book_details(book, weekly_pages: int | None = None, monthly_pages: int | None = None, avg_pages: float | None = None, predicted_date: date | None = None) -> str:
+    """Форматирует информацию о книге для отображения, включая статистику чтения и прогноз."""
+    status = getattr(book, "status", "unknown")
+    status_emoji = get_status_emoji(status)
     progress_percent = _get_read_book_progress(book)
-    return (
-        f"{status_emoji} {book.title}\n"
-        f"Автор: {book.author}\n"
-        f"Тэги: {', '.join(book.tags) if book.tags else '—'}\n"
-        f"Статус: {get_status_name(book.status.value)}\n"
-        f"Прогресс: {book.current_page}/{book.pages} ({progress_percent}%)\n"
-        f"Дата добавления: {book.created_at.strftime('%Y-%m-%d')}\n"
-        f"Дата начала чтения: {book.reading_start_date.strftime('%Y-%m-%d') if book.reading_start_date else '—'}\n"
-        f"Ссылка: {book.link or '—'}"
-    )
+    lines = [
+        f"{status_emoji} {book.title}",
+        f"Автор: {book.author}",
+        f"Ссылка: {book.link or '—'}",
+        f"Тэги: {', '.join(book.tags) if book.tags else '—'}",
+        f"Статус: {get_status_name(book.status.value)}",
+        f"Прогресс: {book.current_page}/{book.pages} ({progress_percent}%)",
+        f"Дата добавления: {book.created_at.strftime('%Y-%m-%d')}",
+        f"Дата начала чтения: {book.reading_start_date.strftime('%Y-%m-%d') if book.reading_start_date else '—'}",
+    ]
+    if weekly_pages is not None:
+        lines.append(f"За последнюю неделю прочитано: {weekly_pages} стр.")
+    if monthly_pages is not None:
+        lines.append(f"За последний месяц прочитано: {monthly_pages} стр.")
+    if avg_pages is not None:
+        if avg_pages == 0:
+            lines.append("Недостаточно данных для оценки завершения")
+        else:
+            lines.append(f"Среднее за 30 дней: {avg_pages:.2f} стр/день")
+    if predicted_date:
+        lines.append(f"Ожидаемая дата завершения чтения: {predicted_date.strftime('%Y-%m-%d')}")
+    return "\n".join(lines)
 
 
 def validate_book_data(title: str, author: str, pages: int) -> bool:
@@ -102,4 +121,6 @@ def is_valid_url(url: str) -> bool:
 
 
 def _get_read_book_progress(book) -> int:
-    return round((book.current_page / book.pages * 100)) if book.pages > 0 else 0
+    current_page = getattr(book, "current_page", 0)
+    pages = getattr(book, "pages", 0)
+    return round((current_page / pages * 100)) if pages > 0 else 0
