@@ -4,6 +4,7 @@ import pytest
 from core.services import BookService, UserService
 from core.models import ReadingStatus, User
 
+
 @pytest.fixture
 def service(tmp_path):
     db_file = tmp_path / "test.db"
@@ -14,6 +15,7 @@ def service(tmp_path):
         user_factory=lambda uid: User(id=str(uid), external_id=uid),
     )
     return svc
+
 
 def test_create_book_with_valid_link(service):
     book = service.create_book(
@@ -26,6 +28,7 @@ def test_create_book_with_valid_link(service):
     )
     assert book.link == "https://example.com"
 
+
 def test_create_book_without_link(service):
     book = service.create_book(
         title="No Link",
@@ -36,6 +39,7 @@ def test_create_book_without_link(service):
         link=None,
     )
     assert book.link is None
+
 
 def test_edit_book_change_link(service):
     book = service.create_book(
@@ -51,6 +55,7 @@ def test_edit_book_change_link(service):
     updated = repo.update_book(book)
     assert updated.link == "https://new.com"
 
+
 def test_edit_book_keep_link(service):
     book = service.create_book(
         title="Keep Link",
@@ -64,6 +69,7 @@ def test_edit_book_keep_link(service):
     repo = service.book_repo
     updated = repo.update_book(book)  # no modification
     assert updated.link == "https://keep.com"
+
 
 def test_edit_book_clear_link(service):
     book = service.create_book(

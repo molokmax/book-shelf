@@ -5,9 +5,11 @@ from core.services import BookService, ReadingStatsService
 from core.db import get_db
 from core.models import User as ModelUser
 
+
 @pytest.fixture
 def db_path(tmp_path):
     return str(tmp_path / "test.db")
+
 
 @pytest.fixture
 def services(db_path):
@@ -16,7 +18,7 @@ def services(db_path):
     # Ensure a user exists (required by foreign key)
     user = ModelUser(
         id=str(uuid.uuid4()),
-        external_id=uuid.uuid4().int & 0x7fffffff,
+        external_id=uuid.uuid4().int & 0x7FFFFFFF,
         username="test",
         first_name="Test",
         last_name="User",
@@ -40,6 +42,7 @@ def services(db_path):
     reading_stats_service = ReadingStatsService(db_path=db_path)
     return book_service, reading_stats_service, db_path
 
+
 def test_average_pages_per_day(services):
     book_service, reading_stats_service, db_path = services
     # Create a book
@@ -59,6 +62,7 @@ def test_average_pages_per_day(services):
         db.add_reading_stat(book.id, pages_read=10, read_date=read_date)
     avg = reading_stats_service.avg_pages_per_day(book.id)
     assert avg == 10.0
+
 
 def test_predict_completion_date_with_data(services):
     book_service, reading_stats_service, db_path = services
@@ -83,6 +87,7 @@ def test_predict_completion_date_with_data(services):
     # Remaining pages = 150, avg 10 => 15 days needed
     expected = date.today() + timedelta(days=15)
     assert pred == expected
+
 
 def test_predict_completion_date_no_data(services):
     book_service, reading_stats_service, _ = services

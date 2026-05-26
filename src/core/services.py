@@ -184,7 +184,7 @@ class UserService:
         user.last_active = datetime.now()
         return self.user_repo.update_user(user)
 
-# TODO: перенести add_reading_stat в репозиторий
+
 class ReadingStatsService:
     """Сервис для работы со статистикой чтения книг."""
 
@@ -197,7 +197,7 @@ class ReadingStatsService:
         self, book_id: str, pages_read: int, read_date: str | None = None
     ) -> str:
         """Добавляет запись статистики чтения."""
-        return self.db.add_reading_stat(book_id, pages_read, read_date)
+        return self.read_stats_repo.add_reading_stats(book_id, pages_read, read_date)
 
     def get_reading_stats(self, book_id: str, from_date: date, to_date: date) -> int:
         """Возвращает количество прочитанных страниц за период."""

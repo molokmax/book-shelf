@@ -58,6 +58,14 @@ class ReadStatsRepository:
     def __init__(self, db: Database | None = None, db_path: str = "data/database.db") -> None:
         """Initialize the repository."""
         self.db = db if db is not None else Database(db_path)
+    
+    
+    def add_reading_stats(
+        self, book_id: str, pages_read: int, read_date: str | None = None
+    ) -> str:
+        """Добавляет запись статистики чтения."""
+        return self.db.add_reading_stat(book_id, pages_read, read_date)
+    
 
     def fetch_reading_stats(self, book_id: str, from_date: date, to_date: date) -> int:
         """Return total pages read for a book between dates (inclusive)."""

@@ -7,6 +7,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
 
+from core.migrations import add_link_column
 from core.models import Book, User
 
 
@@ -49,12 +50,8 @@ class Database:
         # Создаём таблицы при инициализации
         self._create_tables()
 
-        # TODO: Оформит миграции через отдельный механизм
-        # Добавляем колонку link, если её ещё нет
-        try:
-            self.conn.execute("ALTER TABLE books ADD COLUMN link TEXT")
-        except sqlite3.OperationalError:
-            pass  # колонка уже существует
+        # Миграции
+        add_link_column(self.conn)
 
     def _create_tables(self) -> None:
         """Создаёт таблицы в базе данных."""

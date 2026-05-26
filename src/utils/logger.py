@@ -46,7 +46,10 @@ def __create_file_handler(formatter: logging.Formatter, level):
         os.makedirs(log_dir, exist_ok=True)
     except Exception:
         pass
-    handler = logging.FileHandler(os.path.join(log_dir, log_file), encoding="utf-8")
+    handler = logging.FileHandler(
+        os.path.join(log_dir, log_file),
+        encoding="utf-8"
+    )
     handler.setFormatter(formatter)
     handler.setLevel(level)
     return handler

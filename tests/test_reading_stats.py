@@ -3,9 +3,11 @@ from core.services import BookService, UserService, ReadingStatsService
 from core.models import User
 from core.db import get_db
 
+
 @pytest.fixture
 def db_path(tmp_path):
     return str(tmp_path / "test.db")
+
 
 @pytest.fixture
 def services(db_path):
@@ -13,9 +15,12 @@ def services(db_path):
     book_service = BookService(db_path=db_path)
     user_service = UserService(db_path=db_path)
     # Ensure a user exists (required by foreign key)
-    user_service.get_or_create_user(user_external_id=1, user_factory=lambda uid: User(id=str(uid), external_id=uid))
+    user_service.get_or_create_user(
+        user_external_id=1, user_factory=lambda uid: User(id=str(uid), external_id=uid)
+    )
     reading_stats_service = ReadingStatsService(db_path=db_path)
     return book_service, reading_stats_service
+
 
 def test_reading_stats_record_creation(services):
     book_service, reading_stats_service = services
