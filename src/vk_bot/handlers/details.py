@@ -1,12 +1,14 @@
 """Обработчики команды /details в VK‑боте (просмотр подробной информации о книге)."""
 
+from datetime import datetime, timedelta
+
 from vk_api.utils import get_random_id
 from vk_api.vk_api import VkApiMethod
-from datetime import datetime, timedelta
 
 from core.services import BookService, ReadingStatsService
 from utils import helpers, logger
-from utils.helpers import format_book_details, get_status_emoji, get_status_name
+from utils.helpers import (format_book_details, get_status_emoji,
+                           get_status_name)
 from vk_bot.keyboards import cancel_keyboard, main_keyboard
 from vk_bot.states import active_states
 from vk_bot.user_helpers import get_or_create_user

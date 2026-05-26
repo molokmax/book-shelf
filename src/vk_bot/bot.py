@@ -11,8 +11,8 @@ from utils import logger
 from utils.config import load_config
 from vk_bot.handlers.add import handle_add_command, handle_add_command_step
 from vk_bot.handlers.cancel import handle_cancel_command
-from vk_bot.handlers.edit import handle_edit_command, handle_edit_command_step
 from vk_bot.handlers.details import handle_details, handle_details_step
+from vk_bot.handlers.edit import handle_edit_command, handle_edit_command_step
 from vk_bot.handlers.export import handle_export_command
 from vk_bot.handlers.help import handle_help_command
 from vk_bot.handlers.list import handle_list_command
