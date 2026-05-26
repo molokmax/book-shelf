@@ -100,8 +100,8 @@ def handle_details_step(vk: VkApiMethod, user_id: int, text: str) -> None:
     month_start = today - timedelta(days=30)
     weekly_pages = stats_service.get_reading_stats(book.id, week_start, today)
     monthly_pages = stats_service.get_reading_stats(book.id, month_start, today)
-    avg_pages = stats_service.avg_pages_per_day(book.id)
-    pred_date = stats_service.predict_completion_date(book.id)
+    avg_pages = stats_service.avg_pages_per_day(book)
+    pred_date = stats_service.predict_completion_date(book)
     # Формируем детали книги с добавленными данными
     details = format_book_details(
         book,

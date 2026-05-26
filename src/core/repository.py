@@ -79,12 +79,12 @@ class ReadStatsRepository:
             result = cursor.fetchone()[0]
             return int(result) if result is not None else 0
 
-    def fetch_average_pages_per_day(self, book_id: str, days: int = 30) -> float:
+    def fetch_average_pages_per_day(self, book_id: str, from_date: date) -> float:
         """Calculate average pages per day over the last *days* days."""
         log = logger.setup_logger(__name__)
-        log.debug(f"Calculating average pages per day for book_id={book_id} over {days} days")
         to_date = datetime.now().date()
-        from_date = (datetime.now().date() - timedelta(days=days))
+        days = (to_date - from_date).days
+        log.debug(f"Calculating average pages per day for book_id={book_id} over {days} days")
         total = self.fetch_reading_stats(book_id, from_date, to_date)
         return total / days if days > 0 else 0.0
 

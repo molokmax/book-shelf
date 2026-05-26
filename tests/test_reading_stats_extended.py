@@ -52,15 +52,16 @@ def test_average_pages_per_day(services):
         tags=[],
         pages=300,
         user_id="1",
-        link=None,
+        link=None
     )
+    book.reading_start_date = (datetime.now() - timedelta(days=31))
     # Insert reading stats for last 30 days: 10 pages each day
     db = get_db(db_path)
     today = datetime.now().date()
     for days_ago in range(30):
         read_date = (today - timedelta(days=days_ago)).isoformat()
         db.add_reading_stat(book.id, pages_read=10, read_date=read_date)
-    avg = reading_stats_service.avg_pages_per_day(book.id)
+    avg = reading_stats_service.avg_pages_per_day(book)
     assert avg == 10.0
 
 
@@ -75,15 +76,15 @@ def test_predict_completion_date_with_data(services):
         user_id="1",
         link=None,
     )
-    # Update progress to 50
-    book_service.update_book_progress(book.id, 50)
+    book.reading_start_date = (datetime.now() - timedelta(days=31))
+    book.current_page = 50
     # Insert stats: assume avg 10 pages per day over last 30 days
     db = get_db(db_path)
     today = datetime.now().date()
     for days_ago in range(30):
         read_date = (today - timedelta(days=days_ago)).isoformat()
         db.add_reading_stat(book.id, pages_read=10, read_date=read_date)
-    pred = reading_stats_service.predict_completion_date(book.id)
+    pred = reading_stats_service.predict_completion_date(book)
     # Remaining pages = 150, avg 10 => 15 days needed
     expected = date.today() + timedelta(days=15)
     assert pred == expected
@@ -99,6 +100,7 @@ def test_predict_completion_date_no_data(services):
         user_id="1",
         link=None,
     )
+    book.reading_start_date = (datetime.now() - timedelta(days=31))
     # No reading stats added → avg = 0
-    pred = reading_stats_service.predict_completion_date(book.id)
+    pred = reading_stats_service.predict_completion_date(book)
     assert pred is None
