@@ -47,14 +47,9 @@ def test_average_pages_per_day(services):
     book_service, reading_stats_service, db_path = services
     # Create a book
     book = book_service.create_book(
-        title="Avg Book",
-        author="Author",
-        tags=[],
-        pages=300,
-        user_id="1",
-        link=None
+        title="Avg Book", author="Author", tags=[], pages=300, user_id="1", link=None
     )
-    book.reading_start_date = (datetime.now() - timedelta(days=31))
+    book.reading_start_date = datetime.now() - timedelta(days=31)
     # Insert reading stats for last 30 days: 10 pages each day
     db = get_db(db_path)
     today = datetime.now().date()
@@ -76,7 +71,7 @@ def test_predict_completion_date_with_data(services):
         user_id="1",
         link=None,
     )
-    book.reading_start_date = (datetime.now() - timedelta(days=31))
+    book.reading_start_date = datetime.now() - timedelta(days=31)
     book.current_page = 50
     # Insert stats: assume avg 10 pages per day over last 30 days
     db = get_db(db_path)
@@ -100,7 +95,7 @@ def test_predict_completion_date_no_data(services):
         user_id="1",
         link=None,
     )
-    book.reading_start_date = (datetime.now() - timedelta(days=31))
+    book.reading_start_date = datetime.now() - timedelta(days=31)
     # No reading stats added → avg = 0
     pred = reading_stats_service.predict_completion_date(book)
     assert pred is None

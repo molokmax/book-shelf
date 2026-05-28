@@ -25,6 +25,28 @@ class BookService:
         self.reading_stats_service = ReadingStatsService(db_path)
 
 
+    def filter_books(self, user_id: str, status: str | None = None, tags: list[str] | None = None) -> list[Book]:
+        """Возвращает книги, отфильтрованные по статусу и/или тегам.
+        Если статус не задан, фильтрация по статусу не применяется.
+        Если список тегов пустой или None, фильтрация по тегам не применяется.
+        """
+        books = self.get_all_books(user_id)
+        if status:
+            books = [b for b in books if b.status.value == status]
+        if tags:
+            books = [b for b in books if set(tags).intersection(set(b.tags))]
+        return books
+
+
+    def get_all_tags(self, user_id: str) -> list[str]:
+        """Возвращает список всех уникальных тегов, используемых в книгах."""
+        books = self.get_all_books(user_id)
+        tag_set: set[str] = set()
+        for b in books:
+            tag_set.update(b.tags)
+        return sorted(tag_set)
+    
+
     def create_book(
         self,
         title: str,

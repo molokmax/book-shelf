@@ -38,10 +38,6 @@ class BookRepository:
             raise ValueError(f"Книга с ID {book_id} не найдена")
         return book
 
-    def get_books_by_status(self, status: str) -> List[Book]:
-        """Получает книги по статусу."""
-        return self.db.get_books_by_status(status)
-
     def get_books_by_user_id(self, user_id: str) -> List[Book]:
         """Получает книги по ID пользователя."""
         return self.db.get_books_by_user_id(user_id)

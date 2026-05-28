@@ -15,7 +15,7 @@ from vk_bot.handlers.details import handle_details, handle_details_step
 from vk_bot.handlers.edit import handle_edit_command, handle_edit_command_step
 from vk_bot.handlers.export import handle_export_command
 from vk_bot.handlers.help import handle_help_command
-from vk_bot.handlers.list import handle_list_command
+from vk_bot.handlers.list import handle_list_command, handle_list_command_step
 from vk_bot.handlers.start import handle_start_command
 from vk_bot.handlers.stats import handle_stats_command
 from vk_bot.states import active_states
@@ -97,13 +97,11 @@ class VkBookShelfBot:
             elif command == "/export":
                 upload = VkUpload(self.vk)
                 handle_export_command(self.api, event.user_id, upload, event.peer_id)
-            elif command == "/list":
-                handle_list_command(self.api, event.user_id)
             elif command == "/stats":
                 handle_stats_command(self.api, event.user_id)
+            elif command == "/list":
+                handle_list_command(self.api, event.user_id)
             elif command == "/add":
-                # Existing
-                # ...
                 handle_add_command(self.api, event.user_id)
             elif command == "/edit":
                 handle_edit_command(self.api, event.user_id)
@@ -112,7 +110,10 @@ class VkBookShelfBot:
             elif event.user_id in active_states:
                 state_info = active_states[event.user_id]
                 state_command = state_info["command"]
-                if state_command == "/add":
+                payload = self.get_payload(event)
+                if state_command == "/list":
+                    handle_list_command_step(self.api, event.user_id, event.text, payload)
+                elif state_command == "/add":
                     handle_add_command_step(self.api, event.user_id, event.text)
                 elif state_command == "/edit":
                     handle_edit_command_step(self.api, event.user_id, event.text)
