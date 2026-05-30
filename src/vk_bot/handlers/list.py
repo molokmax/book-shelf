@@ -5,13 +5,17 @@ from vk_api.vk_api import VkApiMethod
 
 from core.services import BookService
 from utils import helpers
-from vk_bot.keyboards import (filter_keyboard, main_keyboard, status_keyboard,
-                              tags_keyboard)
+from vk_bot.keyboards import (
+    filter_keyboard,
+    main_keyboard,
+    status_keyboard,
+    tags_keyboard,
+)
 from vk_bot.states import active_states
 from vk_bot.user_helpers import get_or_create_user
 
-
 # TODO: механизм вывода книг по категориям вынести отдельно, чтобы можно было использовать шаги из разных обработчиков
+
 
 def handle_list_command(vk: VkApiMethod, user_id: int) -> None:
     """Initiate the list command with filter options."""
@@ -21,7 +25,7 @@ def handle_list_command(vk: VkApiMethod, user_id: int) -> None:
     active_states[user_id] = {
         "command": "/list",
         "state": "choose_filter",
-        "data": {"user_id": user.id}
+        "data": {"user_id": user.id},
     }
 
     # Show filter keyboard.
@@ -33,12 +37,14 @@ def handle_list_command(vk: VkApiMethod, user_id: int) -> None:
     )
 
 
-def handle_list_command_step(vk: VkApiMethod, user_id: int, text: str, payload: dict[str, str]) -> None:
+def handle_list_command_step(
+    vk: VkApiMethod, user_id: int, text: str, payload: dict[str, str]
+) -> None:
     """Process subsequent steps of the list command flow."""
 
     if user_id not in active_states:
         return
-    
+
     user = get_or_create_user(vk, user_id)
 
     state_info = active_states[user_id]
@@ -56,7 +62,7 @@ def handle_list_command_step(vk: VkApiMethod, user_id: int, text: str, payload: 
             )
             state_info["state"] = "choose_status"
             return
-        
+
         if choice == "по тегам":
             # Need list of tags
             book_service = BookService()
@@ -69,21 +75,25 @@ def handle_list_command_step(vk: VkApiMethod, user_id: int, text: str, payload: 
             )
             state_info["state"] = "choose_tag"
             return
-        
+
         if choice == "все":
             # Show all books
             book_service = BookService()
             books = book_service.get_all_books(user.id)
             books = helpers.sort_books_by_status(books)
             if not books:
-                _finish(vk, user_id, "Твоя библиотека пуста. Добавь первую книгу с помощью /add")
+                _finish(
+                    vk,
+                    user_id,
+                    "Твоя библиотека пуста. Добавь первую книгу с помощью /add",
+                )
                 return
             lines = ["📚 Твоя библиотека:\n\n"]
             for i, book in enumerate(books, 1):
                 lines.append(helpers.format_book_info(i, book) + "\n")
             _finish(vk, user_id, "".join(lines))
             return
-        
+
         # Unrecognized input
         vk.messages.send(
             user_id=user_id,
@@ -128,7 +138,9 @@ def _finish(vk: VkApiMethod, user_id: int, message: str, keyboard=None):
     vk.messages.send(
         user_id=user_id,
         message=message,
-        keyboard=keyboard.get_keyboard() if keyboard else main_keyboard().get_keyboard(),
+        keyboard=(
+            keyboard.get_keyboard() if keyboard else main_keyboard().get_keyboard()
+        ),
         random_id=get_random_id(),
     )
     del active_states[user_id]

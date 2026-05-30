@@ -2,7 +2,7 @@
 
 import json
 import re
-from typing import Dict, Optional
+from typing import Dict
 from urllib.parse import urlparse
 
 import requests
@@ -25,7 +25,8 @@ def is_litres_url(url: str) -> bool:
         return parsed.netloc.endswith("litres.ru") or parsed.netloc.endswith(
             "litres.com"
         )
-    except:
+    except Exception as e:
+        log.warning(f"Возникла ошибка при разборе ссылки: {e}")
         return False
 
 

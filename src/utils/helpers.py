@@ -38,7 +38,13 @@ def format_book_info(index, book) -> str:
     )
 
 
-def format_book_details(book, weekly_pages: int | None = None, monthly_pages: int | None = None, avg_pages: float | None = None, predicted_date: date | None = None) -> str:
+def format_book_details(
+    book,
+    weekly_pages: int | None = None,
+    monthly_pages: int | None = None,
+    avg_pages: float | None = None,
+    predicted_date: date | None = None,
+) -> str:
     """Форматирует информацию о книге для отображения, включая статистику чтения и прогноз."""
     status = getattr(book, "status", "unknown")
     status_emoji = get_status_emoji(status)
@@ -63,7 +69,9 @@ def format_book_details(book, weekly_pages: int | None = None, monthly_pages: in
         else:
             lines.append(f"Среднее за 30 дней: {avg_pages:.2f} стр/день")
     if predicted_date:
-        lines.append(f"Ожидаемая дата завершения чтения: {predicted_date.strftime('%Y-%m-%d')}")
+        lines.append(
+            f"Ожидаемая дата завершения чтения: {predicted_date.strftime('%Y-%m-%d')}"
+        )
     return "\n".join(lines)
 
 

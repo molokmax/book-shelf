@@ -35,15 +35,18 @@ def filter_keyboard() -> VkKeyboard:
     kb.add_button("Отмена", payload={"command": "/cancel"})
     return kb
 
+
 def status_keyboard() -> VkKeyboard:
     """Клавиатура выбора статуса книги."""
     kb = VkKeyboard()
     for i, status in enumerate(ReadingStatus, 1):
-        kb.add_button(get_status_name(status), payload={"status": status.value})
+        status_name = get_status_name(status)
+        kb.add_button(status_name, payload={"status": status.value})
         if i % 2 == 0:
             kb.add_line()
     kb.add_button("Отмена", payload={"command": "/cancel"})
     return kb
+
 
 def tags_keyboard(available_tags: list[str]) -> VkKeyboard:
     """Клавиатура выбора тега(ов) из доступных тегов."""

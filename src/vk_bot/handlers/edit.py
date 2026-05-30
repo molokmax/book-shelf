@@ -7,7 +7,13 @@ from vk_api.vk_api import VkApiMethod
 from core.services import BookService
 from utils import helpers, logger
 from utils.helpers import get_status_name
-from vk_bot.keyboards import cancel_keyboard, main_keyboard, filter_keyboard, status_keyboard, tags_keyboard
+from vk_bot.keyboards import (
+    cancel_keyboard,
+    filter_keyboard,
+    main_keyboard,
+    status_keyboard,
+    tags_keyboard,
+)
 from vk_bot.states import active_states
 from vk_bot.user_helpers import get_or_create_user
 
@@ -29,7 +35,7 @@ def handle_edit_command(vk: VkApiMethod, user_id: int) -> None:
     active_states[user_id] = {
         "command": "/edit",
         "state": "choose_filter",
-        "data": {"user_id": user.id}
+        "data": {"user_id": user.id},
     }
 
     vk.messages.send(
@@ -40,12 +46,14 @@ def handle_edit_command(vk: VkApiMethod, user_id: int) -> None:
     )
 
 
-def handle_edit_command_step(vk: VkApiMethod, user_id: int, text: str, payload: dict) -> None:
+def handle_edit_command_step(
+    vk: VkApiMethod, user_id: int, text: str, payload: dict
+) -> None:
     """Обрабатывает шаг после выбора книги в режиме /edit."""
-    
+
     if user_id not in active_states:
         return
-    
+
     user = get_or_create_user(vk, user_id)
 
     state_info = active_states.get(user_id)
@@ -55,6 +63,10 @@ def handle_edit_command_step(vk: VkApiMethod, user_id: int, text: str, payload: 
     state = state_info.get("state")
 
     if state == "choose_filter":
+        # Новый диалог выбора режима фильтрации: пользователь может выбрать фильтрацию по статусу, по тегу или без фильтра
+        # При выборе "по статусу" показываем клавиатуру со статусами и потом выводим отфильтрованный список книг
+        # При выборе "по тегам" получаем уникальные теги из базы и показываем их клавиатурой, после выбора тега выводим список книг
+        # При выборе "Все" сразу выводим полный список книг без фильтрации
         # Обрабатываем выбор фильтра
         choice = text.strip().lower()
         if choice == "по статусу":
@@ -69,7 +81,7 @@ def handle_edit_command_step(vk: VkApiMethod, user_id: int, text: str, payload: 
                 random_id=get_random_id(),
             )
             return
-        
+
         elif choice == "по тегам":
             # Получаем уникальные теги
             book_service = BookService()
@@ -83,11 +95,11 @@ def handle_edit_command_step(vk: VkApiMethod, user_id: int, text: str, payload: 
                 random_id=get_random_id(),
             )
             return
-        
+
         elif choice == "все":
             # Пользователь хочет видеть все книги без фильтра
             # Переходим к выбору книги
-                    
+
             book_service = BookService()
             books = book_service.get_all_books(user.id)
             books = helpers.sort_books_by_status(books)
@@ -101,7 +113,7 @@ def handle_edit_command_step(vk: VkApiMethod, user_id: int, text: str, payload: 
                 )
                 del active_states[user_id]
                 return
-            
+
             active_states[user_id] = {
                 "command": "/edit",
                 "state": "selecting_book",
@@ -120,7 +132,7 @@ def handle_edit_command_step(vk: VkApiMethod, user_id: int, text: str, payload: 
                 random_id=get_random_id(),
             )
             return
-        
+
         else:
             vk.messages.send(
                 user_id=user_id,
@@ -201,7 +213,7 @@ def handle_edit_command_step(vk: VkApiMethod, user_id: int, text: str, payload: 
             random_id=get_random_id(),
         )
         return
-    
+
     if state == "selecting_tag_filter":
         # Пользователь выбрал тег
         selected_tag = text.strip()
@@ -226,7 +238,7 @@ def handle_edit_command_step(vk: VkApiMethod, user_id: int, text: str, payload: 
             random_id=get_random_id(),
         )
         return
-    
+
     if state == "selecting_action":
         if text.lower() == "удалить":
             book_service = BookService()

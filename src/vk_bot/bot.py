@@ -56,12 +56,16 @@ class VkBookShelfBot:
 
             except (ConnectionError, TimeoutError) as e:
                 # Ошибки сети
-                self.logger.error(f"[Сетевая ошибка] {e}. Переподключение через 10 сек...")
+                self.logger.error(
+                    f"[Сетевая ошибка] {e}. Переподключение через 10 сек..."
+                )
                 time.sleep(10)
 
             except Exception as e:
                 # Любая другая неожиданная ошибка
-                self.logger.critical(f"[Критическая ошибка] {e}. Перезапуск через 30 сек...")
+                self.logger.critical(
+                    f"[Критическая ошибка] {e}. Перезапуск через 30 сек..."
+                )
                 time.sleep(30)
 
     def handle_event(self, event: Event):
@@ -112,11 +116,15 @@ class VkBookShelfBot:
                 state_command = state_info["command"]
                 payload = self.get_payload(event)
                 if state_command == "/list":
-                    handle_list_command_step(self.api, event.user_id, event.text, payload)
+                    handle_list_command_step(
+                        self.api, event.user_id, event.text, payload
+                    )
                 elif state_command == "/add":
                     handle_add_command_step(self.api, event.user_id, event.text)
                 elif state_command == "/edit":
-                    handle_edit_command_step(self.api, event.user_id, event.text, payload)
+                    handle_edit_command_step(
+                        self.api, event.user_id, event.text, payload
+                    )
                 elif state_command == "/details":
                     handle_details_step(self.api, event.user_id, event.text)
                 else:

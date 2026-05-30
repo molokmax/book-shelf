@@ -11,7 +11,7 @@ class FakeRepo:
 
     def get_all_books(self):
         return self._books
-    
+
     def get_books_by_user_id(self, user_id):
         return self._books
 

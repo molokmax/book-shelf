@@ -1,6 +1,6 @@
 """Репозиторий для работы с данными."""
 
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 from typing import List, Optional
 
 from core.database import Database
@@ -11,7 +11,9 @@ from utils import logger
 class BookRepository:
     """Репозиторий для работы с книгами."""
 
-    def __init__(self, db: Database | None = None, db_path: str = "data/database.db") -> None:
+    def __init__(
+        self, db: Database | None = None, db_path: str = "data/database.db"
+    ) -> None:
         """Инициализация репозитория."""
         self.db = db if db is not None else Database(db_path)
 
@@ -51,22 +53,24 @@ class BookRepository:
 class ReadStatsRepository:
     """Repository for reading statistics."""
 
-    def __init__(self, db: Database | None = None, db_path: str = "data/database.db") -> None:
+    def __init__(
+        self, db: Database | None = None, db_path: str = "data/database.db"
+    ) -> None:
         """Initialize the repository."""
         self.db = db if db is not None else Database(db_path)
-    
-    
+
     def add_reading_stats(
         self, book_id: str, pages_read: int, read_date: str | None = None
     ) -> str:
         """Добавляет запись статистики чтения."""
         return self.db.add_reading_stat(book_id, pages_read, read_date)
-    
 
     def fetch_reading_stats(self, book_id: str, from_date: date, to_date: date) -> int:
         """Return total pages read for a book between dates (inclusive)."""
         log = logger.setup_logger(__name__)
-        log.debug(f"Fetching reading stats for book_id={book_id} from {from_date} to {to_date}")
+        log.debug(
+            f"Fetching reading stats for book_id={book_id} from {from_date} to {to_date}"
+        )
         with self.db.get_cursor() as cursor:
             cursor.execute(
                 "SELECT SUM(pages_read) FROM read_stats WHERE book_id = ? AND read_date BETWEEN ? AND ?",
@@ -80,7 +84,9 @@ class ReadStatsRepository:
         log = logger.setup_logger(__name__)
         to_date = datetime.now().date()
         days = (to_date - from_date).days
-        log.debug(f"Calculating average pages per day for book_id={book_id} over {days} days")
+        log.debug(
+            f"Calculating average pages per day for book_id={book_id} over {days} days"
+        )
         total = self.fetch_reading_stats(book_id, from_date, to_date)
         return total / days if days > 0 else 0.0
 
@@ -88,7 +94,9 @@ class ReadStatsRepository:
 class UserRepository:
     """Репозиторий для работы с пользователями."""
 
-    def __init__(self, db: Database | None = None, db_path: str = "data/database.db") -> None:
+    def __init__(
+        self, db: Database | None = None, db_path: str = "data/database.db"
+    ) -> None:
         """Инициализация репозитория."""
         self.db = db if db is not None else Database(db_path)
 

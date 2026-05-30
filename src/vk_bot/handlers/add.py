@@ -6,8 +6,7 @@ from vk_api.vk_api import VkApiMethod
 
 from core.services import BookService
 from utils import helpers
-from utils.litres_parser import (LitresParserError, is_litres_url,
-                                 parse_litres_book)
+from utils.litres_parser import LitresParserError, is_litres_url, parse_litres_book
 from vk_bot.keyboards import cancel_keyboard, main_keyboard
 from vk_bot.states import active_states
 from vk_bot.user_helpers import get_or_create_user

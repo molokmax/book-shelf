@@ -71,10 +71,7 @@ def test_handle_list_flow_all_books():
                 handle_list_command(fake_vk, user_id=123)
                 # Verify state stored and filter keyboard sent
                 assert 123 in __import__("vk_bot.states").states.active_states
-                assert (
-                    fake_vk.sent_messages[-1]["message"]
-                    == "Какие книги интересуют?"
-                )
+                assert fake_vk.sent_messages[-1]["message"] == "Какие книги интересуют?"
                 # Simulate choosing "Все"
                 handle_list_command_step(fake_vk, user_id=123, text="Все", payload={})
                 # Last message should contain list of books
@@ -112,9 +109,13 @@ def test_handle_list_flow_by_status():
                 )
 
                 handle_list_command(fake_vk, user_id=456)
-                handle_list_command_step(fake_vk, user_id=456, text="По статусу", payload={})
+                handle_list_command_step(
+                    fake_vk, user_id=456, text="По статусу", payload={}
+                )
                 # Choose status "reading"
-                handle_list_command_step(fake_vk, user_id=456, text="Читаю", payload={"status": "reading"})
+                handle_list_command_step(
+                    fake_vk, user_id=456, text="Читаю", payload={"status": "reading"}
+                )
                 last_msg = fake_vk.sent_messages[-1]["message"]
                 assert "Book One" in last_msg
                 assert "Книги со статусом" in last_msg
