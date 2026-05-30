@@ -7,7 +7,7 @@ from vk_api.vk_api import VkApiMethod
 from core.services import BookService
 from utils import helpers, logger
 from utils.helpers import get_status_name
-from vk_bot.keyboards import cancel_keyboard, main_keyboard
+from vk_bot.keyboards import cancel_keyboard, main_keyboard, filter_keyboard, status_keyboard, tags_keyboard
 from vk_bot.states import active_states
 from vk_bot.user_helpers import get_or_create_user
 
@@ -24,55 +24,111 @@ log = logger.setup_logger(__name__)
 
 def handle_edit_command(vk: VkApiMethod, user_id: int) -> None:
     """Инициирует процесс /edit – выводит нумерованный список книг и просит выбрать номер."""
-    # 1. Получаем пользователя
+
     user = get_or_create_user(vk, user_id)
-
-    # 2. Получаем и сортируем книги
-    book_service = BookService()
-    books = book_service.get_all_books(user.id)
-    books = helpers.sort_books_by_status(books)
-
-    # 3. Если книг нет – отправляем сообщение
-    if not books:
-        vk.messages.send(
-            user_id=user_id,
-            message="У тебя нет книг в библиотеке. Добавь книгу с помощью /add",
-            keyboard=main_keyboard().get_keyboard(),
-            random_id=get_random_id(),
-        )
-        return
-
-    # 4. Формируем нумерованный список в одном сообщении
-    lines = [
-        "📚 Введи номер книги, которую хочешь отредактировать.\nТвоя библиотека:\n\n"
-    ]
-    for i, book in enumerate(books, 1):
-        lines.append(helpers.format_book_info(i, book) + "\n")
-    message_text = "".join(lines)
-
-    # 5. Сохраняем состояние
     active_states[user_id] = {
         "command": "/edit",
-        "state": "selecting_book",
-        "data": {"books": [book.id for book in books]},
+        "state": "choose_filter",
+        "data": {"user_id": user.id}
     }
 
-    # 6. Отправляем список и запрос номера
     vk.messages.send(
         user_id=user_id,
-        message=message_text,
-        keyboard=cancel_keyboard().get_keyboard(),
+        message="Какие книги интересуют?",
+        keyboard=filter_keyboard().get_keyboard(),
         random_id=get_random_id(),
     )
 
 
-def handle_edit_command_step(vk: VkApiMethod, user_id: int, text: str) -> None:
+def handle_edit_command_step(vk: VkApiMethod, user_id: int, text: str, payload: dict) -> None:
     """Обрабатывает шаг после выбора книги в режиме /edit."""
+    
+    if user_id not in active_states:
+        return
+    
+    user = get_or_create_user(vk, user_id)
+
     state_info = active_states.get(user_id)
     if not state_info or state_info.get("command") != "/edit":
         return
 
     state = state_info.get("state")
+
+    if state == "choose_filter":
+        # Обрабатываем выбор фильтра
+        choice = text.strip().lower()
+        if choice == "по статусу":
+            # Сохраняем выбранный режим
+            state_info["data"]["filter_mode"] = "status"
+            state_info["state"] = "selecting_status_filter"
+            # Предлагаем клавиатуру статусов
+            vk.messages.send(
+                user_id=user_id,
+                message="Выбери статус книги:",
+                keyboard=status_keyboard().get_keyboard(),
+                random_id=get_random_id(),
+            )
+            return
+        
+        elif choice == "по тегам":
+            # Получаем уникальные теги
+            book_service = BookService()
+            tags = book_service.get_all_tags(user.id)
+            state_info["data"]["filter_mode"] = "tags"
+            state_info["state"] = "selecting_tag_filter"
+            vk.messages.send(
+                user_id=user_id,
+                message="Выбери тег:",
+                keyboard=tags_keyboard(tags).get_keyboard(),
+                random_id=get_random_id(),
+            )
+            return
+        
+        elif choice == "все":
+            # Пользователь хочет видеть все книги без фильтра
+            # Переходим к выбору книги
+                    
+            book_service = BookService()
+            books = book_service.get_all_books(user.id)
+            books = helpers.sort_books_by_status(books)
+
+            if not books:
+                vk.messages.send(
+                    user_id=user_id,
+                    message="У тебя нет книг в библиотеке. Добавь книгу с помощью /add",
+                    keyboard=main_keyboard().get_keyboard(),
+                    random_id=get_random_id(),
+                )
+                del active_states[user_id]
+                return
+            
+            active_states[user_id] = {
+                "command": "/edit",
+                "state": "selecting_book",
+                "data": {"books": [book.id for book in books]},
+            }
+            lines = [
+                "📚 Введи номер книги, которую хочешь отредактировать.\nТвоя библиотека:\n\n"
+            ]
+            for i, book in enumerate(books, 1):
+                lines.append(helpers.format_book_info(i, book) + "\n")
+            message_text = "".join(lines)
+            vk.messages.send(
+                user_id=user_id,
+                message=message_text,
+                keyboard=cancel_keyboard().get_keyboard(),
+                random_id=get_random_id(),
+            )
+            return
+        
+        else:
+            vk.messages.send(
+                user_id=user_id,
+                message="⚠️ Выбери один из вариантов: По статусу, По тегам, Все.",
+                keyboard=filter_keyboard().get_keyboard(),
+                random_id=get_random_id(),
+            )
+            return
 
     if state == "selecting_book":
         # Ожидаем номер книги
@@ -119,6 +175,58 @@ def handle_edit_command_step(vk: VkApiMethod, user_id: int, text: str) -> None:
         )
         return
 
+    if state == "selecting_status_filter":
+        # Пользователь выбрал статус для фильтрации
+        # На клавиатуре отображаются русские названия статусов
+        status = payload.get("status", "")
+        book_service = BookService()
+        books = book_service.filter_books(user.id, status=status)
+        # Переходим к выбору книги из отфильтрованных
+        active_states[user_id] = {
+            "command": "/edit",
+            "state": "selecting_book",
+            "data": {"books": [book.id for book in books]},
+        }
+        # Формируем список
+        lines = [
+            "📚 Введи номер книги, которую хочешь отредактировать.\nТвоя библиотека:\n\n"
+        ]
+        for i, book in enumerate(books, 1):
+            lines.append(helpers.format_book_info(i, book) + "\n")
+        message_text = "".join(lines)
+        vk.messages.send(
+            user_id=user_id,
+            message=message_text,
+            keyboard=cancel_keyboard().get_keyboard(),
+            random_id=get_random_id(),
+        )
+        return
+    
+    if state == "selecting_tag_filter":
+        # Пользователь выбрал тег
+        selected_tag = text.strip()
+        # Фильтруем книги по тегу
+        book_service = BookService()
+        books = book_service.filter_books(user.id, tags=[selected_tag])
+        active_states[user_id] = {
+            "command": "/edit",
+            "state": "selecting_book",
+            "data": {"books": [book.id for book in books]},
+        }
+        lines = [
+            "📚 Введи номер книги, которую хочешь отредактировать.\nТвоя библиотека:\n\n"
+        ]
+        for i, book in enumerate(books, 1):
+            lines.append(helpers.format_book_info(i, book) + "\n")
+        message_text = "".join(lines)
+        vk.messages.send(
+            user_id=user_id,
+            message=message_text,
+            keyboard=cancel_keyboard().get_keyboard(),
+            random_id=get_random_id(),
+        )
+        return
+    
     if state == "selecting_action":
         if text.lower() == "удалить":
             book_service = BookService()

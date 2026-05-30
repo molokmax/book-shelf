@@ -11,6 +11,8 @@ from vk_bot.states import active_states
 from vk_bot.user_helpers import get_or_create_user
 
 
+# TODO: механизм вывода книг по категориям вынести отдельно, чтобы можно было использовать шаги из разных обработчиков
+
 def handle_list_command(vk: VkApiMethod, user_id: int) -> None:
     """Initiate the list command with filter options."""
     # Ensure we have a user entry in the system.
@@ -94,9 +96,7 @@ def handle_list_command_step(vk: VkApiMethod, user_id: int, text: str, payload: 
     if state == "choose_status":
         # Assume status value matches ReadingStatus values
         book_service = BookService()
-        print(payload)
         status = payload.get("status", "")
-        print("status", status)
         books = book_service.filter_books(user.id, status=status)
         books = helpers.sort_books_by_status(books)
         if not books:

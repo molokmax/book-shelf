@@ -47,21 +47,21 @@ class VkBookShelfBot:
 
             except ApiError as e:
                 # Специфичная ошибка VK API
-                print(f"[Ошибка VK API] Код: {e.code}. Сообщение: {e}")
+                self.logger.error(f"[Ошибка VK API] Код: {e.code}. Сообщение: {e}")
                 if e.code == 5:  # Авторизация сломалась
-                    print("Неверный токен. Проверьте его.")
+                    self.logger.error("Неверный токен. Проверьте его.")
                     time.sleep(60)
                 else:
                     time.sleep(5)
 
             except (ConnectionError, TimeoutError) as e:
                 # Ошибки сети
-                print(f"[Сетевая ошибка] {e}. Переподключение через 10 сек...")
+                self.logger.error(f"[Сетевая ошибка] {e}. Переподключение через 10 сек...")
                 time.sleep(10)
 
             except Exception as e:
                 # Любая другая неожиданная ошибка
-                print(f"[Критическая ошибка] {e}. Перезапуск через 30 сек...")
+                self.logger.critical(f"[Критическая ошибка] {e}. Перезапуск через 30 сек...")
                 time.sleep(30)
 
     def handle_event(self, event: Event):
@@ -116,7 +116,7 @@ class VkBookShelfBot:
                 elif state_command == "/add":
                     handle_add_command_step(self.api, event.user_id, event.text)
                 elif state_command == "/edit":
-                    handle_edit_command_step(self.api, event.user_id, event.text)
+                    handle_edit_command_step(self.api, event.user_id, event.text, payload)
                 elif state_command == "/details":
                     handle_details_step(self.api, event.user_id, event.text)
                 else:

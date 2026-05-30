@@ -265,7 +265,6 @@ class ReadingStatsService:
         if avg == 0:
             return None
         days_needed = int((remaining_pages / avg) + 0.9999)  # округление вверх
-        print(book.pages, book.current_page, avg, remaining_pages, days_needed)
         return date.today() + timedelta(days=days_needed)
 
 
