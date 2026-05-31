@@ -125,12 +125,7 @@ def test_handle_details_step_valid_selection_formats_details():
     with patch(
         "vk_bot.handlers.details.BookService", return_value=FakeBookService([book])
     ) as _book_service:
-        with patch(
-            "vk_bot.handlers.details.get_status_name", return_value="Читаю"
-        ) as _status_name:
-            from vk_bot.handlers.details import handle_details_step
-
-            handle_details_step(fake_vk, user_id=456, text="1")
+        handle_details_step(fake_vk, user_id=456, text="1")
     # Should send detailed message
     assert len(fake_vk.sent_messages) == 1
     details_msg = fake_vk.sent_messages[0]["message"]

@@ -58,7 +58,8 @@ class Database:
         cursor = self.conn.cursor()
 
         # Таблица пользователей
-        cursor.execute("""
+        cursor.execute(
+            """
         CREATE TABLE IF NOT EXISTS users (
             id TEXT PRIMARY KEY,
             external_id INTEGER UNIQUE NOT NULL,
@@ -68,10 +69,12 @@ class Database:
             created_at TEXT NOT NULL,
             last_active TEXT NOT NULL
         )
-        """)
+        """
+        )
 
         # Таблица книг
-        cursor.execute("""
+        cursor.execute(
+            """
         CREATE TABLE IF NOT EXISTS books (
             id TEXT PRIMARY KEY,
             title TEXT NOT NULL,
@@ -90,10 +93,12 @@ class Database:
             user_id TEXT NOT NULL,
             FOREIGN KEY (user_id) REFERENCES users (id)
         )
-        """)
+        """
+        )
 
         # Таблица статистики чтения
-        cursor.execute("""
+        cursor.execute(
+            """
         CREATE TABLE IF NOT EXISTS read_stats (
             id TEXT PRIMARY KEY,
             book_id TEXT NOT NULL,
@@ -101,7 +106,8 @@ class Database:
             read_date TEXT NOT NULL,
             FOREIGN KEY (book_id) REFERENCES books(id)
         )
-        """)
+        """
+        )
 
         self.conn.commit()
 
@@ -261,7 +267,8 @@ class Database:
                 ),
             )
 
-            sql = f"SELECT {", ".join(self._book_column_list)} FROM books WHERE id = ?"
+            columns = ", ".join(self._book_column_list)
+            sql = f"SELECT {columns} FROM books WHERE id = ?"
             cursor.execute(sql, (book.id,))
             row = cursor.fetchone()
 
@@ -291,7 +298,8 @@ class Database:
         """Получает книгу по ID."""
 
         with self.get_cursor() as cursor:
-            sql = f"SELECT {", ".join(self._book_column_list)} FROM books WHERE id = ?"
+            columns = ", ".join(self._book_column_list)
+            sql = f"SELECT {columns} FROM books WHERE id = ?"
             cursor.execute(sql, (book_id,))
             row = cursor.fetchone()
 
@@ -321,7 +329,8 @@ class Database:
         """Получает все книги."""
 
         with self.get_cursor() as cursor:
-            sql = f"SELECT {", ".join(self._book_column_list)} FROM books ORDER BY updated_at DESC"
+            columns = ", ".join(self._book_column_list)
+            sql = f"SELECT {columns} FROM books ORDER BY updated_at DESC"
             cursor.execute(sql)
             rows = cursor.fetchall()
 
@@ -352,7 +361,8 @@ class Database:
         """Получает книги по ID пользователя."""
 
         with self.get_cursor() as cursor:
-            sql = f"SELECT {", ".join(self._book_column_list)} FROM books WHERE user_id = ? ORDER BY updated_at DESC"
+            columns = ", ".join(self._book_column_list)
+            sql = f"SELECT {columns} FROM books WHERE user_id = ? ORDER BY updated_at DESC"
             cursor.execute(sql, (user_id,))
             rows = cursor.fetchall()
 
