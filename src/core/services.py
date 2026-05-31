@@ -225,17 +225,22 @@ class ReadingStatsService:
         """Добавляет запись статистики чтения."""
         return self.read_stats_repo.add_reading_stats(book_id, pages_read, read_date)
 
-    def get_reading_stats(self, book_id: str, from_date: date, to_date: date) -> int:
+    def get_reading_stats(
+        self, book_id: str, from_date: datetime, to_date: datetime
+    ) -> int:
         """Возвращает количество прочитанных страниц за период."""
         return self.read_stats_repo.fetch_reading_stats(book_id, from_date, to_date)
 
     def avg_pages_per_day(self, book: Book) -> float:
         """Среднее количество страниц за последние 30 дней."""
+        today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
         if book.reading_start_date:
-            reading_start_date = book.reading_start_date.date()
+            reading_start_date = book.reading_start_date.replace(
+                hour=0, minute=0, second=0, microsecond=0
+            )
         else:
-            reading_start_date = datetime.now().date()
-        from_date = max(datetime.now().date() - timedelta(days=30), reading_start_date)
+            reading_start_date = today
+        from_date = max(today - timedelta(days=29), reading_start_date)
         return self.read_stats_repo.fetch_average_pages_per_day(book.id, from_date)
 
     def predict_completion_date(self, book: Book) -> date | None:

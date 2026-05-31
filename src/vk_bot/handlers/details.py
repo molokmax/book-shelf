@@ -94,9 +94,13 @@ def handle_details_step(vk: VkApiMethod, user_id: int, text: str) -> None:
 
     # Получаем статистику чтения
     stats_service = ReadingStatsService()
-    today = datetime.now().date()
-    week_start = today - timedelta(days=7)
-    month_start = today - timedelta(days=30)
+    today = datetime.now().replace(hour=23, minute=59, second=59, microsecond=999999)
+    week_start = (today - timedelta(days=7)).replace(
+        hour=0, minute=0, second=0, microsecond=0
+    )
+    month_start = (today - timedelta(days=30)).replace(
+        hour=0, minute=0, second=0, microsecond=0
+    )
     weekly_pages = stats_service.get_reading_stats(book.id, week_start, today)
     monthly_pages = stats_service.get_reading_stats(book.id, month_start, today)
     avg_pages = stats_service.avg_pages_per_day(book)

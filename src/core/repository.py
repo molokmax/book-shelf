@@ -1,6 +1,6 @@
 """Репозиторий для работы с данными."""
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import List, Optional
 
 from core.database import Database
@@ -65,7 +65,9 @@ class ReadStatsRepository:
         """Добавляет запись статистики чтения."""
         return self.db.add_reading_stat(book_id, pages_read, read_date)
 
-    def fetch_reading_stats(self, book_id: str, from_date: date, to_date: date) -> int:
+    def fetch_reading_stats(
+        self, book_id: str, from_date: datetime, to_date: datetime
+    ) -> int:
         """Return total pages read for a book between dates (inclusive)."""
         log = logger.setup_logger(__name__)
         log.debug(
@@ -79,11 +81,13 @@ class ReadStatsRepository:
             result = cursor.fetchone()[0]
             return int(result) if result is not None else 0
 
-    def fetch_average_pages_per_day(self, book_id: str, from_date: date) -> float:
+    def fetch_average_pages_per_day(self, book_id: str, from_date: datetime) -> float:
         """Calculate average pages per day over the last *days* days."""
         log = logger.setup_logger(__name__)
-        to_date = datetime.now().date()
-        days = (to_date - from_date).days
+        to_date = datetime.now().replace(
+            hour=23, minute=59, second=59, microsecond=999999
+        )
+        days = (to_date + timedelta(microseconds=1) - from_date).days
         log.debug(
             f"Calculating average pages per day for book_id={book_id} over {days} days"
         )

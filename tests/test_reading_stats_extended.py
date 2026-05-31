@@ -52,10 +52,25 @@ def test_average_pages_per_day(services):
     book.reading_start_date = datetime.now() - timedelta(days=31)
     # Insert reading stats for last 30 days: 10 pages each day
     db = get_db(db_path)
-    today = datetime.now().date()
+    today = datetime.now()
     for days_ago in range(30):
         read_date = (today - timedelta(days=days_ago)).isoformat()
         db.add_reading_stat(book.id, pages_read=10, read_date=read_date)
+    avg = reading_stats_service.avg_pages_per_day(book)
+    assert avg == 10.0
+
+
+def test_average_pages_per_day_just_started(services):
+    book_service, reading_stats_service, db_path = services
+    # Create a book
+    book = book_service.create_book(
+        title="Avg Book", author="Author", tags=[], pages=300, user_id="1", link=None
+    )
+    book.reading_start_date = datetime.now()
+    # Insert reading stats for last 30 days: 10 pages each day
+    db = get_db(db_path)
+    read_date = datetime.now().isoformat()
+    db.add_reading_stat(book.id, pages_read=10, read_date=read_date)
     avg = reading_stats_service.avg_pages_per_day(book)
     assert avg == 10.0
 
@@ -81,7 +96,7 @@ def test_predict_completion_date_with_data(services):
         db.add_reading_stat(book.id, pages_read=10, read_date=read_date)
     pred = reading_stats_service.predict_completion_date(book)
     # Remaining pages = 150, avg 10 => 15 days needed
-    expected = date.today() + timedelta(days=15)
+    expected = date.today() + timedelta(days=1) + timedelta(days=15)
     assert pred == expected
 
 
