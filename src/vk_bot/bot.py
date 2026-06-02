@@ -126,7 +126,7 @@ class VkBookShelfBot:
                         self.api, event.user_id, event.text, payload
                     )
                 elif state_command == "/details":
-                    handle_details_step(self.api, event.user_id, event.text)
+                    handle_details_step(self.api, event.user_id, event.text, payload)
                 else:
                     # TODO: Обработать отсутствие обработчика команды
                     pass

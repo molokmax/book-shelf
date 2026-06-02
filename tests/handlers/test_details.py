@@ -87,16 +87,23 @@ def test_handle_details_shows_book_list():
                 )
             )
             handle_details(fake_vk, user_id=123)
-    # One message should be sent
+            # First message should be the filter prompt
+            assert len(fake_vk.sent_messages) == 1
+            msg = fake_vk.sent_messages[0]["message"]
+            assert msg == "Какие книги интересуют?"
+            # Simulate user choosing "Все"
+            fake_vk.sent_messages.clear()
+            # Populate state as after handle_details
+            state = active_states[123]
+            # Ensure state is set correctly for filter step
+            assert state["state"] == "choose_filter"
+            handle_details_step(fake_vk, user_id=123, text="Все", payload={})
+    # Now a list of books should be sent
     assert len(fake_vk.sent_messages) == 1
-    msg = fake_vk.sent_messages[0]["message"]
-    print(msg)
-    # Verify both titles appear in order with numbers
-    assert "1. 📖 Book One" in msg
-    assert "2. 📎 Book Two" in msg
-    # Verify state is stored for user
-    assert 123 in active_states
-    assert active_states[123]["command"] == "/details"
+    list_msg = fake_vk.sent_messages[0]["message"]
+    assert "1. 📖 Book One" in list_msg
+    assert "2. 📎 Book Two" in list_msg
+    # Verify state updated to selecting_book with book IDs
     assert active_states[123]["state"] == "selecting_book"
     assert active_states[123]["data"]["books"] == ["1", "2"]
 
@@ -125,7 +132,7 @@ def test_handle_details_step_valid_selection_formats_details():
     with patch(
         "vk_bot.handlers.details.BookService", return_value=FakeBookService([book])
     ) as _book_service:
-        handle_details_step(fake_vk, user_id=456, text="1")
+        handle_details_step(fake_vk, user_id=456, text="1", payload={})
     # Should send detailed message
     assert len(fake_vk.sent_messages) == 1
     details_msg = fake_vk.sent_messages[0]["message"]

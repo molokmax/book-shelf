@@ -8,7 +8,13 @@ from vk_api.vk_api import VkApiMethod
 from core.services import BookService, ReadingStatsService
 from utils import helpers, logger
 from utils.helpers import format_book_details
-from vk_bot.keyboards import cancel_keyboard, main_keyboard
+from vk_bot.keyboards import (
+    cancel_keyboard,
+    main_keyboard,
+    filter_keyboard,
+    status_keyboard,
+    tags_keyboard,
+)
 from vk_bot.states import active_states
 from vk_bot.user_helpers import get_or_create_user
 
@@ -16,47 +22,157 @@ log = logger.setup_logger(__name__)
 
 
 def handle_details(vk: VkApiMethod, user_id: int) -> None:
-    """Инициирует процесс /details – выводит нумерованный список книг и ждёт номер от пользователя."""
+    """Инициирует процесс /details – предлагает выбрать фильтр книг."""
     user = get_or_create_user(vk, user_id)
-    book_service = BookService()
-    books = book_service.get_all_books(user.id)
-    books = helpers.sort_books_by_status(books)
-
-    if not books:
-        vk.messages.send(
-            user_id=user_id,
-            message="У тебя нет книг в библиотеке. Добавь книгу с помощью /add",
-            keyboard=main_keyboard().get_keyboard(),
-            random_id=get_random_id(),
-        )
-        return
-
-    lines = ["📚 Введи номер книги, чтобы увидеть её детали.\nТвоя библиотека:\n\n"]
-    for i, book in enumerate(books, 1):
-        lines.append(helpers.format_book_info(i, book) + "\n")
-    message_text = "".join(lines)
-
-    # сохраняем состояние
+    # сохраняем состояние для выбора фильтра
     active_states[user_id] = {
         "command": "/details",
-        "state": "selecting_book",
-        "data": {"books": [book.id for book in books]},
+        "state": "choose_filter",
+        "data": {"user_id": user.id},
     }
-
     vk.messages.send(
         user_id=user_id,
-        message=message_text,
-        keyboard=cancel_keyboard().get_keyboard(),
+        message="Какие книги интересуют?",
+        keyboard=filter_keyboard().get_keyboard(),
         random_id=get_random_id(),
     )
 
 
-def handle_details_step(vk: VkApiMethod, user_id: int, text: str) -> None:
-    """Обрабатывает ввод номера книги после команды /details и отправляет подробную информацию."""
+def handle_details_step(
+    vk: VkApiMethod, user_id: int, text: str, payload: dict
+) -> None:
+    """Обрабатывает ввод после команды /details и отправляет подробную информацию о выбранной книге."""
     state_info = active_states.get(user_id)
     if not state_info or state_info.get("command") != "/details":
         return
 
+    user = get_or_create_user(vk, user_id)
+
+    # ---------- Выбор фильтра ----------
+    if state_info.get("state") == "choose_filter":
+        choice = text.strip().lower()
+        if choice == "по статусу":
+            state_info["state"] = "selecting_status_filter"
+            vk.messages.send(
+                user_id=user_id,
+                message="Выбери статус книги:",
+                keyboard=status_keyboard().get_keyboard(),
+                random_id=get_random_id(),
+            )
+            return
+
+        elif choice == "по тегам":
+            book_service = BookService()
+            tags = book_service.get_all_tags(user.id)
+            state_info["state"] = "selecting_tag_filter"
+            vk.messages.send(
+                user_id=user_id,
+                message="Выбери тег:",
+                keyboard=tags_keyboard(tags).get_keyboard(),
+                random_id=get_random_id(),
+            )
+            return
+
+        elif choice == "все":
+            # показать весь список книг
+            book_service = BookService()
+            books = book_service.get_all_books(user.id)
+            books = helpers.sort_books_by_status(books)
+            if not books:
+                vk.messages.send(
+                    user_id=user_id,
+                    message="У тебя нет книг в библиотеке. Добавь книгу с помощью /add",
+                    keyboard=main_keyboard().get_keyboard(),
+                    random_id=get_random_id(),
+                )
+                del active_states[user_id]
+                return
+            state_info["state"] = "selecting_book"
+            state_info["data"]["books"] = [book.id for book in books]
+            lines = [
+                "📚 Введи номер книги, чтобы увидеть её детали.\nТвоя библиотека:\n\n"
+            ]
+            for i, book in enumerate(books, 1):
+                lines.append(helpers.format_book_info(i, book) + "\n")
+            vk.messages.send(
+                user_id=user_id,
+                message="".join(lines),
+                keyboard=cancel_keyboard().get_keyboard(),
+                random_id=get_random_id(),
+            )
+            return
+
+        else:
+            vk.messages.send(
+                user_id=user_id,
+                message="⚠️ Выбери один из вариантов: По статусу, По тегам, Все",
+                keyboard=filter_keyboard().get_keyboard(),
+                random_id=get_random_id(),
+            )
+            return
+
+    # ---------- Выбор статуса ----------
+    if state_info.get("state") == "selecting_status_filter":
+        status = payload.get("status", "")
+        # получить книги с этим статусом
+        book_service = BookService()
+        books = book_service.filter_books(user.id, status=status)
+        books = helpers.sort_books_by_status(books)
+        if not books:
+            vk.messages.send(
+                user_id=user_id,
+                message="Книг с выбранным статусом нет.",
+                keyboard=main_keyboard().get_keyboard(),
+                random_id=get_random_id(),
+            )
+            del active_states[user_id]
+            return
+        state_info["state"] = "selecting_book"
+        state_info["data"]["books"] = [book.id for book in books]
+        lines = [
+            "📚 Введи номер книги, чтобы увидеть её детали.\nКниги с выбранным статусом:\n\n"
+        ]
+        for i, book in enumerate(books, 1):
+            lines.append(helpers.format_book_info(i, book) + "\n")
+        vk.messages.send(
+            user_id=user_id,
+            message="".join(lines),
+            keyboard=cancel_keyboard().get_keyboard(),
+            random_id=get_random_id(),
+        )
+        return
+
+    # ---------- Выбор тега ----------
+    if state_info.get("state") == "selecting_tag_filter":
+        selected_tag = text.strip()
+        book_service = BookService()
+        books = book_service.filter_books(user.id, tags=[selected_tag])
+        books = helpers.sort_books_by_status(books)
+        if not books:
+            vk.messages.send(
+                user_id=user_id,
+                message="Книг с выбранным тегом нет.",
+                keyboard=main_keyboard().get_keyboard(),
+                random_id=get_random_id(),
+            )
+            del active_states[user_id]
+            return
+        state_info["state"] = "selecting_book"
+        state_info["data"]["books"] = [book.id for book in books]
+        lines = [
+            "📚 Введи номер книги, чтобы увидеть её детали.\nКниги с выбранным тегом:\n\n"
+        ]
+        for i, book in enumerate(books, 1):
+            lines.append(helpers.format_book_info(i, book) + "\n")
+        vk.messages.send(
+            user_id=user_id,
+            message="".join(lines),
+            keyboard=cancel_keyboard().get_keyboard(),
+            random_id=get_random_id(),
+        )
+        return
+
+    # ---------- Выбор книги ----------
     if state_info.get("state") != "selecting_book":
         return
 
@@ -105,7 +221,6 @@ def handle_details_step(vk: VkApiMethod, user_id: int, text: str) -> None:
     monthly_pages = stats_service.get_reading_stats(book.id, month_start, today)
     avg_pages = stats_service.avg_pages_per_day(book)
     pred_date = stats_service.predict_completion_date(book)
-    # Формируем детали книги с добавленными данными
     details = format_book_details(
         book,
         weekly_pages=weekly_pages,
@@ -119,5 +234,4 @@ def handle_details_step(vk: VkApiMethod, user_id: int, text: str) -> None:
         keyboard=main_keyboard().get_keyboard(),
         random_id=get_random_id(),
     )
-    # Очистить состояние
     del active_states[user_id]
