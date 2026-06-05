@@ -23,4 +23,12 @@
 
 Для кого это: Для всех, кто любит читать и хочет привести свой reading list в порядок.
 
+## Архитектура
+
+- **src/vk_bot/command_router.py** — `CommandRouter` — центральный роутер команд, регистрирует обработчики с приоритетами и маршрутизирует команды к подходящему.
+- **src/vk_bot/handlers/base.py** — `AbstractCommandHandler` — базовый класс для обработчиков с поддержкой `can_handle`, `priority`, `commands`.
+- **src/vk_bot/handlers/*_handler.py** — Конкретные обработчики (`AddHandler`, `EditHandler`, `ListHandler`, `DetailsHandler`), наследующие `AbstractCommandHandler`.
+- **src/vk_bot/repository/user_state.py** — `UserStateRepository` — хранилище состояния пользователя в SQLite (таблица `user_state`).
+- **src/vk_bot/bot.py** — `VkBookShelfBot` — инициализирует `CommandRouter`, регистрирует обработчики и обрабатывает события VK.
+
 [Dev Notes](./DevNotes.md)

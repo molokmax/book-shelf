@@ -9,7 +9,11 @@ from vk_api.utils import get_random_id
 
 from utils import logger
 from utils.config import load_config
-from vk_bot.handlers.add import handle_add_command, handle_add_command_step
+from vk_bot.command_router import CommandRouter
+from vk_bot.handlers.add_handler import AddHandler
+from vk_bot.handlers.edit_handler import EditHandler
+from vk_bot.handlers.list_handler import ListHandler
+from vk_bot.handlers.details_handler import DetailsHandler
 from vk_bot.handlers.cancel import handle_cancel_command
 from vk_bot.handlers.details import handle_details, handle_details_step
 from vk_bot.handlers.edit import handle_edit_command, handle_edit_command_step
@@ -27,6 +31,12 @@ class VkBookShelfBot:
         load_dotenv()
         self.logger = logger.setup_logger(__name__)
         self.config = load_config()
+        # Инициализируем роутер команд и регистрируем обработчики
+        self.router = CommandRouter()
+        self.router.register_handler(AddHandler())
+        self.router.register_handler(EditHandler())
+        self.router.register_handler(ListHandler())
+        self.router.register_handler(DetailsHandler())
 
     def create_longpoll(self):
         self.logger.info("Инициализация бота...")
@@ -90,8 +100,14 @@ class VkBookShelfBot:
                 f"Получили команду {command} от пользователя {event.user_id}"
             )
 
-            # TODO: В какие моменты нужно сбратывать текущий стейт?
-            # TODO: реализовать механизм роутинга
+            # Попытка роутинга через CommandRouter
+            routed = self.router.route(command, self.api, event.user_id, event.text)
+            if routed is not None:
+                # Обработчик уже выполнил всё необходимое
+                return
+
+            # TODO: В какие моменты нужно сбрасывать текущий стейт?
+            # TODO: реализовать механизм роутинга для остальных команд
             if command == "/cancel" or command == "отмена":
                 handle_cancel_command(self.api, event.user_id)
             elif command == "/start" or command == "начать":
@@ -105,8 +121,6 @@ class VkBookShelfBot:
                 handle_stats_command(self.api, event.user_id)
             elif command == "/list":
                 handle_list_command(self.api, event.user_id)
-            elif command == "/add":
-                handle_add_command(self.api, event.user_id)
             elif command == "/edit":
                 handle_edit_command(self.api, event.user_id)
             elif command == "/details":
@@ -119,8 +133,6 @@ class VkBookShelfBot:
                     handle_list_command_step(
                         self.api, event.user_id, event.text, payload
                     )
-                elif state_command == "/add":
-                    handle_add_command_step(self.api, event.user_id, event.text)
                 elif state_command == "/edit":
                     handle_edit_command_step(
                         self.api, event.user_id, event.text, payload

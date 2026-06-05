@@ -17,11 +17,14 @@ This file provides guidance to Open Code when working with code in this reposito
 - **src/main.py** – Entry point that creates and runs `VkBookShelfBot`.
 - **src/vk_bot/** – Vk bot layer:
   - `bot.py` contains `VkBookShelfBot`, which uses `vk_api`, loads configuration, and runs handlers.
-  - `handlers/` are split by use cases. Each file in this folder is responsible for some command (`start`, `add`, `edit`, `list`).
+  - `command_router.py` – `CommandRouter` — central command router with priority‑based handler dispatching.
+  - `handlers/base.py` – `AbstractCommandHandler` base class with `can_handle`, `priority`, and `commands`.
+  - `handlers/` are split by use cases. Each command has an underlying function file (`add.py`, `edit.py`) and a handler wrapper (`add_handler.py`, `edit_handler.py`) inheriting `AbstractCommandHandler`.
+  - `repository/user_state.py` – `UserStateRepository` for persisting user state in SQLite (`user_state` table).
   - `keyboards.py` – Shared keyboard layouts used by the several commands. Specific keyboards should be in command handler file.
 - **src/core/** – Core application logic, independent of Telegram:
   - `models.py` – Pydantic data models for books and related entities.
-   - `database.py` – SQLite‑based persistence (stores data in `data/database.db`).
+  - `database.py` – SQLite‑based persistence (stores data in `data/database.db`).
   - `db.py` – Low‑level database operations.
   - `repository.py` – Repository pattern exposing high‑level data access methods.
   - `services.py` – Business‑logic services (e.g., adding a book, updating status).
