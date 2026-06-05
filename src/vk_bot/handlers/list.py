@@ -8,7 +8,7 @@ from vk_bot.keyboards import (filter_keyboard, main_keyboard, status_keyboard,
                               tags_keyboard)
 from vk_bot.user_helpers import get_or_create_user
 
-# TODO: механизм вывода книг по категориям вынести отдельно, чтобы можно было использовать шаги из разных обработчиков
+# TODO: вынести механизм вывода книг по категориям для переиспользования
 
 
 def handle_list_command(context) -> None:
@@ -83,7 +83,7 @@ def handle_list_command_step(context) -> None:
             if not books:
                 _finish(
                     context,
-                    "Твоя библиотека пуста. Добавь первую книгу с помощью /add",
+                    "Твоя библиотека пуста. Добавь книгу через /add",
                 )
                 return
             lines = ["📚 Твоя библиотека:\n\n"]
@@ -95,7 +95,7 @@ def handle_list_command_step(context) -> None:
         # Unrecognized input
         api.messages.send(
             user_id=user_id,
-            message="Пожалуйста, выбери один из вариантов: По статусу, По тегам, Все, Отмена.",
+            message="Выбери: По статусу, По тегам, Все или Отмена.",
             keyboard=filter_keyboard().get_keyboard(),
             random_id=get_random_id(),
         )
@@ -110,7 +110,9 @@ def handle_list_command_step(context) -> None:
         if not books:
             _finish(context, "Книг с выбранным статусом нет.")
             return
-        lines = [f"📚 Книги со статусом '{helpers.get_status_name(status)}':\n\n"]
+        lines = [
+            f"📚 Книги со статусом '{helpers.get_status_name(status)}':\n\n"
+        ]
         for i, book in enumerate(books, 1):
             lines.append(helpers.format_book_info(i, book) + "\n")
         _finish(context, "".join(lines))
@@ -139,7 +141,9 @@ def _finish(context, message: str, keyboard=None):
         user_id=user_id,
         message=message,
         keyboard=(
-            keyboard.get_keyboard() if keyboard else main_keyboard().get_keyboard()
+            keyboard.get_keyboard()
+            if keyboard
+            else main_keyboard().get_keyboard()
         ),
         random_id=get_random_id(),
     )

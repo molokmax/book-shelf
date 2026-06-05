@@ -45,7 +45,7 @@ def format_book_details(
     avg_pages: float | None = None,
     predicted_date: date | None = None,
 ) -> str:
-    """Форматирует информацию о книге для отображения, включая статистику чтения и прогноз."""
+    """Форматирует детальную информацию о книге со статистикой и прогнозом."""
     status = getattr(book, "status", "unknown")
     status_emoji = get_status_emoji(status)
     progress_percent = _get_read_book_progress(book)
@@ -57,7 +57,8 @@ def format_book_details(
         f"Статус: {get_status_name(book.status.value)}",
         f"Прогресс: {book.current_page}/{book.pages} ({progress_percent}%)",
         f"Дата добавления: {book.created_at.strftime('%Y-%m-%d')}",
-        f"Дата начала чтения: {book.reading_start_date.strftime('%Y-%m-%d') if book.reading_start_date else '—'}",
+        f"Дата начала чтения: "
+        f"{book.reading_start_date.strftime('%Y-%m-%d') if book.reading_start_date else '—'}",  # noqa: E501
     ]
     if weekly_pages is not None:
         lines.append(f"За последнюю неделю прочитано: {weekly_pages} стр.")
@@ -70,7 +71,8 @@ def format_book_details(
             lines.append(f"Среднее за 30 дней: {avg_pages:.2f} стр/день")
     if predicted_date:
         lines.append(
-            f"Ожидаемая дата завершения чтения: {predicted_date.strftime('%Y-%m-%d')}"
+            f"Ожидаемая дата завершения: "
+            f"{predicted_date.strftime('%Y-%m-%d')}"
         )
     return "\n".join(lines)
 
@@ -91,7 +93,12 @@ def validate_book_data(title: str, author: str, pages: int) -> bool:
 
 def get_status_emoji(status: str) -> str:
     """Возвращает эмодзи для статуса книги."""
-    emoji_map = {"want_to_read": "📎", "reading": "📖", "read": "📗", "postponed": "📘"}
+    emoji_map = {
+        "want_to_read": "📎",
+        "reading": "📖",
+        "read": "📗",
+        "postponed": "📘",
+    }
     return emoji_map.get(status, "📙")
 
 
@@ -107,14 +114,17 @@ def get_status_name(status: str) -> str:
 
 
 def sort_books_by_status(books: list) -> list:
-    """Сортирует книги по статусам в порядке: читаю, хочу прочитать, отложено, прочитано.
-    Если у объекта книги нет атрибута `status`, используется значение по умолчанию, чтобы не вызывать ошибку.
-    """
-    status_order = {"reading": 0, "want_to_read": 1, "postponed": 2, "read": 3}
+    """Сортирует книги по статусам (читаю → хочу → отложено → прочитано)."""
+    status_order = {
+        "reading": 0,
+        "want_to_read": 1,
+        "postponed": 2,
+        "read": 3,
+    }
 
-    # Используем getattr для безопасного доступа к статусу; если его нет, ставим высокий порядок, сохраняющий исходный порядок
     return sorted(
-        books, key=lambda book: status_order.get(getattr(book, "status", None), 999)
+        books,
+        key=lambda book: status_order.get(getattr(book, "status", None), 999),
     )
 
 

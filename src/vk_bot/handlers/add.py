@@ -17,7 +17,9 @@ def handle_add_command(context) -> None:
     """Entry point for the /add command. Starts method selection flow."""
     api = context.api
     user_id = context.user_id
-    context.set_state({"command": "/add", "state": "choose_method", "data": {}})
+    context.set_state(
+        {"command": "/add", "state": "choose_method", "data": {}}
+    )
     api.messages.send(
         user_id=user_id,
         message="➕ Добавление новой книги. Выбери способ добавления:",
@@ -54,14 +56,14 @@ def handle_add_command_step(context) -> None:
             state_info["state"] = "waiting_for_litres_url"
             api.messages.send(
                 user_id=user_id,
-                message="Пожалуйста, введи ссылку на книгу с https://litres.ru:",
+                message="Введи ссылку на книгу с https://litres.ru:",
                 keyboard=cancel_keyboard().get_keyboard(),
                 random_id=get_random_id(),
             )
         else:
             api.messages.send(
                 user_id=user_id,
-                message="Пожалуйста, выбери один из вариантов: Ручное или Из https://litres.ru.",
+                message="Пожалуйста, выбери: Ручное или Из LitRes.",
                 keyboard=create_add_method_keyboard().get_keyboard(),
                 random_id=get_random_id(),
             )
@@ -97,7 +99,7 @@ def handle_add_command_step(context) -> None:
         except ValueError:
             api.messages.send(
                 user_id=user_id,
-                message="⚠️ Пожалуйста, введи корректное положительное целое число для количества страниц.",
+                message="⚠️ Введи положительное целое число страниц.",
                 keyboard=cancel_keyboard().get_keyboard(),
                 random_id=get_random_id(),
             )
@@ -107,7 +109,10 @@ def handle_add_command_step(context) -> None:
         state_info["state"] = "waiting_for_link"
         api.messages.send(
             user_id=user_id,
-            message="Отлично! Теперь можешь указать ссылку на книгу. Нажми Дальше чтобы оставить пустым.",
+            message=(
+                "Отлично! Теперь можешь указать ссылку на книгу. "
+                "Нажми Дальше чтобы оставить пустым."
+            ),
             keyboard=create_link_keyboard().get_keyboard(),
             random_id=get_random_id(),
         )
@@ -121,7 +126,7 @@ def handle_add_command_step(context) -> None:
             if not helpers.is_valid_url(link):
                 api.messages.send(
                     user_id=user_id,
-                    message="⚠️ Пожалуйста, введи корректный URL (http/https) или нажми 'Дальше' to skip.",
+                    message="⚠️ Введи корректный URL или нажми 'Дальше'.",
                     keyboard=create_link_keyboard().get_keyboard(),
                     random_id=get_random_id(),
                 )
@@ -130,7 +135,10 @@ def handle_add_command_step(context) -> None:
         state_info["state"] = "waiting_for_tags"
         api.messages.send(
             user_id=user_id,
-            message="Хорошо! Теперь введи теги книги через запятую (например: Tech, Программирование):",
+            message=(
+                "Хорошо! Теперь введи теги книги через запятую "
+                "(например: Tech, Программирование):"
+            ),
             keyboard=cancel_keyboard().get_keyboard(),
             random_id=get_random_id(),
         )
@@ -172,7 +180,7 @@ def handle_add_command_step(context) -> None:
         if not is_litres_url(url):
             api.messages.send(
                 user_id=user_id,
-                message="⚠️ Пожалуйста, введи корректную ссылку на LitRes.",
+                message="⚠️ Введи корректную ссылку на LitRes.",
                 keyboard=cancel_keyboard().get_keyboard(),
                 random_id=get_random_id(),
             )
@@ -227,7 +235,10 @@ def handle_add_command_step(context) -> None:
             state_info["state"] = "waiting_for_litres_tags"
             api.messages.send(
                 user_id=user_id,
-                message="Отлично! Теперь введи теги книги через запятую (например: Tech, Программирование):",
+                message=(
+                    "Отлично! Теперь введи теги книги через запятую "
+                    "(например: Tech, Программирование):"
+                ),
                 keyboard=cancel_keyboard().get_keyboard(),
                 random_id=get_random_id(),
             )
@@ -248,7 +259,7 @@ def handle_add_command_step(context) -> None:
         )
         context.delete_state()
         message_text = (
-            f"✅ Книга '{book.title}' успешно добавлена в твою библиотеку!\n"
+            f"✅ Книга '{book.title}' успешно добавлена!\n"
             "\nТы можешь\n"
             "/add - Добавить ещё одну книгу\n"
             "/list - Показать список книг"
@@ -265,7 +276,7 @@ def handle_add_command_step(context) -> None:
     context.delete_state()
     api.messages.send(
         user_id=user_id,
-        message="Состояние добавления книги сброшено. Пожалуйста, повтори команду /add.",
+        message="Добавление книги сброшено. Повтори команду /add.",
         keyboard=main_keyboard().get_keyboard(),
         random_id=get_random_id(),
     )

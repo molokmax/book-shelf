@@ -59,7 +59,9 @@ class VkBookShelfBot:
 
             except ApiError as e:
                 # Специфичная ошибка VK API
-                self.logger.error(f"[Ошибка VK API] Код: {e.code}. Сообщение: {e}")
+                self.logger.error(
+                    "[Ошибка VK API] Код: %s. Сообщение: %s", e.code, e
+                )
                 if e.code == 5:  # Авторизация сломалась
                     self.logger.error("Неверный токен. Проверьте его.")
                     time.sleep(60)
@@ -88,20 +90,27 @@ class VkBookShelfBot:
                 return
             if not event.user_id:
                 self.logger.warning(
-                    "Сообщение не будет обработано так как неизвестен идентификатор текущего пользователя"
+                    "Сообщение не будет обработано: "
+                    "неизвестен идентификатор пользователя"
                 )
                 return
             if not event.peer_id:
                 self.logger.warning(
-                    "Сообщение не будет обработано так как неизвестен идентификатор текущего чата"
+                    "Сообщение не будет обработано: "
+                    "неизвестен идентификатор чата"
                 )
                 return
 
             context = BotContext(
-                vk=self.vk, upload=self.upload, event=event, storage=self._state_storage
+                vk=self.vk,
+                upload=self.upload,
+                event=event,
+                storage=self._state_storage,
             )
             self.logger.debug(
-                f"Получили команду {context.command} от пользователя {context.user_id}"
+                "Получили команду %s от пользователя %s",
+                context.command,
+                context.user_id,
             )
 
             # Попытка роутинга через CommandRouter

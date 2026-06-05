@@ -25,7 +25,10 @@ class BookService:
         self.reading_stats_service = ReadingStatsService(db_path)
 
     def filter_books(
-        self, user_id: str, status: str | None = None, tags: list[str] | None = None
+        self,
+        user_id: str,
+        status: str | None = None,
+        tags: list[str] | None = None,
     ) -> list[Book]:
         """Возвращает книги, отфильтрованные по статусу и/или тегам.
         Если статус не задан, фильтрация по статусу не применяется.
@@ -71,9 +74,8 @@ class BookService:
         return self.book_repo.add_book(book)
 
     def get_all_books(self, user_id: Optional[str] = None) -> List[Book]:
-        """Получает все книги. Если указан user_id, возвращает только книги этого пользователя.
-        По умолчанию сортирует по приоритету (от высокого к низкому).
-        Прочитанные книги всегда в конце списка."""
+        """Получает все книги. Фильтрует по user_id, если указан.
+        Прочитанные книги всегда в конце."""
         books = (
             self.book_repo.get_all_books()
             if user_id is None
@@ -98,18 +100,22 @@ class BookService:
         book.status = ReadingStatus(status)
         book.updated_at = datetime.now()
 
-        # Если статус "Читаю сейчас" и текущая страница 0, устанавливаем дату начала
-        if status == ReadingStatus.READING.value and not book.reading_start_date:
+        if (
+            status == ReadingStatus.READING.value
+            and not book.reading_start_date
+        ):
             book.reading_start_date = datetime.now()
 
-        # Если статус "Прочитано" и текущая страница равна общему количеству страниц, устанавливаем дату окончания
-        if status == ReadingStatus.READ.value and book.current_page == book.pages:
+        if (
+            status == ReadingStatus.READ.value
+            and book.current_page == book.pages
+        ):
             book.reading_end_date = datetime.now()
 
         return self.book_repo.update_book(book)
 
     def update_book_progress(self, book_id: str, current_page: int) -> Book:
-        """Обновляет прогресс чтения книги по текущей странице и сохраняет статистику чтения."""
+        """Обновляет прогресс чтения и сохраняет статистику."""
         book = self.book_repo.get_book_by_id(book_id)
         if not book:
             raise ValueError(f"Книга с ID {book_id} не найдена")
@@ -156,21 +162,28 @@ class BookService:
         return self.book_repo.update_book(book)
 
     def get_stats(self, user_id: Optional[str] = None) -> Dict:
-        """Получает статистику чтения. Если указан user_id, возвращает статистику только для книг этого пользователя."""
+        """Получает статистику чтения, опционально фильтруя по user_id."""
         books = self.get_all_books(user_id)
 
         total_books = len(books)
         read_books = len([b for b in books if b.status == ReadingStatus.READ])
-        reading_books = len([b for b in books if b.status == ReadingStatus.READING])
+        reading_books = len(
+            [b for b in books if b.status == ReadingStatus.READING]
+        )
         want_to_read_books = len(
             [b for b in books if b.status == ReadingStatus.WANT_TO_READ]
         )
-        postponed_books = len([b for b in books if b.status == ReadingStatus.POSTPONED])
+        postponed_books = len(
+            [b for b in books if b.status == ReadingStatus.POSTPONED]
+        )
 
         total_pages = sum(b.pages for b in books)
         read_pages = sum(b.current_page for b in books)
         avg_progress = (
-            (sum(b.current_page for b in books) / sum(b.pages for b in books) * 100)
+            (
+                sum(b.current_page for b in books)
+                / sum(b.pages for b in books) * 100
+            )
             if books and sum(b.pages for b in books) > 0
             else 0
         )
@@ -223,17 +236,23 @@ class ReadingStatsService:
         self, book_id: str, pages_read: int, read_date: str | None = None
     ) -> str:
         """Добавляет запись статистики чтения."""
-        return self.read_stats_repo.add_reading_stats(book_id, pages_read, read_date)
+        return self.read_stats_repo.add_reading_stats(
+            book_id, pages_read, read_date
+        )
 
     def get_reading_stats(
         self, book_id: str, from_date: datetime, to_date: datetime
     ) -> int:
         """Возвращает количество прочитанных страниц за период."""
-        return self.read_stats_repo.fetch_reading_stats(book_id, from_date, to_date)
+        return self.read_stats_repo.fetch_reading_stats(
+            book_id, from_date, to_date
+        )
 
     def avg_pages_per_day(self, book: Book) -> float:
         """Среднее количество страниц за последние 30 дней."""
-        today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        today = datetime.now().replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
         if book.reading_start_date:
             reading_start_date = book.reading_start_date.replace(
                 hour=0, minute=0, second=0, microsecond=0
@@ -241,7 +260,9 @@ class ReadingStatsService:
         else:
             reading_start_date = today
         from_date = max(today - timedelta(days=29), reading_start_date)
-        return self.read_stats_repo.fetch_average_pages_per_day(book.id, from_date)
+        return self.read_stats_repo.fetch_average_pages_per_day(
+            book.id, from_date
+        )
 
     def predict_completion_date(self, book: Book) -> date | None:
         """Прогнозирует дату завершения чтения книги."""

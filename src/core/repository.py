@@ -1,7 +1,7 @@
 """Репозиторий для работы с данными."""
 
 import json
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 from core.database import Database
@@ -72,25 +72,33 @@ class ReadStatsRepository:
         """Return total pages read for a book between dates (inclusive)."""
         log = logger.setup_logger(__name__)
         log.debug(
-            f"Fetching reading stats for book_id={book_id} from {from_date} to {to_date}"
+            "Fetching reading stats for book_id=%s from %s to %s",
+            book_id,
+            from_date,
+            to_date,
         )
         with self.db.get_cursor() as cursor:
             cursor.execute(
-                "SELECT SUM(pages_read) FROM read_stats WHERE book_id = ? AND read_date BETWEEN ? AND ?",
+                "SELECT SUM(pages_read) FROM read_stats "
+                "WHERE book_id = ? AND read_date BETWEEN ? AND ?",
                 (book_id, from_date.isoformat(), to_date.isoformat()),
             )
             result = cursor.fetchone()[0]
             return int(result) if result is not None else 0
 
-    def fetch_average_pages_per_day(self, book_id: str, from_date: datetime) -> float:
-        """Calculate average pages per day over the last *days* days."""
+    def fetch_average_pages_per_day(
+        self, book_id: str, from_date: datetime
+    ) -> float:
+        """Calculate average pages per day over the given period."""
         log = logger.setup_logger(__name__)
         to_date = datetime.now().replace(
             hour=23, minute=59, second=59, microsecond=999999
         )
         days = (to_date + timedelta(microseconds=1) - from_date).days
         log.debug(
-            f"Calculating average pages per day for book_id={book_id} over {days} days"
+            "Calculating average pages per day for book_id=%s over %d days",
+            book_id,
+            days,
         )
         total = self.fetch_reading_stats(book_id, from_date, to_date)
         return total / days if days > 0 else 0.0
@@ -141,7 +149,9 @@ class UserStateRepository:
         Если запись отсутствует — возвращает пустой словарь.
         """
         with self.db.get_cursor() as cursor:
-            cursor.execute("SELECT json FROM user_state WHERE user_id = ?", (user_id,))
+            cursor.execute(
+                "SELECT json FROM user_state WHERE user_id = ?", (user_id,)
+            )
             row = cursor.fetchone()
             if row and row[0]:
                 try:
@@ -155,11 +165,14 @@ class UserStateRepository:
         json_state = json.dumps(state)
         with self.db.get_cursor() as cursor:
             cursor.execute(
-                "INSERT OR REPLACE INTO user_state (user_id, json) VALUES (?, ?)",
+                "INSERT OR REPLACE INTO user_state "
+                "(user_id, json) VALUES (?, ?)",
                 (user_id, json_state),
             )
 
     def delete_state(self, user_id: str) -> None:
         """Удаляет запись состояния пользователя."""
         with self.db.get_cursor() as cursor:
-            cursor.execute("DELETE FROM user_state WHERE user_id = ?", (user_id,))
+            cursor.execute(
+                "DELETE FROM user_state WHERE user_id = ?", (user_id,)
+            )

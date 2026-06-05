@@ -22,7 +22,7 @@ class AbstractCommandHandler(abc.ABC):
     commands: List[str] = []
 
     def can_handle(self, command: str) -> bool:
-        """Возвращает ``True``, если обработчик может обработать ``command``."""
+        """Проверяет, может ли обработчик обработать команду."""
         return command in self.commands
 
     @abc.abstractmethod

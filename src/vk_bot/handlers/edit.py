@@ -6,22 +6,27 @@ from vk_api.utils import get_random_id
 from core.services import BookService
 from utils import helpers, logger
 from utils.helpers import get_status_name
-from vk_bot.keyboards import (cancel_keyboard, filter_keyboard, main_keyboard,
-                              status_keyboard, tags_keyboard)
+from vk_bot.keyboards import (
+    cancel_keyboard,
+    filter_keyboard,
+    main_keyboard,
+    status_keyboard,
+    tags_keyboard,
+)
 from vk_bot.user_helpers import get_or_create_user
 
 log = logger.setup_logger(__name__)
 
 # TODO: Актуализировать DevNotes.md
-# TODO: пофиксить flake8 src/
+# TODO: приведи настройки flake8 black и isort к одному формату. сейчас перетирают друг друга
 # TODO: код получения книги вынести в отдельный метод
 # TODO: сделать отдельный класс для обработчиков команд
-# TODO: можно удалять временные сообщения (например, список  книг для выбора) чтобы оставлять историю сообщений чистой
+# TODO: удалять временные сообщения для чистой истории
 # TODO: перейти в clean arch
 
 
 def handle_edit_command(context) -> None:
-    """Инициирует процесс /edit – выводит нумерованный список книг и просит выбрать номер."""
+    """Инициирует процесс /edit — выбор книги для редактирования."""
 
     api = context.api
     user_id = context.user_id
@@ -62,11 +67,8 @@ def handle_edit_command_step(context) -> None:
     state = state_info.get("state")
 
     if state == "choose_filter":
-        # Новый диалог выбора режима фильтрации: пользователь может выбрать фильтрацию по статусу, по тегу или без фильтра
-        # При выборе "по статусу" показываем клавиатуру со статусами и потом выводим отфильтрованный список книг
-        # При выборе "по тегам" получаем уникальные теги из базы и показываем их клавиатурой, после выбора тега выводим список книг
-        # При выборе "Все" сразу выводим полный список книг без фильтрации
-        # Обрабатываем выбор фильтра
+        # Выбор режима фильтрации: по статусу, по тегу или без фильтра
+        # Затем выводим отфильтрованный список книг для выбора
         choice = text.strip().lower()
         if choice == "по статусу":
             # Сохраняем выбранный режим
@@ -106,7 +108,7 @@ def handle_edit_command_step(context) -> None:
             if not books:
                 api.messages.send(
                     user_id=user_id,
-                    message="У тебя нет книг в библиотеке. Добавь книгу с помощью /add",
+                    message="В библиотеке нет книг. Добавь книгу через /add",
                     keyboard=main_keyboard().get_keyboard(),
                     random_id=get_random_id(),
                 )
@@ -120,9 +122,7 @@ def handle_edit_command_step(context) -> None:
                     "data": {"books": [book.id for book in books]},
                 }
             )
-            lines = [
-                "📚 Введи номер книги, которую хочешь отредактировать.\nТвоя библиотека:\n\n"
-            ]
+            lines = ["📚 Введи номер книги для редактирования.\nБиблиотека:\n\n"]
             for i, book in enumerate(books, 1):
                 lines.append(helpers.format_book_info(i, book) + "\n")
             message_text = "".join(lines)
@@ -137,7 +137,7 @@ def handle_edit_command_step(context) -> None:
         else:
             api.messages.send(
                 user_id=user_id,
-                message="⚠️ Выбери один из вариантов: По статусу, По тегам, Все.",
+                message="⚠️ Выбери: По статусу, По тегам или Все.",
                 keyboard=filter_keyboard().get_keyboard(),
                 random_id=get_random_id(),
             )
@@ -182,7 +182,7 @@ def handle_edit_command_step(context) -> None:
         # Предлагаем действие (пока только удаление)
         api.messages.send(
             user_id=user_id,
-            message=f"Выбрана книга '{selected_book.title}'. Что нужно сделать?",
+            message=(f"Выбрана книга '{selected_book.title}'. Что нужно сделать?"),
             keyboard=create_book_keyboard().get_keyboard(),
             random_id=get_random_id(),
         )
@@ -203,9 +203,7 @@ def handle_edit_command_step(context) -> None:
             }
         )
         # Формируем список
-        lines = [
-            "📚 Введи номер книги, которую хочешь отредактировать.\nТвоя библиотека:\n\n"
-        ]
+        lines = ["📚 Введи номер книги для редактирования.\nБиблиотека:\n\n"]
         for i, book in enumerate(books, 1):
             lines.append(helpers.format_book_info(i, book) + "\n")
         message_text = "".join(lines)
@@ -230,9 +228,7 @@ def handle_edit_command_step(context) -> None:
                 "data": {"books": [book.id for book in books]},
             }
         )
-        lines = [
-            "📚 Введи номер книги, которую хочешь отредактировать.\nТвоя библиотека:\n\n"
-        ]
+        lines = ["📚 Введи номер книги для редактирования.\nБиблиотека:\n\n"]
         for i, book in enumerate(books, 1):
             lines.append(helpers.format_book_info(i, book) + "\n")
         message_text = "".join(lines)
@@ -251,7 +247,7 @@ def handle_edit_command_step(context) -> None:
             if not book_id:
                 api.messages.send(
                     user_id=user_id,
-                    message="Ошибка при удалении книги. Идентификатор выбранной книги отсутствует.",
+                    message="Ошибка: идентификатор книги отсутствует.",
                     keyboard=cancel_keyboard().get_keyboard(),
                     random_id=get_random_id(),
                 )
@@ -287,7 +283,8 @@ def handle_edit_command_step(context) -> None:
             api.messages.send(
                 user_id=user_id,
                 message=(
-                    f"📖 Выбрана книга '{book.title}'. Введи текущую страницу (от 0 до {book.pages}):"
+                    f"📖 Выбрана книга '{book.title}'.\n"
+                    f"Введи текущую страницу (от 0 до {book.pages}):"
                 ),
                 keyboard=cancel_keyboard().get_keyboard(),
                 random_id=get_random_id(),
@@ -332,7 +329,10 @@ def handle_edit_command_step(context) -> None:
             state_info["state"] = "editing_title"
             api.messages.send(
                 user_id=user_id,
-                message=f"Текущее название книги: '{book.title}'. Введи новое название или нажми 'Дальше' чтобы оставить текущего.",
+                message=(
+                    f"Текущее название: '{book.title}'.\n"
+                    "Введи новое или нажми 'Дальше' чтобы оставить."
+                ),
                 keyboard=create_edit_keyboard().get_keyboard(),
                 random_id=get_random_id(),
             )
@@ -361,7 +361,10 @@ def handle_edit_command_step(context) -> None:
 
         api.messages.send(
             user_id=user_id,
-            message=f"Текущий автор книги: '{book.author}'. Введи нового автора или нажми 'Дальше' чтобы оставить текущего.",
+            message=(
+                f"Текущий автор: '{book.author}'.\n"
+                "Введи нового или нажми 'Дальше' чтобы оставить."
+            ),
             keyboard=create_edit_keyboard().get_keyboard(),
             random_id=get_random_id(),
         )
@@ -387,7 +390,10 @@ def handle_edit_command_step(context) -> None:
 
         api.messages.send(
             user_id=user_id,
-            message=f"Текущее количество страниц: {book.pages}. Введи новое количество страниц или нажми 'Дальше' чтобы оставить текущие.",
+            message=(
+                f"Текущее количество страниц: {book.pages}.\n"
+                "Введи новое или нажми 'Дальше' чтобы оставить."
+            ),
             keyboard=create_edit_keyboard().get_keyboard(),
             random_id=get_random_id(),
         )
@@ -402,7 +408,7 @@ def handle_edit_command_step(context) -> None:
             except ValueError:
                 api.messages.send(
                     user_id=user_id,
-                    message="⚠️ Введите корректное целое число для количества страниц.",
+                    message="⚠️ Введи целое число для количества страниц.",
                     keyboard=create_edit_keyboard().get_keyboard(),
                     random_id=get_random_id(),
                 )
@@ -423,7 +429,10 @@ def handle_edit_command_step(context) -> None:
 
         api.messages.send(
             user_id=user_id,
-            message=f"Текущая ссылка на книгу - {book.link or 'Отсутствует'}. Введи новую ссылку на книгу или нажми 'Дальше' чтобы оставить текущую.",
+            message=(
+                f"Текущая ссылка: {book.link or 'Отсутствует'}.\n"
+                "Введи новую или нажми 'Дальше' чтобы оставить."
+            ),
             keyboard=create_edit_keyboard().get_keyboard(),
             random_id=get_random_id(),
         )
@@ -450,7 +459,10 @@ def handle_edit_command_step(context) -> None:
         tags_text = ", ".join(book.tags) if book.tags else "Нет тэгов"
         api.messages.send(
             user_id=user_id,
-            message=f"Текущие тэги книги: {tags_text}. Введи новые тэги через запятую или нажми 'Дальше' чтобы оставить текущие.",
+            message=(
+                f"Текущие тэги: {tags_text}.\n"
+                "Введи новые через запятую или нажми 'Дальше'."
+            ),
             keyboard=create_edit_keyboard().get_keyboard(),
             random_id=get_random_id(),
         )
@@ -501,7 +513,7 @@ def handle_edit_command_step(context) -> None:
         except ValueError:
             api.messages.send(
                 user_id=user_id,
-                message="❌ Некорректный ввод. Пожалуйста, введи число (например: '50').",
+                message="❌ Введи число (например: '50').",
                 keyboard=cancel_keyboard().get_keyboard(),
                 random_id=get_random_id(),
             )
@@ -551,7 +563,8 @@ def handle_edit_command_step(context) -> None:
             user_id=user_id,
             message=(
                 f"✅ Прогресс чтения книги '{updated_book.title}' обновлён.\n"
-                f"Прочитано {updated_book.current_page} из {total_pages} страниц."
+                f"Прочитано {updated_book.current_page}"
+                f" из {total_pages} страниц."
             ),
             keyboard=main_keyboard().get_keyboard(),
             random_id=get_random_id(),
@@ -584,7 +597,10 @@ def handle_edit_command_step(context) -> None:
 
         api.messages.send(
             user_id=user_id,
-            message=f"✅ Статус книги '{updated_book.title}' изменён на '{get_status_name(updated_book.status.value)}'",
+            message=(
+                f"✅ Статус книги '{updated_book.title}' изменён на "
+                f"'{get_status_name(updated_book.status.value)}'"
+            ),
             keyboard=main_keyboard().get_keyboard(),
             random_id=get_random_id(),
         )
@@ -593,7 +609,7 @@ def handle_edit_command_step(context) -> None:
 
 
 def create_book_keyboard() -> VkKeyboard:
-    """Создаёт клавиатуру с кнопками действий над книгой: удалить, прогресс, статус и изменить."""
+    """Клавиатура действий над книгой: изменить, прогресс, статус, удалить."""
     kb = VkKeyboard()
     kb.add_button("Изменить")
     kb.add_button("Прогресс")
@@ -607,7 +623,7 @@ def create_book_keyboard() -> VkKeyboard:
 def create_status_keyboard() -> VkKeyboard:
     """Создаёт клавиатуру для выбора нового статуса книги без payload."""
     kb = VkKeyboard()
-    # Кнопки с названием статуса, без payload; обработка будет по тексту сообщения
+    # Кнопки с названием статуса; обработка по тексту
     kb.add_button("Хочу прочитать")
     kb.add_button("Читаю сейчас")
     kb.add_line()
@@ -619,7 +635,7 @@ def create_status_keyboard() -> VkKeyboard:
 
 
 def create_edit_keyboard() -> VkKeyboard:
-    """Keyboard with 'Дальше' and 'Отмена' buttons for sequential editing steps."""
+    """Keyboard with 'Дальше' and 'Отмена' for sequential editing."""
     kb = VkKeyboard()
     kb.add_button("Дальше")
     kb.add_button("Отмена", payload={"command": "/cancel"})

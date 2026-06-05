@@ -56,7 +56,11 @@ def parse_litres_book(url: str) -> Dict:
     try:
         # Отправляем GET запрос к странице книги
         headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/91.0.4472.124 Safari/537.36"
+            )
         }
         response = requests.get(url, headers=headers, timeout=10)
         response.raise_for_status()
@@ -88,8 +92,9 @@ def parse_litres_book(url: str) -> Dict:
         if isinstance(data.get("author"), dict):
             author = data.get("author", {}).get("name", "Неизвестный автор")
         elif isinstance(data.get("author"), list):
+            authors = data.get("author", [])
             author = ", ".join(
-                [x.get("name", "Неизвестный автор") for x in data.get("author", [])]
+                x.get("name", "Неизвестный автор") for x in authors
             )
         else:
             author = "Неизвестный автор"
@@ -107,10 +112,14 @@ def parse_litres_book(url: str) -> Dict:
 
     except requests.RequestException as e:
         log.error(f"Ошибка при запросе к Литрес: {e}")
-        raise LitresParserError(f"Не удалось загрузить страницу: {str(e)}")
+        raise LitresParserError(f"Не удалось загрузить страницу: {e}")
     except json.JSONDecodeError as e:
         log.error(f"Ошибка при парсинге JSON-LD: {e}")
-        raise LitresParserError(f"Не удалось распарсить информацию о книге: {str(e)}")
+        raise LitresParserError(
+            f"Не удалось распарсить информацию о книге: {e}"
+        )
     except Exception as e:
         log.error(f"Ошибка при парсинге страницы Литрес: {e}")
-        raise LitresParserError(f"Не удалось распарсить информацию о книге: {str(e)}")
+        raise LitresParserError(
+            f"Не удалось распарсить информацию о книге: {e}"
+        )

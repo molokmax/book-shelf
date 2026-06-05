@@ -1,4 +1,4 @@
-"""ActiveStateStorage — обёртка над UserStateRepository для управления пользовательским стейтом."""
+"""ActiveStateStorage — обёртка над UserStateRepository для стейта."""
 
 from typing import Any, Dict, Optional
 

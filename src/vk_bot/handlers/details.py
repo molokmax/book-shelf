@@ -1,4 +1,4 @@
-"""Обработчики команды /details в VK‑боте (просмотр подробной информации о книге)."""
+"""Обработчики команды /details в VK-боте (просмотр деталей книги)."""
 
 from datetime import datetime, timedelta
 
@@ -35,7 +35,7 @@ def handle_details(context) -> None:
 
 
 def handle_details_step(context) -> None:
-    """Обрабатывает ввод после команды /details и отправляет подробную информацию о выбранной книге."""
+    """Обрабатывает ввод после /details и отправляет детали книги."""
     api = context.api
     user_id = context.user_id
     text = context.text
@@ -79,7 +79,7 @@ def handle_details_step(context) -> None:
             if not books:
                 api.messages.send(
                     user_id=user_id,
-                    message="У тебя нет книг в библиотеке. Добавь книгу с помощью /add",
+                    message="В библиотеке нет книг. Добавь книгу через /add",
                     keyboard=main_keyboard().get_keyboard(),
                     random_id=get_random_id(),
                 )
@@ -87,9 +87,7 @@ def handle_details_step(context) -> None:
                 return
             state_info["state"] = "selecting_book"
             state_info["data"]["books"] = [book.id for book in books]
-            lines = [
-                "📚 Введи номер книги, чтобы увидеть её детали.\nТвоя библиотека:\n\n"
-            ]
+            lines = ["📚 Введи номер книги.\nТвоя библиотека:\n\n"]
             for i, book in enumerate(books, 1):
                 lines.append(helpers.format_book_info(i, book) + "\n")
             api.messages.send(
@@ -103,7 +101,7 @@ def handle_details_step(context) -> None:
         else:
             api.messages.send(
                 user_id=user_id,
-                message="⚠️ Выбери один из вариантов: По статусу, По тегам, Все",
+                message="⚠️ Выбери: По статусу, По тегам или Все",
                 keyboard=filter_keyboard().get_keyboard(),
                 random_id=get_random_id(),
             )
@@ -127,9 +125,7 @@ def handle_details_step(context) -> None:
             return
             state_info["state"] = "selecting_book"
             state_info["data"]["books"] = [book.id for book in books]
-            lines = [
-                "📚 Введи номер книги, чтобы увидеть её детали.\nКниги с выбранным статусом:\n\n"
-            ]
+            lines = ["📚 Введи номер книги.\nКниги с выбранным статусом:\n\n"]
         for i, book in enumerate(books, 1):
             lines.append(helpers.format_book_info(i, book) + "\n")
         api.messages.send(
@@ -157,9 +153,7 @@ def handle_details_step(context) -> None:
             return
         state_info["state"] = "selecting_book"
         state_info["data"]["books"] = [book.id for book in books]
-        lines = [
-            "📚 Введи номер книги, чтобы увидеть её детали.\nКниги с выбранным тегом:\n\n"
-        ]
+        lines = ["📚 Введи номер книги.\nКниги с выбранным тегом:\n\n"]
         for i, book in enumerate(books, 1):
             lines.append(helpers.format_book_info(i, book) + "\n")
         api.messages.send(
@@ -208,15 +202,21 @@ def handle_details_step(context) -> None:
 
     # Получаем статистику чтения
     stats_service = ReadingStatsService()
-    today = datetime.now().replace(hour=23, minute=59, second=59, microsecond=999999)
+    today = datetime.now().replace(
+        hour=23, minute=59, second=59, microsecond=999999
+    )
     week_start = (today - timedelta(days=7)).replace(
         hour=0, minute=0, second=0, microsecond=0
     )
     month_start = (today - timedelta(days=30)).replace(
         hour=0, minute=0, second=0, microsecond=0
     )
-    weekly_pages = stats_service.get_reading_stats(book.id, week_start, today)
-    monthly_pages = stats_service.get_reading_stats(book.id, month_start, today)
+    weekly_pages = stats_service.get_reading_stats(
+        book.id, week_start, today
+    )
+    monthly_pages = stats_service.get_reading_stats(
+        book.id, month_start, today
+    )
     avg_pages = stats_service.avg_pages_per_day(book)
     pred_date = stats_service.predict_completion_date(book)
     details = format_book_details(

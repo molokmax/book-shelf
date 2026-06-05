@@ -1,7 +1,7 @@
 """Edit command handler as AbstractCommandHandler subclass.
 
-Wraps the existing `edit.py` step‑wise implementation so the new routing system can
-use it without rewriting the internal state machine.
+Wraps the existing ``edit.py`` step-wise implementation so the
+new routing system can use it without rewriting the state machine.
 """
 
 from typing import Any

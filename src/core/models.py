@@ -53,7 +53,9 @@ class Book:
             current_page=data.get(
                 "current_page", data.get("progress", 0)
             ),  # Поддержка миграции
-            status=ReadingStatus(data.get("status", ReadingStatus.WANT_TO_READ.value)),
+            status=ReadingStatus(
+                data.get("status", ReadingStatus.WANT_TO_READ.value)
+            ),
             created_at=datetime.fromisoformat(
                 data.get("created_at", datetime.now().isoformat())
             ),

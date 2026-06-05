@@ -45,7 +45,9 @@ class Database:
         self.conn.execute(
             "PRAGMA journal_mode = WAL"
         )  # Используем WAL для лучшей производительности
-        self.conn.execute("PRAGMA busy_timeout = 5000")  # Таймаут при блокировке
+        self.conn.execute(
+            "PRAGMA busy_timeout = 5000"
+        )  # Таймаут при блокировке
 
         # Создаём таблицы при инициализации
         self._create_tables()
@@ -110,14 +112,15 @@ class Database:
         )
 
         cursor.execute(
-            "CREATE TABLE IF NOT EXISTS user_state (user_id TEXT PRIMARY KEY, json TEXT)"
+            "CREATE TABLE IF NOT EXISTS user_state "
+            "(user_id TEXT PRIMARY KEY, json TEXT)"
         )
 
         self.conn.commit()
 
     @contextmanager
     def get_cursor(self) -> sqlite3.Cursor:
-        """Контекстный менеджер для получения курсора с автоматическим коммитом."""
+        """Контекстный менеджер для получения курсора с автокоммитом."""
         cursor = self.conn.cursor()
         try:
             yield cursor
@@ -148,7 +151,8 @@ class Database:
             read_date = datetime.now().isoformat()
         with self.get_cursor() as cursor:
             cursor.execute(
-                "INSERT INTO read_stats (id, book_id, pages_read, read_date) VALUES (?, ?, ?, ?)",
+                "INSERT INTO read_stats "
+                "(id, book_id, pages_read, read_date) VALUES (?, ?, ?, ?)",
                 (str(uuid.uuid4()), book_id, pages_read, read_date),
             )
             return cursor.lastrowid
@@ -159,9 +163,10 @@ class Database:
         with self.get_cursor() as cursor:
             cursor.execute(
                 """
-            INSERT OR REPLACE INTO users
-            (id, external_id, username, first_name, last_name, created_at, last_active)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT OR REPLACE INTO users (
+                id, external_id, username, first_name,
+                last_name, created_at, last_active
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
                 (
                     user.id,
@@ -216,7 +221,9 @@ class Database:
         """Получает пользователя по Telegram ID."""
 
         with self.get_cursor() as cursor:
-            cursor.execute("SELECT * FROM users WHERE external_id = ?", (external_id,))
+            cursor.execute(
+                "SELECT * FROM users WHERE external_id = ?", (external_id,)
+            )
             row = cursor.fetchone()
 
             if row:
@@ -239,10 +246,12 @@ class Database:
         with self.get_cursor() as cursor:
             cursor.execute(
                 """
-            INSERT OR REPLACE INTO books
-            (id, title, author, tags, pages, current_page, status, created_at, updated_at,
-              cover_image, notes, link, reading_start_date, reading_end_date, user_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT OR REPLACE INTO books (
+                id, title, author, tags, pages,
+                current_page, status, created_at, updated_at,
+                cover_image, notes, link,
+                reading_start_date, reading_end_date, user_id
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
                 (
                     book.id,
@@ -366,7 +375,10 @@ class Database:
 
         with self.get_cursor() as cursor:
             columns = ", ".join(self._book_column_list)
-            sql = f"SELECT {columns} FROM books WHERE user_id = ? ORDER BY updated_at DESC"
+            sql = (
+                f"SELECT {columns} FROM books "
+                "WHERE user_id = ? ORDER BY updated_at DESC"
+            )
             cursor.execute(sql, (user_id,))
             rows = cursor.fetchall()
 
@@ -397,7 +409,11 @@ class Database:
         """Получает книги по статусу."""
 
         with self.get_cursor() as cursor:
-            sql = f"SELECT {", ".join(self._book_column_list)} FROM books WHERE status = ? ORDER BY updated_at DESC"
+            cols = ", ".join(self._book_column_list)
+            sql = (
+                f"SELECT {cols} FROM books "
+                "WHERE status = ? ORDER BY updated_at DESC"
+            )
             cursor.execute(sql, (status,))
             rows = cursor.fetchall()
 
