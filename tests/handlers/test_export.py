@@ -49,16 +49,16 @@ def test_handle_export_sends_csv_and_message():
     ctx = make_context(fake_api, fake_upload, user_id, chat_id)
 
     with (
-        patch("vk_bot.handlers.export.get_or_create_user", return_value=mock_user),
-        patch("vk_bot.handlers.export.BookService") as MockBookService,
+        patch("vk_bot.handlers.export_handler.get_or_create_user", return_value=mock_user),
+        patch("vk_bot.handlers.export_handler.BookService") as MockBookService,
         patch(
-            "vk_bot.handlers.export.export_to_csv", return_value=mock_path
+            "vk_bot.handlers.export_handler.export_to_csv", return_value=mock_path
         ) as mock_export_to_csv,
     ):
         MockBookService.return_value.get_all_books.return_value = fake_books
-        from vk_bot.handlers.export import handle_export_command
+        from vk_bot.handlers.export_handler import ExportHandler
 
-        handle_export_command(ctx)
+        ExportHandler().handle(ctx)
 
     mock_export_to_csv.assert_called_once_with(fake_books, mock_user.id)
     fake_upload.document_message.assert_called_once_with(
@@ -92,14 +92,14 @@ def test_handle_export_with_no_books_creates_empty_csv():
     ctx = make_context(fake_api, fake_upload, user_id, chat_id)
 
     with (
-        patch("vk_bot.handlers.export.get_or_create_user", return_value=mock_user),
-        patch("vk_bot.handlers.export.BookService") as MockBookService,
-        patch("vk_bot.handlers.export.export_to_csv", return_value=mock_path),
+        patch("vk_bot.handlers.export_handler.get_or_create_user", return_value=mock_user),
+        patch("vk_bot.handlers.export_handler.BookService") as MockBookService,
+        patch("vk_bot.handlers.export_handler.export_to_csv", return_value=mock_path),
     ):
         MockBookService.return_value.get_all_books.return_value = []
-        from vk_bot.handlers.export import handle_export_command
+        from vk_bot.handlers.export_handler import ExportHandler
 
-        handle_export_command(ctx)
+        ExportHandler().handle(ctx)
 
     assert len(fake_api.sent_messages) == 1
     sent = fake_api.sent_messages[0]
