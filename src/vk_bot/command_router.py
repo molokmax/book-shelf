@@ -1,9 +1,10 @@
 import logging
-from typing import List, Dict, Callable, Any
+from typing import Any, Dict, List
 
 from utils import logger
 from utils.config import load_config
 
+from .context import BotContext
 from .handlers.base import AbstractCommandHandler
 
 
@@ -39,19 +40,20 @@ class CommandRouter:
     # ---------------------------------------------------------------------
     # Основной роутинг
     # ---------------------------------------------------------------------
-    def route(self, command: str, *args: Any, **kwargs: Any) -> Any:
-        """Маршрутизует полученную команду к подходящему обработчику.
+    def route(self, context: BotContext) -> Any:
+        """Маршрутизует команду из ``context`` к подходящему обработчику.
 
         Возвращает результат вызова ``handle`` первого подходящего обработчика.
         Если ни один обработчик не подходит – возвращает ``None``.
         """
+        command = context.command
         for handler in self.handlers:
             try:
                 if handler.can_handle(command):
                     self.logger.debug(
                         "Routing command %s to %s", command, handler.__class__.__name__
                     )
-                    return handler.handle(command, *args, **kwargs)
+                    return handler.handle(context)
             except Exception as e:
                 self.logger.error(
                     "Error in handler %s while processing %s: %s",

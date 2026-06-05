@@ -1,19 +1,21 @@
 """Base classes for VK bot command handlers."""
 
 import abc
-from typing import List
+from typing import Any, List
+
+from vk_bot.context import BotContext
 
 
 class AbstractCommandHandler(abc.ABC):
     """Базовый класс для обработчиков команд.
 
     Каждый обработчик указывает:
-    - ``priority`` – целое число, чем выше, тем ранже обрабатывается команда.
+    - ``priority`` – целое число, чем выше, тем раньше обрабатывается команда.
     - ``commands`` – список строк команд (например, ``["/add", "add"]``),
       которые способен обработать данный обработчик.
 
     ``can_handle`` проверяет, есть ли запрошенная команда в списке.
-    Реализуйте метод ``handle`` в наследниках, принимая любые нужные параметры.
+    Реализуйте метод ``handle`` в наследниках.
     """
 
     priority: int = 0
@@ -24,9 +26,6 @@ class AbstractCommandHandler(abc.ABC):
         return command in self.commands
 
     @abc.abstractmethod
-    def handle(self, *args, **kwargs):
-        """Обрабатывает команду.
-
-        Конкретные параметры зависят от реализации обработчика.
-        """
+    def handle(self, context: BotContext) -> Any:
+        """Обрабатывает команду, используя переданный ``BotContext``."""
         raise NotImplementedError

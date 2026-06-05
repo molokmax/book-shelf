@@ -4,6 +4,20 @@ from unittest.mock import patch, MagicMock
 from vk_bot.handlers.base import AbstractCommandHandler
 
 
+def make_fake_context(user_id=999, text="/add"):
+    vk = MagicMock()
+    vk.get_api.return_value = MagicMock()
+    upload = MagicMock()
+    event = MagicMock()
+    event.user_id = user_id
+    event.peer_id = user_id
+    event.text = text
+    event.payload = None
+    from vk_bot.context import BotContext
+
+    return BotContext(vk=vk, upload=upload, event=event)
+
+
 def test_abstract_handler_cannot_be_instantiated_directly():
     with pytest.raises(TypeError):
         AbstractCommandHandler()
@@ -52,12 +66,12 @@ def test_add_handler_handle_returns_true():
 
     active_states.clear()
     handler = AddHandler()
-    fake_api = MagicMock()
+    fake_context = make_fake_context()
 
     with patch("vk_bot.handlers.add_handler.handle_add_command") as mock_cmd:
-        result = handler.handle(fake_api, 999)
+        result = handler.handle(fake_context)
         assert result is True
-        mock_cmd.assert_called_once_with(fake_api, 999)
+        mock_cmd.assert_called_once_with(fake_context)
 
 
 def test_edit_handler_handle_returns_true():
@@ -66,12 +80,12 @@ def test_edit_handler_handle_returns_true():
 
     active_states.clear()
     handler = EditHandler()
-    fake_api = MagicMock()
+    fake_context = make_fake_context()
 
     with patch("vk_bot.handlers.edit_handler.handle_edit_command") as mock_cmd:
-        result = handler.handle(fake_api, 999)
+        result = handler.handle(fake_context)
         assert result is True
-        mock_cmd.assert_called_once_with(fake_api, 999)
+        mock_cmd.assert_called_once_with(fake_context)
 
 
 def test_list_handler_handle_returns_true():
@@ -80,12 +94,12 @@ def test_list_handler_handle_returns_true():
 
     active_states.clear()
     handler = ListHandler()
-    fake_api = MagicMock()
+    fake_context = make_fake_context()
 
     with patch("vk_bot.handlers.list_handler.handle_list_command") as mock_cmd:
-        result = handler.handle(fake_api, 999)
+        result = handler.handle(fake_context)
         assert result is True
-        mock_cmd.assert_called_once_with(fake_api, 999)
+        mock_cmd.assert_called_once_with(fake_context)
 
 
 def test_details_handler_handle_returns_true():
@@ -94,9 +108,9 @@ def test_details_handler_handle_returns_true():
 
     active_states.clear()
     handler = DetailsHandler()
-    fake_api = MagicMock()
+    fake_context = make_fake_context()
 
     with patch("vk_bot.handlers.details_handler.handle_details") as mock_cmd:
-        result = handler.handle(fake_api, 999)
+        result = handler.handle(fake_context)
         assert result is True
-        mock_cmd.assert_called_once_with(fake_api, 999)
+        mock_cmd.assert_called_once_with(fake_context)

@@ -1,8 +1,24 @@
+import json
 import pytest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 from datetime import datetime, timedelta
 
 from vk_bot.states import active_states
+
+
+def make_context(api, user_id, text="", payload=None):
+    vk = MagicMock()
+    vk.get_api.return_value = api
+    upload = MagicMock()
+    event = MagicMock()
+    event.user_id = user_id
+    event.peer_id = user_id
+    event.text = text
+    event.payload = json.dumps(payload) if payload else None
+    from vk_bot.context import BotContext
+
+    return BotContext(vk=vk, upload=upload, event=event)
+
 
 with patch(
     "utils.config.load_config",
@@ -11,30 +27,15 @@ with patch(
     from vk_bot.handlers.details import handle_details_step
 
 
-# Fake VkApiMethod
 class FakeVk:
     def __init__(self):
         self.sent_messages = []
         self.messages = self
-        self.users = VkUsers()
 
-    def send(self, user_id, message, keyboard, random_id):
-        self.sent_messages.append(
-            {
-                "user_id": user_id,
-                "message": message,
-                "keyboard": keyboard,
-                "random_id": random_id,
-            }
-        )
+    def send(self, **kwargs):
+        self.sent_messages.append(kwargs)
 
 
-class VkUsers:
-    def get(self, user_ids, fields):
-        return [{"screen_name": "test", "first_name": "t", "last_name": "t"}]
-
-
-# Fake book
 class FakeBook:
     def __init__(self, **kwargs):
         for k, v in kwargs.items():
@@ -53,7 +54,7 @@ class FakeBookService:
 
 
 def test_details_counts_today_pages():
-    fake_vk = FakeVk()
+    fake_api = FakeVk()
     book = FakeBook(
         id="1",
         title="Today Book",
@@ -66,23 +67,21 @@ def test_details_counts_today_pages():
         reading_start_date=datetime.now() - timedelta(days=5),
         link="http://example.com",
     )
-    # set state as if selected
     active_states[1] = {
         "command": "/details",
         "state": "selecting_book",
         "data": {"books": ["1"]},
     }
-    # mock services
+    ctx = make_context(fake_api, user_id=1, text="1")
     with patch(
         "vk_bot.handlers.details.BookService", return_value=FakeBookService([book])
     ):
         with patch("vk_bot.handlers.details.ReadingStatsService") as MockStats:
             instance = MockStats.return_value
-            # simulate today's stats returned as 30 pages
             instance.get_reading_stats.return_value = 30
             instance.avg_pages_per_day.return_value = 5.0
             instance.predict_completion_date.return_value = None
-            handle_details_step(fake_vk, user_id=1, text="1", payload={})
-    assert len(fake_vk.sent_messages) == 1
-    msg = fake_vk.sent_messages[0]["message"]
-    assert "30" in msg  # today pages counted
+            handle_details_step(ctx)
+    assert len(fake_api.sent_messages) == 1
+    msg = fake_api.sent_messages[0]["message"]
+    assert "30" in msg

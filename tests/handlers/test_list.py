@@ -1,27 +1,29 @@
-from unittest.mock import patch
+import json
+from unittest.mock import MagicMock, patch
 
 
 # Fake VkApiMethod like in other tests
-class FakeVk:
+class FakeVkApiMethod:
     def __init__(self):
         self.sent_messages = []
         self.messages = self
-        self.users = VkUsers()
 
-    def send(self, user_id, message, keyboard, random_id):
-        self.sent_messages.append(
-            {
-                "user_id": user_id,
-                "message": message,
-                "keyboard": keyboard,
-                "random_id": random_id,
-            }
-        )
+    def send(self, **kwargs):
+        self.sent_messages.append(kwargs)
 
 
-class VkUsers:
-    def get(self, user_ids, fields):
-        return [{"screen_name": "test", "first_name": "Test", "last_name": "User"}]
+def make_context(api, user_id, text="", payload=None):
+    vk = MagicMock()
+    vk.get_api.return_value = api
+    upload = MagicMock()
+    event = MagicMock()
+    event.user_id = user_id
+    event.peer_id = user_id
+    event.text = text
+    event.payload = json.dumps(payload) if payload else None
+    from vk_bot.context import BotContext
+
+    return BotContext(vk=vk, upload=upload, event=event)
 
 
 # Fake book objects
@@ -38,7 +40,7 @@ class FakeBook:
 
 
 def test_handle_list_flow_all_books():
-    fake_vk = FakeVk()
+    fake_api = FakeVkApiMethod()
     # Prepare fake books
     books = [
         FakeBook("Book One", "Author A", type("S", (), {"value": "reading"})),
@@ -67,22 +69,23 @@ def test_handle_list_flow_all_books():
                     handle_list_command_step,
                 )
 
+                ctx = make_context(fake_api, user_id=123, text="Все")
                 # Start command
-                handle_list_command(fake_vk, user_id=123)
+                handle_list_command(ctx)
                 # Verify state stored and filter keyboard sent
                 assert 123 in __import__("vk_bot.states").states.active_states
-                assert fake_vk.sent_messages[-1]["message"] == "Какие книги интересуют?"
+                assert fake_api.sent_messages[-1]["message"] == "Какие книги интересуют?"
                 # Simulate choosing "Все"
-                handle_list_command_step(fake_vk, user_id=123, text="Все", payload={})
+                handle_list_command_step(ctx)
                 # Last message should contain list of books
-                last_msg = fake_vk.sent_messages[-1]["message"]
+                last_msg = fake_api.sent_messages[-1]["message"]
                 assert "Book One" in last_msg and "Book Two" in last_msg
                 # State should be cleared after finishing
                 assert 123 not in __import__("vk_bot.states").states.active_states
 
 
 def test_handle_list_flow_by_status():
-    fake_vk = FakeVk()
+    fake_api = FakeVkApiMethod()
     # Book with status reading
     book = FakeBook("Book One", "Author A", type("S", (), {"value": "reading"}))
     with patch(
@@ -108,14 +111,14 @@ def test_handle_list_flow_by_status():
                     handle_list_command_step,
                 )
 
-                handle_list_command(fake_vk, user_id=456)
-                handle_list_command_step(
-                    fake_vk, user_id=456, text="По статусу", payload={}
-                )
+                ctx1 = make_context(fake_api, user_id=456, text="По статусу")
+                handle_list_command(ctx1)
+                handle_list_command_step(ctx1)
                 # Choose status "reading"
-                handle_list_command_step(
-                    fake_vk, user_id=456, text="Читаю", payload={"status": "reading"}
+                ctx2 = make_context(
+                    fake_api, user_id=456, text="Читаю", payload={"status": "reading"}
                 )
-                last_msg = fake_vk.sent_messages[-1]["message"]
+                handle_list_command_step(ctx2)
+                last_msg = fake_api.sent_messages[-1]["message"]
                 assert "Book One" in last_msg
                 assert "Книги со статусом" in last_msg

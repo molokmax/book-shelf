@@ -1,4 +1,3 @@
-import json
 import time
 
 from dotenv import load_dotenv
@@ -10,16 +9,17 @@ from vk_api.utils import get_random_id
 from utils import logger
 from utils.config import load_config
 from vk_bot.command_router import CommandRouter
+from vk_bot.context import BotContext
 from vk_bot.handlers.add_handler import AddHandler
-from vk_bot.handlers.edit_handler import EditHandler
-from vk_bot.handlers.list_handler import ListHandler
-from vk_bot.handlers.details_handler import DetailsHandler
 from vk_bot.handlers.cancel import handle_cancel_command
 from vk_bot.handlers.details import handle_details, handle_details_step
+from vk_bot.handlers.details_handler import DetailsHandler
 from vk_bot.handlers.edit import handle_edit_command, handle_edit_command_step
+from vk_bot.handlers.edit_handler import EditHandler
 from vk_bot.handlers.export import handle_export_command
 from vk_bot.handlers.help import handle_help_command
 from vk_bot.handlers.list import handle_list_command, handle_list_command_step
+from vk_bot.handlers.list_handler import ListHandler
 from vk_bot.handlers.start import handle_start_command
 from vk_bot.handlers.stats import handle_stats_command
 from vk_bot.states import active_states
@@ -43,6 +43,7 @@ class VkBookShelfBot:
         token = self.config.bot_token
         self.vk = VkApi(token=token)
         self.api = self.vk.get_api()
+        self.upload = VkUpload(self.vk)
         return VkLongPoll(self.vk)
 
     def run(self) -> None:
@@ -95,52 +96,44 @@ class VkBookShelfBot:
                 )
                 return
 
-            command = self.get_command(event)
+            context = BotContext(vk=self.vk, upload=self.upload, event=event)
             self.logger.debug(
-                f"Получили команду {command} от пользователя {event.user_id}"
+                f"Получили команду {context.command} от пользователя {context.user_id}"
             )
 
             # Попытка роутинга через CommandRouter
-            routed = self.router.route(command, self.api, event.user_id, event.text)
+            routed = self.router.route(context)
             if routed is not None:
-                # Обработчик уже выполнил всё необходимое
                 return
 
-            # TODO: В какие моменты нужно сбрасывать текущий стейт?
-            # TODO: реализовать механизм роутинга для остальных команд
+            command = context.command
+
             if command == "/cancel" or command == "отмена":
-                handle_cancel_command(self.api, event.user_id)
+                handle_cancel_command(context)
             elif command == "/start" or command == "начать":
-                handle_start_command(self.api, event.user_id)
+                handle_start_command(context)
             elif command == "/help":
-                handle_help_command(self.api, event.user_id)
+                handle_help_command(context)
             elif command == "/export":
-                upload = VkUpload(self.vk)
-                handle_export_command(self.api, event.user_id, upload, event.peer_id)
+                handle_export_command(context)
             elif command == "/stats":
-                handle_stats_command(self.api, event.user_id)
+                handle_stats_command(context)
             elif command == "/list":
-                handle_list_command(self.api, event.user_id)
+                handle_list_command(context)
             elif command == "/edit":
-                handle_edit_command(self.api, event.user_id)
+                handle_edit_command(context)
             elif command == "/details":
-                handle_details(self.api, event.user_id)
-            elif event.user_id in active_states:
-                state_info = active_states[event.user_id]
+                handle_details(context)
+            elif context.user_id in active_states:
+                state_info = active_states[context.user_id]
                 state_command = state_info["command"]
-                payload = self.get_payload(event)
                 if state_command == "/list":
-                    handle_list_command_step(
-                        self.api, event.user_id, event.text, payload
-                    )
+                    handle_list_command_step(context)
                 elif state_command == "/edit":
-                    handle_edit_command_step(
-                        self.api, event.user_id, event.text, payload
-                    )
+                    handle_edit_command_step(context)
                 elif state_command == "/details":
-                    handle_details_step(self.api, event.user_id, event.text, payload)
+                    handle_details_step(context)
                 else:
-                    # TODO: Обработать отсутствие обработчика команды
                     pass
 
         except Exception as e:
@@ -150,21 +143,3 @@ class VkBookShelfBot:
                 message="Возникла ошибка при обработке сообщения",
                 random_id=get_random_id(),
             )
-
-    def get_payload(self, event):
-        if hasattr(event, "payload") and event.payload:
-            return json.loads(event.payload)
-        else:
-            return {}
-
-    def get_command(self, event):
-        command = None
-        try:
-            command = self.get_payload(event).get("command")
-        except Exception as e:
-            self.logger.error(f"Возникла ошибка при получении названия команды: {e}")
-
-        if not command:
-            command = event.text.lower()
-
-        return command

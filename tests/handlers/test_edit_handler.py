@@ -1,4 +1,6 @@
+import json
 import types
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -6,29 +8,48 @@ import pytest
 from core.models import ReadingStatus
 from vk_bot.handlers import edit
 
-# Helper fake classes
+# Helper to create BotContext for tests
+
+
+def make_context(api, user_id, text="", payload=None):
+    import json
+    vk = MagicMock()
+    vk.get_api.return_value = api
+    upload = MagicMock()
+    event = MagicMock()
+    event.user_id = user_id
+    event.peer_id = user_id
+    event.text = text
+    event.payload = json.dumps(payload) if payload else None
+    from vk_bot.context import BotContext
+
+    return BotContext(vk=vk, upload=upload, event=event)
+
 
 # Additional tests for status filter
 
 
 def test_choose_status_filter_shows_status_message(monkeypatch):
-    vk = FakeVkApiMethod()
+    fake_api = FakeVkApiMethod()
     user_id = 777
-    edit.handle_edit_command(vk, user_id)
+    ctx = make_context(fake_api, user_id, "по статусу")
+    edit.handle_edit_command(ctx)
     # Simulate user choosing "по статусу"
-    edit.handle_edit_command_step(vk, user_id, "по статусу", {})
-    last_msg = vk.sent_messages[-1]
+    edit.handle_edit_command_step(ctx)
+    last_msg = fake_api.sent_messages[-1]
     assert "Выбери статус книги" in last_msg["message"]
 
 
 def test_status_selection_filters_books_and_shows_list(monkeypatch):
-    vk = FakeVkApiMethod()
+    fake_api = FakeVkApiMethod()
     user_id = 888
-    edit.handle_edit_command(vk, user_id)
-    edit.handle_edit_command_step(vk, user_id, "по статусу", {})
-    # Simulate selecting a status (payload provides status value; we can pass via payload dict)
-    edit.handle_edit_command_step(vk, user_id, "", {"status": "want_to_read"})
-    last_msg = vk.sent_messages[-1]
+    ctx = make_context(fake_api, user_id, "по статусу")
+    edit.handle_edit_command(ctx)
+    edit.handle_edit_command_step(ctx)
+    # Simulate selecting a status
+    ctx2 = make_context(fake_api, user_id, "", payload={"status": "want_to_read"})
+    edit.handle_edit_command_step(ctx2)
+    last_msg = fake_api.sent_messages[-1]
     assert "Введи номер книги" in last_msg["message"]
     assert "Book1" in last_msg["message"]
 
@@ -72,7 +93,7 @@ class StubBookService:
 
 
 # Stub functions from other modules
-def fake_get_or_create_user(vk, user_id):
+def fake_get_or_create_user(api, user_id):
     return FakeUser()
 
 
@@ -95,27 +116,30 @@ def patch_dependencies(monkeypatch):
 
 
 def test_choose_tag_filter_shows_tags_message():
-    vk = FakeVkApiMethod()
+    fake_api = FakeVkApiMethod()
     user_id = 123
+    ctx = make_context(fake_api, user_id, "по тегам")
     # Start edit command
-    edit.handle_edit_command(vk, user_id)
+    edit.handle_edit_command(ctx)
     # Simulate user choosing "по тегам"
-    edit.handle_edit_command_step(vk, user_id, "по тегам", {})
+    edit.handle_edit_command_step(ctx)
     # Verify that a message was sent asking to choose a tag
-    last_msg = vk.sent_messages[-1]
+    last_msg = fake_api.sent_messages[-1]
     assert "Выбери тег" in last_msg["message"]
 
 
 def test_tag_selection_filters_books_and_shows_list():
-    vk = FakeVkApiMethod()
+    fake_api = FakeVkApiMethod()
     user_id = 456
+    ctx = make_context(fake_api, user_id, "по тегам")
     # Start edit command and choose tag mode
-    edit.handle_edit_command(vk, user_id)
-    edit.handle_edit_command_step(vk, user_id, "по тегам", {})
+    edit.handle_edit_command(ctx)
+    edit.handle_edit_command_step(ctx)
     # Now simulate selecting a specific tag
-    edit.handle_edit_command_step(vk, user_id, "fantasy", {})
+    ctx2 = make_context(fake_api, user_id, "fantasy")
+    edit.handle_edit_command_step(ctx2)
     # After selecting tag, a list of books should be sent
-    last_msg = vk.sent_messages[-1]
+    last_msg = fake_api.sent_messages[-1]
     assert "Введи номер книги" in last_msg["message"]
     # Ensure the book list contains our dummy book title
     assert "Book1" in last_msg["message"]

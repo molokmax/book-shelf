@@ -6,10 +6,9 @@ without rewriting the whole state‑machine logic.
 
 from typing import Any
 
-from vk_api.vk_api import VkApiMethod
-
-from .base import AbstractCommandHandler
+from ..context import BotContext
 from .add import handle_add_command, handle_add_command_step
+from .base import AbstractCommandHandler
 
 
 class AddHandler(AbstractCommandHandler):
@@ -24,18 +23,14 @@ class AddHandler(AbstractCommandHandler):
     priority = 10
     commands = ["/add", "add"]
 
-    def handle(self, api: VkApiMethod, user_id: int, *args: Any, **kwargs: Any):
-        # ``args`` may contain the message text when we are in a step.
-        text = args[0] if args else None
-        # If the user already has a state for this command, delegate to the step
-        # handler; otherwise start the command.
+    def handle(self, context: BotContext) -> Any:
         from vk_bot.states import active_states
 
-        if user_id in active_states and active_states[user_id].get("command") == "/add":
-            # Step handling – ``text`` is the incoming message.
-            handle_add_command_step(api, user_id, text or "")
+        if (
+            context.user_id in active_states
+            and active_states[context.user_id].get("command") == "/add"
+        ):
+            handle_add_command_step(context)
         else:
-            # Entry point – start the add flow.
-            handle_add_command(api, user_id)
-        # Indicate that the command was handled
+            handle_add_command(context)
         return True

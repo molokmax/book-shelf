@@ -3,34 +3,29 @@
 from datetime import datetime, timedelta
 
 from vk_api.utils import get_random_id
-from vk_api.vk_api import VkApiMethod
 
 from core.services import BookService, ReadingStatsService
 from utils import helpers, logger
 from utils.helpers import format_book_details
-from vk_bot.keyboards import (
-    cancel_keyboard,
-    main_keyboard,
-    filter_keyboard,
-    status_keyboard,
-    tags_keyboard,
-)
+from vk_bot.keyboards import (cancel_keyboard, filter_keyboard, main_keyboard,
+                              status_keyboard, tags_keyboard)
 from vk_bot.states import active_states
 from vk_bot.user_helpers import get_or_create_user
 
 log = logger.setup_logger(__name__)
 
 
-def handle_details(vk: VkApiMethod, user_id: int) -> None:
+def handle_details(context) -> None:
     """Инициирует процесс /details – предлагает выбрать фильтр книг."""
-    user = get_or_create_user(vk, user_id)
-    # сохраняем состояние для выбора фильтра
+    api = context.api
+    user_id = context.user_id
+    user = get_or_create_user(api, user_id)
     active_states[user_id] = {
         "command": "/details",
         "state": "choose_filter",
         "data": {"user_id": user.id},
     }
-    vk.messages.send(
+    api.messages.send(
         user_id=user_id,
         message="Какие книги интересуют?",
         keyboard=filter_keyboard().get_keyboard(),
@@ -38,22 +33,24 @@ def handle_details(vk: VkApiMethod, user_id: int) -> None:
     )
 
 
-def handle_details_step(
-    vk: VkApiMethod, user_id: int, text: str, payload: dict
-) -> None:
+def handle_details_step(context) -> None:
     """Обрабатывает ввод после команды /details и отправляет подробную информацию о выбранной книге."""
+    api = context.api
+    user_id = context.user_id
+    text = context.text
+    payload = context.payload
     state_info = active_states.get(user_id)
     if not state_info or state_info.get("command") != "/details":
         return
 
-    user = get_or_create_user(vk, user_id)
+    user = get_or_create_user(api, user_id)
 
     # ---------- Выбор фильтра ----------
     if state_info.get("state") == "choose_filter":
         choice = text.strip().lower()
         if choice == "по статусу":
             state_info["state"] = "selecting_status_filter"
-            vk.messages.send(
+            api.messages.send(
                 user_id=user_id,
                 message="Выбери статус книги:",
                 keyboard=status_keyboard().get_keyboard(),
@@ -65,7 +62,7 @@ def handle_details_step(
             book_service = BookService()
             tags = book_service.get_all_tags(user.id)
             state_info["state"] = "selecting_tag_filter"
-            vk.messages.send(
+            api.messages.send(
                 user_id=user_id,
                 message="Выбери тег:",
                 keyboard=tags_keyboard(tags).get_keyboard(),
@@ -79,7 +76,7 @@ def handle_details_step(
             books = book_service.get_all_books(user.id)
             books = helpers.sort_books_by_status(books)
             if not books:
-                vk.messages.send(
+                api.messages.send(
                     user_id=user_id,
                     message="У тебя нет книг в библиотеке. Добавь книгу с помощью /add",
                     keyboard=main_keyboard().get_keyboard(),
@@ -94,7 +91,7 @@ def handle_details_step(
             ]
             for i, book in enumerate(books, 1):
                 lines.append(helpers.format_book_info(i, book) + "\n")
-            vk.messages.send(
+            api.messages.send(
                 user_id=user_id,
                 message="".join(lines),
                 keyboard=cancel_keyboard().get_keyboard(),
@@ -103,7 +100,7 @@ def handle_details_step(
             return
 
         else:
-            vk.messages.send(
+            api.messages.send(
                 user_id=user_id,
                 message="⚠️ Выбери один из вариантов: По статусу, По тегам, Все",
                 keyboard=filter_keyboard().get_keyboard(),
@@ -119,7 +116,7 @@ def handle_details_step(
         books = book_service.filter_books(user.id, status=status)
         books = helpers.sort_books_by_status(books)
         if not books:
-            vk.messages.send(
+            api.messages.send(
                 user_id=user_id,
                 message="Книг с выбранным статусом нет.",
                 keyboard=main_keyboard().get_keyboard(),
@@ -134,7 +131,7 @@ def handle_details_step(
         ]
         for i, book in enumerate(books, 1):
             lines.append(helpers.format_book_info(i, book) + "\n")
-        vk.messages.send(
+        api.messages.send(
             user_id=user_id,
             message="".join(lines),
             keyboard=cancel_keyboard().get_keyboard(),
@@ -149,7 +146,7 @@ def handle_details_step(
         books = book_service.filter_books(user.id, tags=[selected_tag])
         books = helpers.sort_books_by_status(books)
         if not books:
-            vk.messages.send(
+            api.messages.send(
                 user_id=user_id,
                 message="Книг с выбранным тегом нет.",
                 keyboard=main_keyboard().get_keyboard(),
@@ -164,7 +161,7 @@ def handle_details_step(
         ]
         for i, book in enumerate(books, 1):
             lines.append(helpers.format_book_info(i, book) + "\n")
-        vk.messages.send(
+        api.messages.send(
             user_id=user_id,
             message="".join(lines),
             keyboard=cancel_keyboard().get_keyboard(),
@@ -179,7 +176,7 @@ def handle_details_step(
     try:
         selection = int(text.strip())
     except ValueError:
-        vk.messages.send(
+        api.messages.send(
             user_id=user_id,
             message="⚠️ Введи корректный номер книги.",
             keyboard=cancel_keyboard().get_keyboard(),
@@ -189,7 +186,7 @@ def handle_details_step(
 
     books_ids = state_info["data"]["books"]
     if selection < 1 or selection > len(books_ids):
-        vk.messages.send(
+        api.messages.send(
             user_id=user_id,
             message="⚠️ Номер книги вне диапазона.",
             keyboard=cancel_keyboard().get_keyboard(),
@@ -200,7 +197,7 @@ def handle_details_step(
     book_id = books_ids[selection - 1]
     book = BookService().get_book_by_id(book_id)
     if not book:
-        vk.messages.send(
+        api.messages.send(
             user_id=user_id,
             message="⚠️ Книга не найдена.",
             keyboard=cancel_keyboard().get_keyboard(),
@@ -228,7 +225,7 @@ def handle_details_step(
         avg_pages=avg_pages,
         predicted_date=pred_date,
     )
-    vk.messages.send(
+    api.messages.send(
         user_id=user_id,
         message=details,
         keyboard=main_keyboard().get_keyboard(),

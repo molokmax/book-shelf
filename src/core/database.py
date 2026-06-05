@@ -58,7 +58,8 @@ class Database:
         cursor = self.conn.cursor()
 
         # Таблица пользователей
-        cursor.execute("""
+        cursor.execute(
+            """
         CREATE TABLE IF NOT EXISTS users (
             id TEXT PRIMARY KEY,
             external_id INTEGER UNIQUE NOT NULL,
@@ -68,10 +69,12 @@ class Database:
             created_at TEXT NOT NULL,
             last_active TEXT NOT NULL
         )
-        """)
+        """
+        )
 
         # Таблица книг
-        cursor.execute("""
+        cursor.execute(
+            """
         CREATE TABLE IF NOT EXISTS books (
             id TEXT PRIMARY KEY,
             title TEXT NOT NULL,
@@ -90,10 +93,12 @@ class Database:
             user_id TEXT NOT NULL,
             FOREIGN KEY (user_id) REFERENCES users (id)
         )
-        """)
+        """
+        )
 
         # Таблица статистики чтения
-        cursor.execute("""
+        cursor.execute(
+            """
         CREATE TABLE IF NOT EXISTS read_stats (
             id TEXT PRIMARY KEY,
             book_id TEXT NOT NULL,
@@ -101,7 +106,8 @@ class Database:
             read_date TEXT NOT NULL,
             FOREIGN KEY (book_id) REFERENCES books(id)
         )
-        """)
+        """
+        )
 
         cursor.execute(
             "CREATE TABLE IF NOT EXISTS user_state (user_id TEXT PRIMARY KEY, json TEXT)"

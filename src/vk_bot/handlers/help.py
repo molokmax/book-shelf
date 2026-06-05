@@ -1,10 +1,9 @@
 from vk_api.utils import get_random_id
-from vk_api.vk_api import VkApiMethod
 
 from vk_bot.keyboards import main_keyboard
 
 
-def handle_help_command(vk: VkApiMethod, user_id: int):
+def handle_help_command(context):
     """Send help information for the bot."""
     help_text = (
         "📚 Book Shelf - Персональный трекер чтения\n\n"
@@ -28,8 +27,8 @@ def handle_help_command(vk: VkApiMethod, user_id: int):
         "🎯 Приоритеты\n"
         "Установите приоритет: Высокий, Средний, Низкий"
     )
-    vk.messages.send(
-        user_id=user_id,
+    context.api.messages.send(
+        user_id=context.user_id,
         message=help_text,
         keyboard=main_keyboard().get_keyboard(),
         random_id=get_random_id(),

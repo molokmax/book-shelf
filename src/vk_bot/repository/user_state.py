@@ -5,7 +5,7 @@ repository gracefully falls back to an empty dict.
 """
 
 import json
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
 
 from core.database import Database
 
@@ -27,10 +27,7 @@ class UserStateRepository:
         Если запись отсутствует – возвращает пустой словарь.
         """
         with self.db.get_cursor() as cursor:
-            cursor.execute(
-                "SELECT json FROM user_state WHERE user_id = ?",
-                (user_id,)
-            )
+            cursor.execute("SELECT json FROM user_state WHERE user_id = ?", (user_id,))
             row = cursor.fetchone()
             if row and row[0]:
                 try:
@@ -48,5 +45,5 @@ class UserStateRepository:
         with self.db.get_cursor() as cursor:
             cursor.execute(
                 "INSERT OR REPLACE INTO user_state (user_id, json) VALUES (?, ?)",
-                (user_id, json_state)
+                (user_id, json_state),
             )

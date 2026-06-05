@@ -1,4 +1,4 @@
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 with patch(
     "utils.config.load_config",
@@ -11,11 +11,25 @@ with patch(
 from vk_bot.handlers.base import AbstractCommandHandler
 
 
+def make_context(command="/add"):
+    vk = MagicMock()
+    vk.get_api.return_value = MagicMock()
+    upload = MagicMock()
+    event = MagicMock()
+    event.user_id = 1
+    event.peer_id = 1
+    event.text = command
+    event.payload = None
+    from vk_bot.context import BotContext
+
+    return BotContext(vk=vk, upload=upload, event=event)
+
+
 class HandlerA(AbstractCommandHandler):
     priority = 10
     commands = ["/add", "add"]
 
-    def handle(self, *args, **kwargs):
+    def handle(self, context):
         return "HandlerA handled"
 
 
@@ -23,7 +37,7 @@ class HandlerB(AbstractCommandHandler):
     priority = 20
     commands = ["/add", "add"]
 
-    def handle(self, *args, **kwargs):
+    def handle(self, context):
         return "HandlerB handled"
 
 
@@ -31,7 +45,7 @@ class HandlerC(AbstractCommandHandler):
     priority = 5
     commands = ["/list"]
 
-    def handle(self, *args, **kwargs):
+    def handle(self, context):
         return "HandlerC handled"
 
 
@@ -39,7 +53,7 @@ class HandlerNeverMatches(AbstractCommandHandler):
     priority = 0
     commands = []
 
-    def handle(self, *args, **kwargs):
+    def handle(self, context):
         return "Should not be called"
 
 
@@ -48,7 +62,7 @@ def test_route_selects_highest_priority_handler():
     router.register_handler(HandlerA())
     router.register_handler(HandlerB())
 
-    result = router.route("/add")
+    result = router.route(make_context(command="/add"))
 
     assert result == "HandlerB handled"
 
@@ -58,7 +72,7 @@ def test_route_selects_correct_handler_by_command():
     router.register_handler(HandlerA())
     router.register_handler(HandlerC())
 
-    result = router.route("/list")
+    result = router.route(make_context(command="/list"))
 
     assert result == "HandlerC handled"
 
@@ -68,7 +82,7 @@ def test_route_returns_none_when_no_handler_matches():
     router.register_handler(HandlerA())
     router.register_handler(HandlerC())
 
-    result = router.route("/unknown")
+    result = router.route(make_context(command="/unknown"))
 
     assert result is None
 
@@ -80,13 +94,13 @@ def test_route_continues_on_error():
         priority = 20
         commands = ["/broken"]
 
-        def handle(self, *args, **kwargs):
+        def handle(self, context):
             raise RuntimeError("Something went wrong")
 
     router.register_handler(BrokenHandler())
     router.register_handler(HandlerC())
 
-    result = router.route("/list")
+    result = router.route(make_context(command="/list"))
 
     assert result == "HandlerC handled"
 

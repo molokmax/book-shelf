@@ -5,8 +5,7 @@ Provides routing compatibility for the existing ``details.py`` implementation.
 
 from typing import Any
 
-from vk_api.vk_api import VkApiMethod
-
+from ..context import BotContext
 from .base import AbstractCommandHandler
 from .details import handle_details, handle_details_step
 
@@ -22,15 +21,14 @@ class DetailsHandler(AbstractCommandHandler):
     priority = 10
     commands = ["/details", "details"]
 
-    def handle(self, api: VkApiMethod, user_id: int, *args: Any, **kwargs: Any):
-        text = args[0] if args else None
+    def handle(self, context: BotContext) -> Any:
         from vk_bot.states import active_states
 
-        if user_id in active_states and active_states[user_id].get("command") == "/details":
-            # Continue details flow – original handler expects text and payload
-            payload = kwargs.get("payload")
-            handle_details_step(api, user_id, text or "", payload)
+        if (
+            context.user_id in active_states
+            and active_states[context.user_id].get("command") == "/details"
+        ):
+            handle_details_step(context)
         else:
-            # Start details flow
-            handle_details(api, user_id)
+            handle_details(context)
         return True

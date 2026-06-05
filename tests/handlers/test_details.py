@@ -1,8 +1,24 @@
+import json
 import pytest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 from datetime import datetime
 
 from vk_bot.states import active_states
+
+
+def make_context(api, user_id, text="", payload=None):
+    vk = MagicMock()
+    vk.get_api.return_value = api
+    upload = MagicMock()
+    event = MagicMock()
+    event.user_id = user_id
+    event.peer_id = user_id
+    event.text = text
+    event.payload = json.dumps(payload) if payload else None
+    from vk_bot.context import BotContext
+
+    return BotContext(vk=vk, upload=upload, event=event)
+
 
 with patch(
     "utils.config.load_config",
@@ -16,28 +32,9 @@ class FakeVk:
     def __init__(self):
         self.sent_messages = []
         self.messages = self
-        self.users = VkUsers()
 
-    def send(self, user_id, message, keyboard, random_id):
-        self.sent_messages.append(
-            {
-                "user_id": user_id,
-                "message": message,
-                "keyboard": keyboard,
-                "random_id": random_id,
-            }
-        )
-
-
-class VkUsers:
-    def get(self, user_ids, fields):
-        return [
-            {
-                "screen_name": "test_login",
-                "first_name": "test_first_name",
-                "last_name": "test_last_name",
-            }
-        ]
+    def send(self, **kwargs):
+        self.sent_messages.append(kwargs)
 
 
 # Fake book object
@@ -64,15 +61,13 @@ class FakeBookService:
 
 @pytest.fixture(autouse=True)
 def clear_state():
-    # Ensure active_states is empty before each test
     active_states.clear()
     yield
     active_states.clear()
 
 
 def test_handle_details_shows_book_list():
-    fake_vk = FakeVk()
-    # Prepare two books
+    fake_api = FakeVk()
     books = [
         FakeBook(id="1", title="Book One", author="Author A", status="reading"),
         FakeBook(id="2", title="Book Two", author="Author B", status="want_to_read"),
@@ -86,31 +81,25 @@ def test_handle_details_shows_book_list():
                     "User", (), {"id": str(vk_user_id)}
                 )
             )
-            handle_details(fake_vk, user_id=123)
-            # First message should be the filter prompt
-            assert len(fake_vk.sent_messages) == 1
-            msg = fake_vk.sent_messages[0]["message"]
+            ctx = make_context(fake_api, user_id=123, text="Все")
+            handle_details(ctx)
+            assert len(fake_api.sent_messages) == 1
+            msg = fake_api.sent_messages[0]["message"]
             assert msg == "Какие книги интересуют?"
-            # Simulate user choosing "Все"
-            fake_vk.sent_messages.clear()
-            # Populate state as after handle_details
+            fake_api.sent_messages.clear()
             state = active_states[123]
-            # Ensure state is set correctly for filter step
             assert state["state"] == "choose_filter"
-            handle_details_step(fake_vk, user_id=123, text="Все", payload={})
-    # Now a list of books should be sent
-    assert len(fake_vk.sent_messages) == 1
-    list_msg = fake_vk.sent_messages[0]["message"]
+            handle_details_step(ctx)
+    assert len(fake_api.sent_messages) == 1
+    list_msg = fake_api.sent_messages[0]["message"]
     assert "1. 📖 Book One" in list_msg
     assert "2. 📎 Book Two" in list_msg
-    # Verify state updated to selecting_book with book IDs
     assert active_states[123]["state"] == "selecting_book"
     assert active_states[123]["data"]["books"] == ["1", "2"]
 
 
 def test_handle_details_step_valid_selection_formats_details():
-    fake_vk = FakeVk()
-    # Book to be returned by service
+    fake_api = FakeVk()
     book = FakeBook(
         id="1",
         title="Sample Book",
@@ -123,19 +112,18 @@ def test_handle_details_step_valid_selection_formats_details():
         reading_start_date=datetime(2022, 1, 5),
         link="https://example.com",
     )
-    # Populate state as if user selected details previously
     active_states[456] = {
         "command": "/details",
         "state": "selecting_book",
         "data": {"books": ["1"]},
     }
+    ctx = make_context(fake_api, user_id=456, text="1")
     with patch(
         "vk_bot.handlers.details.BookService", return_value=FakeBookService([book])
     ) as _book_service:
-        handle_details_step(fake_vk, user_id=456, text="1", payload={})
-    # Should send detailed message
-    assert len(fake_vk.sent_messages) == 1
-    details_msg = fake_vk.sent_messages[0]["message"]
+        handle_details_step(ctx)
+    assert len(fake_api.sent_messages) == 1
+    details_msg = fake_api.sent_messages[0]["message"]
     assert "Sample Book" in details_msg
     assert "John Doe" in details_msg
     assert "fiction, mystery" in details_msg
@@ -144,5 +132,4 @@ def test_handle_details_step_valid_selection_formats_details():
     assert "2022-01-01" in details_msg
     assert "2022-01-05" in details_msg
     assert "https://example.com" in details_msg
-    # State should be cleared after handling
     assert 456 not in active_states
