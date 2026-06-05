@@ -21,7 +21,7 @@ from vk_bot.handlers.export_handler import ExportHandler
 from vk_bot.handlers.help_handler import HelpHandler
 from vk_bot.handlers.list import handle_list_command, handle_list_command_step
 from vk_bot.handlers.list_handler import ListHandler
-from vk_bot.handlers.start import handle_start_command
+from vk_bot.handlers.start_handler import StartHandler
 from vk_bot.handlers.stats_handler import StatsHandler
 
 
@@ -34,13 +34,14 @@ class VkBookShelfBot:
         self._state_storage = ActiveStateStorage()
         # Инициализируем роутер команд и регистрируем обработчики
         self.router = CommandRouter()
+        self.router.register_handler(StartHandler())
+        self.router.register_handler(CancelHandler())
         self.router.register_handler(AddHandler())
         self.router.register_handler(EditHandler())
         self.router.register_handler(ListHandler())
         self.router.register_handler(DetailsHandler())
         self.router.register_handler(ExportHandler())
         self.router.register_handler(HelpHandler())
-        self.router.register_handler(CancelHandler())
         self.router.register_handler(StatsHandler())
 
     def create_longpoll(self):
@@ -63,9 +64,7 @@ class VkBookShelfBot:
 
             except ApiError as e:
                 # Специфичная ошибка VK API
-                self.logger.error(
-                    "[Ошибка VK API] Код: %s. Сообщение: %s", e.code, e
-                )
+                self.logger.error("[Ошибка VK API] Код: %s. Сообщение: %s", e.code, e)
                 if e.code == 5:  # Авторизация сломалась
                     self.logger.error("Неверный токен. Проверьте его.")
                     time.sleep(60)
@@ -100,8 +99,7 @@ class VkBookShelfBot:
                 return
             if not event.peer_id:
                 self.logger.warning(
-                    "Сообщение не будет обработано: "
-                    "неизвестен идентификатор чата"
+                    "Сообщение не будет обработано: " "неизвестен идентификатор чата"
                 )
                 return
 
@@ -124,9 +122,7 @@ class VkBookShelfBot:
 
             command = context.command
 
-            if command == "/start" or command == "начать":
-                handle_start_command(context)
-            elif command == "/list":
+            if command == "/list":
                 handle_list_command(context)
             elif command == "/edit":
                 handle_edit_command(context)
