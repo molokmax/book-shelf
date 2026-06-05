@@ -18,7 +18,7 @@ from vk_bot.handlers.details_handler import DetailsHandler
 from vk_bot.handlers.edit import handle_edit_command, handle_edit_command_step
 from vk_bot.handlers.edit_handler import EditHandler
 from vk_bot.handlers.export_handler import ExportHandler
-from vk_bot.handlers.help import handle_help_command
+from vk_bot.handlers.help_handler import HelpHandler
 from vk_bot.handlers.list import handle_list_command, handle_list_command_step
 from vk_bot.handlers.list_handler import ListHandler
 from vk_bot.handlers.start import handle_start_command
@@ -39,6 +39,7 @@ class VkBookShelfBot:
         self.router.register_handler(ListHandler())
         self.router.register_handler(DetailsHandler())
         self.router.register_handler(ExportHandler())
+        self.router.register_handler(HelpHandler())
 
     def create_longpoll(self):
         self.logger.info("Инициализация бота...")
@@ -125,8 +126,6 @@ class VkBookShelfBot:
                 handle_cancel_command(context)
             elif command == "/start" or command == "начать":
                 handle_start_command(context)
-            elif command == "/help":
-                handle_help_command(context)
             elif command == "/stats":
                 handle_stats_command(context)
             elif command == "/list":
