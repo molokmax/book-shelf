@@ -8,7 +8,6 @@ from utils import helpers, logger
 from utils.helpers import get_status_name
 from vk_bot.keyboards import (cancel_keyboard, filter_keyboard, main_keyboard,
                               status_keyboard, tags_keyboard)
-from vk_bot.states import active_states
 from vk_bot.user_helpers import get_or_create_user
 
 log = logger.setup_logger(__name__)
@@ -27,11 +26,13 @@ def handle_edit_command(context) -> None:
     api = context.api
     user_id = context.user_id
     user = get_or_create_user(api, user_id)
-    active_states[user_id] = {
-        "command": "/edit",
-        "state": "choose_filter",
-        "data": {"user_id": user.id},
-    }
+    context.set_state(
+        {
+            "command": "/edit",
+            "state": "choose_filter",
+            "data": {"user_id": user.id},
+        }
+    )
 
     api.messages.send(
         user_id=user_id,
@@ -49,12 +50,12 @@ def handle_edit_command_step(context) -> None:
     text = context.text
     payload = context.payload
 
-    if user_id not in active_states:
+    if not context.is_active():
         return
 
     user = get_or_create_user(api, user_id)
 
-    state_info = active_states.get(user_id)
+    state_info = context.get_state()
     if not state_info or state_info.get("command") != "/edit":
         return
 
@@ -109,14 +110,16 @@ def handle_edit_command_step(context) -> None:
                     keyboard=main_keyboard().get_keyboard(),
                     random_id=get_random_id(),
                 )
-                del active_states[user_id]
+                context.delete_state()
                 return
 
-            active_states[user_id] = {
-                "command": "/edit",
-                "state": "selecting_book",
-                "data": {"books": [book.id for book in books]},
-            }
+            context.set_state(
+                {
+                    "command": "/edit",
+                    "state": "selecting_book",
+                    "data": {"books": [book.id for book in books]},
+                }
+            )
             lines = [
                 "📚 Введи номер книги, которую хочешь отредактировать.\nТвоя библиотека:\n\n"
             ]
@@ -192,11 +195,13 @@ def handle_edit_command_step(context) -> None:
         book_service = BookService()
         books = book_service.filter_books(user.id, status=status)
         # Переходим к выбору книги из отфильтрованных
-        active_states[user_id] = {
-            "command": "/edit",
-            "state": "selecting_book",
-            "data": {"books": [book.id for book in books]},
-        }
+        context.set_state(
+            {
+                "command": "/edit",
+                "state": "selecting_book",
+                "data": {"books": [book.id for book in books]},
+            }
+        )
         # Формируем список
         lines = [
             "📚 Введи номер книги, которую хочешь отредактировать.\nТвоя библиотека:\n\n"
@@ -218,11 +223,13 @@ def handle_edit_command_step(context) -> None:
         # Фильтруем книги по тегу
         book_service = BookService()
         books = book_service.filter_books(user.id, tags=[selected_tag])
-        active_states[user_id] = {
-            "command": "/edit",
-            "state": "selecting_book",
-            "data": {"books": [book.id for book in books]},
-        }
+        context.set_state(
+            {
+                "command": "/edit",
+                "state": "selecting_book",
+                "data": {"books": [book.id for book in books]},
+            }
+        )
         lines = [
             "📚 Введи номер книги, которую хочешь отредактировать.\nТвоя библиотека:\n\n"
         ]
@@ -251,7 +258,7 @@ def handle_edit_command_step(context) -> None:
                 return
 
             deleted_book = book_service.delete_book(book_id)
-            del active_states[user_id]
+            context.delete_state()
             api.messages.send(
                 user_id=user_id,
                 message=f"🗑️ Книга '{deleted_book.title}' удалена.",
@@ -484,7 +491,7 @@ def handle_edit_command_step(context) -> None:
             keyboard=main_keyboard().get_keyboard(),
             random_id=get_random_id(),
         )
-        del active_states[user_id]
+        context.delete_state()
         return
 
     elif state == "waiting_for_progress_input":
@@ -550,7 +557,7 @@ def handle_edit_command_step(context) -> None:
             random_id=get_random_id(),
         )
         # Очистить состояние
-        del active_states[user_id]
+        context.delete_state()
         return
 
     elif state == "selecting_status":
@@ -581,7 +588,7 @@ def handle_edit_command_step(context) -> None:
             keyboard=main_keyboard().get_keyboard(),
             random_id=get_random_id(),
         )
-        del active_states[user_id]
+        context.delete_state()
         return
 
 

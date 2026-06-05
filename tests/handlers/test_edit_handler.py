@@ -11,7 +11,28 @@ from vk_bot.handlers import edit
 # Helper to create BotContext for tests
 
 
-def make_context(api, user_id, text="", payload=None):
+class FakeStateStorage:
+    def __init__(self):
+        self._data = {}
+
+    def get(self, user_id):
+        return self._data.get(user_id, {})
+
+    def save(self, user_id, state):
+        self._data[user_id] = state
+
+    def delete(self, user_id):
+        self._data.pop(user_id, None)
+
+    def is_active(self, user_id):
+        return bool(self._data.get(user_id))
+
+    def get_command(self, user_id):
+        state = self._data.get(user_id)
+        return state.get("command") if state else None
+
+
+def make_context(api, user_id, text="", payload=None, storage=None):
     import json
     vk = MagicMock()
     vk.get_api.return_value = api
@@ -23,7 +44,7 @@ def make_context(api, user_id, text="", payload=None):
     event.payload = json.dumps(payload) if payload else None
     from vk_bot.context import BotContext
 
-    return BotContext(vk=vk, upload=upload, event=event)
+    return BotContext(vk=vk, upload=upload, event=event, storage=storage or FakeStateStorage())
 
 
 # Additional tests for status filter
@@ -43,11 +64,12 @@ def test_choose_status_filter_shows_status_message(monkeypatch):
 def test_status_selection_filters_books_and_shows_list(monkeypatch):
     fake_api = FakeVkApiMethod()
     user_id = 888
-    ctx = make_context(fake_api, user_id, "по статусу")
+    storage = FakeStateStorage()
+    ctx = make_context(fake_api, user_id, "по статусу", storage=storage)
     edit.handle_edit_command(ctx)
     edit.handle_edit_command_step(ctx)
     # Simulate selecting a status
-    ctx2 = make_context(fake_api, user_id, "", payload={"status": "want_to_read"})
+    ctx2 = make_context(fake_api, user_id, "", payload={"status": "want_to_read"}, storage=storage)
     edit.handle_edit_command_step(ctx2)
     last_msg = fake_api.sent_messages[-1]
     assert "Введи номер книги" in last_msg["message"]
@@ -111,8 +133,7 @@ def patch_dependencies(monkeypatch):
     monkeypatch.setattr(
         edit, "helpers", types.SimpleNamespace(format_book_info=fake_format_book_info)
     )
-    # Ensure active_states is cleared before each test
-    edit.active_states.clear()
+    # Ensure active_states-like state is cleared before each test
 
 
 def test_choose_tag_filter_shows_tags_message():
@@ -131,12 +152,13 @@ def test_choose_tag_filter_shows_tags_message():
 def test_tag_selection_filters_books_and_shows_list():
     fake_api = FakeVkApiMethod()
     user_id = 456
-    ctx = make_context(fake_api, user_id, "по тегам")
+    storage = FakeStateStorage()
+    ctx = make_context(fake_api, user_id, "по тегам", storage=storage)
     # Start edit command and choose tag mode
     edit.handle_edit_command(ctx)
     edit.handle_edit_command_step(ctx)
     # Now simulate selecting a specific tag
-    ctx2 = make_context(fake_api, user_id, "fantasy")
+    ctx2 = make_context(fake_api, user_id, "fantasy", storage=storage)
     edit.handle_edit_command_step(ctx2)
     # After selecting tag, a list of books should be sent
     last_msg = fake_api.sent_messages[-1]

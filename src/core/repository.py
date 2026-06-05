@@ -1,7 +1,8 @@
 """Репозиторий для работы с данными."""
 
+import json
 from datetime import date, datetime, timedelta
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from core.database import Database
 from core.models import Book, User
@@ -124,3 +125,41 @@ class UserRepository:
         """Закрывает подключение к базе данных."""
         if hasattr(self, "db") and self.db is not None:
             self.db.close()
+
+
+class UserStateRepository:
+    """Хранилище состояния пользователя в таблице user_state."""
+
+    def __init__(
+        self, db: Database | None = None, db_path: str = "data/database.db"
+    ) -> None:
+        self.db = db if db is not None else Database(db_path)
+
+    def get_state(self, user_id: str) -> Dict[str, Any]:
+        """Возвращает состояние пользователя как словарь.
+
+        Если запись отсутствует — возвращает пустой словарь.
+        """
+        with self.db.get_cursor() as cursor:
+            cursor.execute("SELECT json FROM user_state WHERE user_id = ?", (user_id,))
+            row = cursor.fetchone()
+            if row and row[0]:
+                try:
+                    return json.loads(row[0])
+                except json.JSONDecodeError:
+                    return {}
+            return {}
+
+    def save_state(self, user_id: str, state: Dict[str, Any]) -> None:
+        """Сохраняет состояние пользователя."""
+        json_state = json.dumps(state)
+        with self.db.get_cursor() as cursor:
+            cursor.execute(
+                "INSERT OR REPLACE INTO user_state (user_id, json) VALUES (?, ?)",
+                (user_id, json_state),
+            )
+
+    def delete_state(self, user_id: str) -> None:
+        """Удаляет запись состояния пользователя."""
+        with self.db.get_cursor() as cursor:
+            cursor.execute("DELETE FROM user_state WHERE user_id = ?", (user_id,))

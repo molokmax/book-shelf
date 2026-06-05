@@ -9,7 +9,6 @@ from utils import helpers, logger
 from utils.helpers import format_book_details
 from vk_bot.keyboards import (cancel_keyboard, filter_keyboard, main_keyboard,
                               status_keyboard, tags_keyboard)
-from vk_bot.states import active_states
 from vk_bot.user_helpers import get_or_create_user
 
 log = logger.setup_logger(__name__)
@@ -20,11 +19,13 @@ def handle_details(context) -> None:
     api = context.api
     user_id = context.user_id
     user = get_or_create_user(api, user_id)
-    active_states[user_id] = {
-        "command": "/details",
-        "state": "choose_filter",
-        "data": {"user_id": user.id},
-    }
+    context.set_state(
+        {
+            "command": "/details",
+            "state": "choose_filter",
+            "data": {"user_id": user.id},
+        }
+    )
     api.messages.send(
         user_id=user_id,
         message="Какие книги интересуют?",
@@ -39,7 +40,7 @@ def handle_details_step(context) -> None:
     user_id = context.user_id
     text = context.text
     payload = context.payload
-    state_info = active_states.get(user_id)
+    state_info = context.get_state()
     if not state_info or state_info.get("command") != "/details":
         return
 
@@ -82,7 +83,7 @@ def handle_details_step(context) -> None:
                     keyboard=main_keyboard().get_keyboard(),
                     random_id=get_random_id(),
                 )
-                del active_states[user_id]
+                context.delete_state()
                 return
             state_info["state"] = "selecting_book"
             state_info["data"]["books"] = [book.id for book in books]
@@ -122,13 +123,13 @@ def handle_details_step(context) -> None:
                 keyboard=main_keyboard().get_keyboard(),
                 random_id=get_random_id(),
             )
-            del active_states[user_id]
+            context.delete_state()
             return
-        state_info["state"] = "selecting_book"
-        state_info["data"]["books"] = [book.id for book in books]
-        lines = [
-            "📚 Введи номер книги, чтобы увидеть её детали.\nКниги с выбранным статусом:\n\n"
-        ]
+            state_info["state"] = "selecting_book"
+            state_info["data"]["books"] = [book.id for book in books]
+            lines = [
+                "📚 Введи номер книги, чтобы увидеть её детали.\nКниги с выбранным статусом:\n\n"
+            ]
         for i, book in enumerate(books, 1):
             lines.append(helpers.format_book_info(i, book) + "\n")
         api.messages.send(
@@ -152,7 +153,7 @@ def handle_details_step(context) -> None:
                 keyboard=main_keyboard().get_keyboard(),
                 random_id=get_random_id(),
             )
-            del active_states[user_id]
+            context.delete_state()
             return
         state_info["state"] = "selecting_book"
         state_info["data"]["books"] = [book.id for book in books]
@@ -231,4 +232,4 @@ def handle_details_step(context) -> None:
         keyboard=main_keyboard().get_keyboard(),
         random_id=get_random_id(),
     )
-    del active_states[user_id]
+    context.delete_state()

@@ -2,6 +2,27 @@ import json
 from unittest.mock import MagicMock, patch
 
 
+class FakeStateStorage:
+    def __init__(self):
+        self._data = {}
+
+    def get(self, user_id):
+        return self._data.get(user_id, {})
+
+    def save(self, user_id, state):
+        self._data[user_id] = state
+
+    def delete(self, user_id):
+        self._data.pop(user_id, None)
+
+    def is_active(self, user_id):
+        return bool(self._data.get(user_id))
+
+    def get_command(self, user_id):
+        state = self._data.get(user_id)
+        return state.get("command") if state else None
+
+
 # Fake VkApiMethod like in other tests
 class FakeVkApiMethod:
     def __init__(self):
@@ -12,7 +33,7 @@ class FakeVkApiMethod:
         self.sent_messages.append(kwargs)
 
 
-def make_context(api, user_id, text="", payload=None):
+def make_context(api, user_id, text="", payload=None, storage=None):
     vk = MagicMock()
     vk.get_api.return_value = api
     upload = MagicMock()
@@ -23,7 +44,7 @@ def make_context(api, user_id, text="", payload=None):
     event.payload = json.dumps(payload) if payload else None
     from vk_bot.context import BotContext
 
-    return BotContext(vk=vk, upload=upload, event=event)
+    return BotContext(vk=vk, upload=upload, event=event, storage=storage or FakeStateStorage())
 
 
 # Fake book objects
@@ -73,7 +94,7 @@ def test_handle_list_flow_all_books():
                 # Start command
                 handle_list_command(ctx)
                 # Verify state stored and filter keyboard sent
-                assert 123 in __import__("vk_bot.states").states.active_states
+                assert ctx.is_active()
                 assert fake_api.sent_messages[-1]["message"] == "Какие книги интересуют?"
                 # Simulate choosing "Все"
                 handle_list_command_step(ctx)
@@ -81,7 +102,7 @@ def test_handle_list_flow_all_books():
                 last_msg = fake_api.sent_messages[-1]["message"]
                 assert "Book One" in last_msg and "Book Two" in last_msg
                 # State should be cleared after finishing
-                assert 123 not in __import__("vk_bot.states").states.active_states
+                assert not ctx.is_active()
 
 
 def test_handle_list_flow_by_status():
@@ -111,12 +132,13 @@ def test_handle_list_flow_by_status():
                     handle_list_command_step,
                 )
 
-                ctx1 = make_context(fake_api, user_id=456, text="По статусу")
+                storage = FakeStateStorage()
+                ctx1 = make_context(fake_api, user_id=456, text="По статусу", storage=storage)
                 handle_list_command(ctx1)
                 handle_list_command_step(ctx1)
                 # Choose status "reading"
                 ctx2 = make_context(
-                    fake_api, user_id=456, text="Читаю", payload={"status": "reading"}
+                    fake_api, user_id=456, text="Читаю", payload={"status": "reading"}, storage=storage
                 )
                 handle_list_command_step(ctx2)
                 last_msg = fake_api.sent_messages[-1]["message"]

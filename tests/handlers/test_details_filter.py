@@ -3,10 +3,29 @@ import pytest
 from unittest.mock import MagicMock, patch
 from datetime import datetime
 
-from vk_bot.states import active_states
+
+class FakeStateStorage:
+    def __init__(self):
+        self._data = {}
+
+    def get(self, user_id):
+        return self._data.get(user_id, {})
+
+    def save(self, user_id, state):
+        self._data[user_id] = state
+
+    def delete(self, user_id):
+        self._data.pop(user_id, None)
+
+    def is_active(self, user_id):
+        return bool(self._data.get(user_id))
+
+    def get_command(self, user_id):
+        state = self._data.get(user_id)
+        return state.get("command") if state else None
 
 
-def make_context(api, user_id, text="", payload=None):
+def make_context(api, user_id, text="", payload=None, storage=None):
     vk = MagicMock()
     vk.get_api.return_value = api
     upload = MagicMock()
@@ -17,7 +36,7 @@ def make_context(api, user_id, text="", payload=None):
     event.payload = json.dumps(payload) if payload else None
     from vk_bot.context import BotContext
 
-    return BotContext(vk=vk, upload=upload, event=event)
+    return BotContext(vk=vk, upload=upload, event=event, storage=storage or FakeStateStorage())
 
 
 with patch(
@@ -73,5 +92,6 @@ def test_filter_all_path_shows_book_list_and_allows_selection():
         assert len(fake_api.sent_messages) == 2
         msg = fake_api.sent_messages[1]["message"]
         assert "1. 📖" in msg and "2. 📎" in msg
-        assert active_states[123]["state"] == "selecting_book"
-        assert active_states[123]["data"]["books"] == ["1", "2"]
+        state = ctx.get_state()
+        assert state["state"] == "selecting_book"
+        assert state["data"]["books"] == ["1", "2"]

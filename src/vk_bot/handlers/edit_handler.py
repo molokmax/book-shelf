@@ -23,12 +23,7 @@ class EditHandler(AbstractCommandHandler):
     commands = ["/edit", "edit"]
 
     def handle(self, context: BotContext) -> Any:
-        from vk_bot.states import active_states
-
-        if (
-            context.user_id in active_states
-            and active_states[context.user_id].get("command") == "/edit"
-        ):
+        if context.is_active() and context.command_state == "/edit":
             handle_edit_command_step(context)
         else:
             handle_edit_command(context)

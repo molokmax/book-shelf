@@ -4,7 +4,32 @@ from unittest.mock import patch, MagicMock
 from vk_bot.handlers.base import AbstractCommandHandler
 
 
-def make_fake_context(user_id=999, text="/add"):
+class FakeStateStorage:
+    def __init__(self):
+        self._data = {}
+
+    def get(self, user_id):
+        return self._data.get(user_id, {})
+
+    def save(self, user_id, state):
+        self._data[user_id] = state
+
+    def delete(self, user_id):
+        self._data.pop(user_id, None)
+
+    def is_active(self, user_id):
+        return bool(self._data.get(user_id))
+
+    def get_command(self, user_id):
+        state = self._data.get(user_id)
+        return state.get("command") if state else None
+
+    def get_current_state(self, user_id):
+        state = self._data.get(user_id)
+        return state.get("state") if state else None
+
+
+def make_fake_context(user_id=999, text="/add", storage=None):
     vk = MagicMock()
     vk.get_api.return_value = MagicMock()
     upload = MagicMock()
@@ -15,7 +40,7 @@ def make_fake_context(user_id=999, text="/add"):
     event.payload = None
     from vk_bot.context import BotContext
 
-    return BotContext(vk=vk, upload=upload, event=event)
+    return BotContext(vk=vk, upload=upload, event=event, storage=storage or FakeStateStorage())
 
 
 def test_abstract_handler_cannot_be_instantiated_directly():
@@ -62,9 +87,7 @@ def test_details_handler_commands():
 
 def test_add_handler_handle_returns_true():
     from vk_bot.handlers.add_handler import AddHandler
-    from vk_bot.states import active_states
 
-    active_states.clear()
     handler = AddHandler()
     fake_context = make_fake_context()
 
@@ -76,9 +99,7 @@ def test_add_handler_handle_returns_true():
 
 def test_edit_handler_handle_returns_true():
     from vk_bot.handlers.edit_handler import EditHandler
-    from vk_bot.states import active_states
 
-    active_states.clear()
     handler = EditHandler()
     fake_context = make_fake_context()
 
@@ -90,9 +111,7 @@ def test_edit_handler_handle_returns_true():
 
 def test_list_handler_handle_returns_true():
     from vk_bot.handlers.list_handler import ListHandler
-    from vk_bot.states import active_states
 
-    active_states.clear()
     handler = ListHandler()
     fake_context = make_fake_context()
 
@@ -104,9 +123,7 @@ def test_list_handler_handle_returns_true():
 
 def test_details_handler_handle_returns_true():
     from vk_bot.handlers.details_handler import DetailsHandler
-    from vk_bot.states import active_states
 
-    active_states.clear()
     handler = DetailsHandler()
     fake_context = make_fake_context()
 

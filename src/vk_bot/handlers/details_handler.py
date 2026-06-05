@@ -22,12 +22,7 @@ class DetailsHandler(AbstractCommandHandler):
     commands = ["/details", "details"]
 
     def handle(self, context: BotContext) -> Any:
-        from vk_bot.states import active_states
-
-        if (
-            context.user_id in active_states
-            and active_states[context.user_id].get("command") == "/details"
-        ):
+        if context.is_active() and context.command_state == "/details":
             handle_details_step(context)
         else:
             handle_details(context)

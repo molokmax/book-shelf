@@ -6,7 +6,6 @@ from core.services import BookService
 from utils import helpers
 from vk_bot.keyboards import (filter_keyboard, main_keyboard, status_keyboard,
                               tags_keyboard)
-from vk_bot.states import active_states
 from vk_bot.user_helpers import get_or_create_user
 
 # TODO: механизм вывода книг по категориям вынести отдельно, чтобы можно было использовать шаги из разных обработчиков
@@ -18,11 +17,13 @@ def handle_list_command(context) -> None:
     user_id = context.user_id
     user = get_or_create_user(api, user_id)
 
-    active_states[user_id] = {
-        "command": "/list",
-        "state": "choose_filter",
-        "data": {"user_id": user.id},
-    }
+    context.set_state(
+        {
+            "command": "/list",
+            "state": "choose_filter",
+            "data": {"user_id": user.id},
+        }
+    )
 
     api.messages.send(
         user_id=user_id,
@@ -40,12 +41,12 @@ def handle_list_command_step(context) -> None:
     text = context.text
     payload = context.payload
 
-    if user_id not in active_states:
+    if not context.is_active():
         return
 
     user = get_or_create_user(api, user_id)
 
-    state_info = active_states[user_id]
+    state_info = context.get_state()
     state = state_info["state"]
 
     if state == "choose_filter":
@@ -81,15 +82,14 @@ def handle_list_command_step(context) -> None:
             books = helpers.sort_books_by_status(books)
             if not books:
                 _finish(
-                    api,
-                    user_id,
+                    context,
                     "Твоя библиотека пуста. Добавь первую книгу с помощью /add",
                 )
                 return
             lines = ["📚 Твоя библиотека:\n\n"]
             for i, book in enumerate(books, 1):
                 lines.append(helpers.format_book_info(i, book) + "\n")
-            _finish(api, user_id, "".join(lines))
+            _finish(context, "".join(lines))
             return
 
         # Unrecognized input
@@ -108,12 +108,12 @@ def handle_list_command_step(context) -> None:
         books = book_service.filter_books(user.id, status=status)
         books = helpers.sort_books_by_status(books)
         if not books:
-            _finish(api, user_id, "Книг с выбранным статусом нет.")
+            _finish(context, "Книг с выбранным статусом нет.")
             return
         lines = [f"📚 Книги со статусом '{helpers.get_status_name(status)}':\n\n"]
         for i, book in enumerate(books, 1):
             lines.append(helpers.format_book_info(i, book) + "\n")
-        _finish(api, user_id, "".join(lines))
+        _finish(context, "".join(lines))
         return
 
     if state == "choose_tag":
@@ -122,17 +122,19 @@ def handle_list_command_step(context) -> None:
         books = book_service.filter_books(user.id, tags=[text])
         books = helpers.sort_books_by_status(books)
         if not books:
-            _finish(api, user_id, f"Книг с тегом '{text}' нет.")
+            _finish(context, f"Книг с тегом '{text}' нет.")
             return
         lines = [f"📚 Книги с тегом '{text}':\n\n"]
         for i, book in enumerate(books, 1):
             lines.append(helpers.format_book_info(i, book) + "\n")
-        _finish(api, user_id, "".join(lines))
+        _finish(context, "".join(lines))
         return
 
 
 # Helper to finish and clean up state
-def _finish(api, user_id: int, message: str, keyboard=None):
+def _finish(context, message: str, keyboard=None):
+    api = context.api
+    user_id = context.user_id
     api.messages.send(
         user_id=user_id,
         message=message,
@@ -141,4 +143,4 @@ def _finish(api, user_id: int, message: str, keyboard=None):
         ),
         random_id=get_random_id(),
     )
-    del active_states[user_id]
+    context.delete_state()

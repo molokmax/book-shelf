@@ -8,7 +8,6 @@ from utils import helpers
 from utils.litres_parser import (LitresParserError, is_litres_url,
                                  parse_litres_book)
 from vk_bot.keyboards import cancel_keyboard, main_keyboard
-from vk_bot.states import active_states
 from vk_bot.user_helpers import get_or_create_user
 
 # TODO: Разбить файл на функцию. Изучить как сделать через StateMachine
@@ -18,7 +17,7 @@ def handle_add_command(context) -> None:
     """Entry point for the /add command. Starts method selection flow."""
     api = context.api
     user_id = context.user_id
-    active_states[user_id] = {"command": "/add", "state": "choose_method", "data": {}}
+    context.set_state({"command": "/add", "state": "choose_method", "data": {}})
     api.messages.send(
         user_id=user_id,
         message="➕ Добавление новой книги. Выбери способ добавления:",
@@ -32,11 +31,10 @@ def handle_add_command_step(context) -> None:
     api = context.api
     user_id = context.user_id
     text = context.text
-    if user_id not in active_states:
-        # Not in add flow – ignore
+    if not context.is_active():
         return
 
-    state_info = active_states[user_id]
+    state_info = context.get_state()
     state = state_info["state"]
     data = state_info["data"]
 
@@ -153,7 +151,7 @@ def handle_add_command_step(context) -> None:
             link=data.get("link"),
         )
         # Clear state
-        del active_states[user_id]
+        context.delete_state()
         message_text = (
             f"✅ Книга '{book.title}' успешно добавлена в твою библиотеку!\n"
             "\nТы можешь\n"
@@ -248,7 +246,7 @@ def handle_add_command_step(context) -> None:
             user_id=user.id,
             link=data["link"],
         )
-        del active_states[user_id]
+        context.delete_state()
         message_text = (
             f"✅ Книга '{book.title}' успешно добавлена в твою библиотеку!\n"
             "\nТы можешь\n"
@@ -264,7 +262,7 @@ def handle_add_command_step(context) -> None:
         return
 
     # Fallback – reset state if unknown
-    del active_states[user_id]
+    context.delete_state()
     api.messages.send(
         user_id=user_id,
         message="Состояние добавления книги сброшено. Пожалуйста, повтори команду /add.",

@@ -17,19 +17,14 @@ class AddHandler(AbstractCommandHandler):
     The command has two phases:
     1. Entry point – when the command is received without an active state.
     2. Step processing – when the user is already in the add flow (state stored
-       in ``vk_bot.states.active_states``).
+       in ``BotContext`` via ``ActiveStateStorage``).
     """
 
     priority = 10
     commands = ["/add", "add"]
 
     def handle(self, context: BotContext) -> Any:
-        from vk_bot.states import active_states
-
-        if (
-            context.user_id in active_states
-            and active_states[context.user_id].get("command") == "/add"
-        ):
+        if context.is_active() and context.command_state == "/add":
             handle_add_command_step(context)
         else:
             handle_add_command(context)

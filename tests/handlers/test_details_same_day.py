@@ -3,10 +3,29 @@ import pytest
 from unittest.mock import MagicMock, patch
 from datetime import datetime, timedelta
 
-from vk_bot.states import active_states
+
+class FakeStateStorage:
+    def __init__(self):
+        self._data = {}
+
+    def get(self, user_id):
+        return self._data.get(user_id, {})
+
+    def save(self, user_id, state):
+        self._data[user_id] = state
+
+    def delete(self, user_id):
+        self._data.pop(user_id, None)
+
+    def is_active(self, user_id):
+        return bool(self._data.get(user_id))
+
+    def get_command(self, user_id):
+        state = self._data.get(user_id)
+        return state.get("command") if state else None
 
 
-def make_context(api, user_id, text="", payload=None):
+def make_context(api, user_id, text="", payload=None, storage=None):
     vk = MagicMock()
     vk.get_api.return_value = api
     upload = MagicMock()
@@ -17,7 +36,7 @@ def make_context(api, user_id, text="", payload=None):
     event.payload = json.dumps(payload) if payload else None
     from vk_bot.context import BotContext
 
-    return BotContext(vk=vk, upload=upload, event=event)
+    return BotContext(vk=vk, upload=upload, event=event, storage=storage or FakeStateStorage())
 
 
 with patch(
@@ -67,12 +86,13 @@ def test_details_counts_today_pages():
         reading_start_date=datetime.now() - timedelta(days=5),
         link="http://example.com",
     )
-    active_states[1] = {
+    fake_storage = FakeStateStorage()
+    fake_storage.save(1, {
         "command": "/details",
         "state": "selecting_book",
         "data": {"books": ["1"]},
-    }
-    ctx = make_context(fake_api, user_id=1, text="1")
+    })
+    ctx = make_context(fake_api, user_id=1, text="1", storage=fake_storage)
     with patch(
         "vk_bot.handlers.details.BookService", return_value=FakeBookService([book])
     ):

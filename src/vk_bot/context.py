@@ -1,14 +1,18 @@
 import json
+from typing import Any, Dict, Optional
+
+from core.storage import ActiveStateStorage
 
 
 class BotContext:
-    __slots__ = ("_vk", "_api", "_upload", "_event")
+    __slots__ = ("_vk", "_api", "_upload", "_event", "_storage")
 
-    def __init__(self, vk, upload, event):
+    def __init__(self, vk, upload, event, storage: ActiveStateStorage | None = None):
         self._vk = vk
         self._api = vk.get_api()
         self._upload = upload
         self._event = event
+        self._storage = storage
 
     @property
     def vk(self):
@@ -54,3 +58,27 @@ class BotContext:
         if not cmd:
             cmd = self._event.text.lower()
         return cmd
+
+    def get_state(self) -> Dict[str, Any]:
+        if self._storage is None:
+            return {}
+        return self._storage.get(self.user_id)
+
+    def set_state(self, state: Dict[str, Any]) -> None:
+        if self._storage is not None:
+            self._storage.save(self.user_id, state)
+
+    def delete_state(self) -> None:
+        if self._storage is not None:
+            self._storage.delete(self.user_id)
+
+    def is_active(self) -> bool:
+        if self._storage is None:
+            return False
+        return self._storage.is_active(self.user_id)
+
+    @property
+    def command_state(self) -> Optional[str]:
+        if self._storage is None:
+            return None
+        return self._storage.get_command(self.user_id)

@@ -6,6 +6,7 @@ from vk_api.longpoll import Event, VkEventType, VkLongPoll
 from vk_api.upload import VkUpload
 from vk_api.utils import get_random_id
 
+from core.storage import ActiveStateStorage
 from utils import logger
 from utils.config import load_config
 from vk_bot.command_router import CommandRouter
@@ -22,7 +23,6 @@ from vk_bot.handlers.list import handle_list_command, handle_list_command_step
 from vk_bot.handlers.list_handler import ListHandler
 from vk_bot.handlers.start import handle_start_command
 from vk_bot.handlers.stats import handle_stats_command
-from vk_bot.states import active_states
 
 
 class VkBookShelfBot:
@@ -31,6 +31,7 @@ class VkBookShelfBot:
         load_dotenv()
         self.logger = logger.setup_logger(__name__)
         self.config = load_config()
+        self._state_storage = ActiveStateStorage()
         # Инициализируем роутер команд и регистрируем обработчики
         self.router = CommandRouter()
         self.router.register_handler(AddHandler())
@@ -96,7 +97,9 @@ class VkBookShelfBot:
                 )
                 return
 
-            context = BotContext(vk=self.vk, upload=self.upload, event=event)
+            context = BotContext(
+                vk=self.vk, upload=self.upload, event=event, storage=self._state_storage
+            )
             self.logger.debug(
                 f"Получили команду {context.command} от пользователя {context.user_id}"
             )
@@ -124,17 +127,14 @@ class VkBookShelfBot:
                 handle_edit_command(context)
             elif command == "/details":
                 handle_details(context)
-            elif context.user_id in active_states:
-                state_info = active_states[context.user_id]
-                state_command = state_info["command"]
+            elif context.is_active():
+                state_command = context.command_state
                 if state_command == "/list":
                     handle_list_command_step(context)
                 elif state_command == "/edit":
                     handle_edit_command_step(context)
                 elif state_command == "/details":
                     handle_details_step(context)
-                else:
-                    pass
 
         except Exception as e:
             self.logger.error(f"Возникла ошибка при обработке сообщения: {e}")

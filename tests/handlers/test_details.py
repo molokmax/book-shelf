@@ -3,10 +3,33 @@ import pytest
 from unittest.mock import MagicMock, patch
 from datetime import datetime
 
-from vk_bot.states import active_states
+
+class FakeStateStorage:
+    def __init__(self):
+        self._data = {}
+
+    def get(self, user_id):
+        return self._data.get(user_id, {})
+
+    def save(self, user_id, state):
+        self._data[user_id] = state
+
+    def delete(self, user_id):
+        self._data.pop(user_id, None)
+
+    def is_active(self, user_id):
+        return bool(self._data.get(user_id))
+
+    def get_command(self, user_id):
+        state = self._data.get(user_id)
+        return state.get("command") if state else None
+
+    def get_current_state(self, user_id):
+        state = self._data.get(user_id)
+        return state.get("state") if state else None
 
 
-def make_context(api, user_id, text="", payload=None):
+def make_context(api, user_id, text="", payload=None, storage=None):
     vk = MagicMock()
     vk.get_api.return_value = api
     upload = MagicMock()
@@ -17,7 +40,7 @@ def make_context(api, user_id, text="", payload=None):
     event.payload = json.dumps(payload) if payload else None
     from vk_bot.context import BotContext
 
-    return BotContext(vk=vk, upload=upload, event=event)
+    return BotContext(vk=vk, upload=upload, event=event, storage=storage or FakeStateStorage())
 
 
 with patch(
@@ -61,9 +84,7 @@ class FakeBookService:
 
 @pytest.fixture(autouse=True)
 def clear_state():
-    active_states.clear()
     yield
-    active_states.clear()
 
 
 def test_handle_details_shows_book_list():
@@ -87,15 +108,16 @@ def test_handle_details_shows_book_list():
             msg = fake_api.sent_messages[0]["message"]
             assert msg == "Какие книги интересуют?"
             fake_api.sent_messages.clear()
-            state = active_states[123]
+            state = ctx.get_state()
             assert state["state"] == "choose_filter"
             handle_details_step(ctx)
     assert len(fake_api.sent_messages) == 1
     list_msg = fake_api.sent_messages[0]["message"]
     assert "1. 📖 Book One" in list_msg
     assert "2. 📎 Book Two" in list_msg
-    assert active_states[123]["state"] == "selecting_book"
-    assert active_states[123]["data"]["books"] == ["1", "2"]
+    state = ctx.get_state()
+    assert state["state"] == "selecting_book"
+    assert state["data"]["books"] == ["1", "2"]
 
 
 def test_handle_details_step_valid_selection_formats_details():
@@ -112,12 +134,13 @@ def test_handle_details_step_valid_selection_formats_details():
         reading_start_date=datetime(2022, 1, 5),
         link="https://example.com",
     )
-    active_states[456] = {
+    fake_storage = FakeStateStorage()
+    fake_storage.save(456, {
         "command": "/details",
         "state": "selecting_book",
         "data": {"books": ["1"]},
-    }
-    ctx = make_context(fake_api, user_id=456, text="1")
+    })
+    ctx = make_context(fake_api, user_id=456, text="1", storage=fake_storage)
     with patch(
         "vk_bot.handlers.details.BookService", return_value=FakeBookService([book])
     ) as _book_service:
@@ -132,4 +155,4 @@ def test_handle_details_step_valid_selection_formats_details():
     assert "2022-01-01" in details_msg
     assert "2022-01-05" in details_msg
     assert "https://example.com" in details_msg
-    assert 456 not in active_states
+    assert not fake_storage.is_active(456)

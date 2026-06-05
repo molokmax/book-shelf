@@ -1,14 +1,13 @@
 from vk_api.utils import get_random_id
 
 from vk_bot.keyboards import main_keyboard
-from vk_bot.states import active_states
 
 
 def handle_cancel_command(context) -> None:
     """Обработчик команды /cancel."""
     user_id = context.user_id
-    if user_id in active_states:
-        del active_states[user_id]
+    if context.is_active():
+        context.delete_state()
 
     context.api.messages.send(
         user_id=user_id,

@@ -21,12 +21,7 @@ class ListHandler(AbstractCommandHandler):
     commands = ["/list", "list"]
 
     def handle(self, context: BotContext) -> Any:
-        from vk_bot.states import active_states
-
-        if (
-            context.user_id in active_states
-            and active_states[context.user_id].get("command") == "/list"
-        ):
+        if context.is_active() and context.command_state == "/list":
             handle_list_command_step(context)
         else:
             handle_list_command(context)
