@@ -12,7 +12,7 @@ from utils.config import load_config
 from vk_bot.command_router import CommandRouter
 from vk_bot.context import BotContext
 from vk_bot.handlers.add_handler import AddHandler
-from vk_bot.handlers.cancel import handle_cancel_command
+from vk_bot.handlers.cancel_handler import CancelHandler
 from vk_bot.handlers.details import handle_details, handle_details_step
 from vk_bot.handlers.details_handler import DetailsHandler
 from vk_bot.handlers.edit import handle_edit_command, handle_edit_command_step
@@ -40,6 +40,7 @@ class VkBookShelfBot:
         self.router.register_handler(DetailsHandler())
         self.router.register_handler(ExportHandler())
         self.router.register_handler(HelpHandler())
+        self.router.register_handler(CancelHandler())
         self.router.register_handler(StatsHandler())
 
     def create_longpoll(self):
@@ -123,9 +124,7 @@ class VkBookShelfBot:
 
             command = context.command
 
-            if command == "/cancel" or command == "отмена":
-                handle_cancel_command(context)
-            elif command == "/start" or command == "начать":
+            if command == "/start" or command == "начать":
                 handle_start_command(context)
             elif command == "/list":
                 handle_list_command(context)
