@@ -30,9 +30,7 @@ class CommandRouter:
         """
         self.handlers.append(handler)
         # Сортируем каждый раз – количество обработчиков небольшое
-        self.handlers.sort(
-            key=lambda h: getattr(h, "priority", 0), reverse=True
-        )
+        self.handlers.sort(key=lambda h: getattr(h, "priority", 0), reverse=True)
         self.logger.debug(
             "Handler %s registered with priority %s",
             handler.__class__.__name__,
@@ -42,13 +40,15 @@ class CommandRouter:
     # ---------------------------------------------------------------------
     # Основной роутинг
     # ---------------------------------------------------------------------
-    def route(self, context: BotContext) -> Any:
-        """Маршрутизует команду из ``context`` к подходящему обработчику.
+    # ---------------------------------------------------------------------
+    # Поиск обработчика по команде
+    # ---------------------------------------------------------------------
+    def _find_handler(self, command: str, context: BotContext) -> Any:
+        """Пытается найти обработчик для указанной команды.
 
-        Возвращает результат вызова ``handle`` первого подходящего обработчика,
-        иначе ``None``.
+        Возвращает результат ``handle()`` первого подходящего обработчика
+        или ``None``, если ни один не подошёл.
         """
-        command = context.command
         for handler in self.handlers:
             try:
                 if handler.can_handle(command):
@@ -65,5 +65,38 @@ class CommandRouter:
                     command,
                     e,
                 )
+        return None
+
+    # ---------------------------------------------------------------------
+    # Основной роутинг
+    # ---------------------------------------------------------------------
+    def route(self, context: BotContext) -> Any:
+        """Маршрутизует команду из ``context`` к подходящему обработчику.
+
+        Сначала пытается найти обработчик по ``context.command``.
+        Если ни один не подошёл и у пользователя есть активный стейт,
+        выполняет второй проход по обработчикам с ``context.command_state``.
+
+        Возвращает результат вызова ``handle`` первого подходящего обработчика,
+        иначе ``None``.
+        """
+        command = context.command
+
+        result = self._find_handler(command, context)
+        if result is not None:
+            return result
+
+        if context.is_active():
+            state_command = context.command_state
+            if state_command:
+                self.logger.debug(
+                    "No handler matched command '%s', " "trying state command '%s'",
+                    command,
+                    state_command,
+                )
+                result = self._find_handler(state_command, context)
+                if result is not None:
+                    return result
+
         self.logger.warning("No handler found for command %s", command)
         return None

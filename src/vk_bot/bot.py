@@ -13,13 +13,10 @@ from vk_bot.command_router import CommandRouter
 from vk_bot.context import BotContext
 from vk_bot.handlers.add_handler import AddHandler
 from vk_bot.handlers.cancel_handler import CancelHandler
-from vk_bot.handlers.details import handle_details, handle_details_step
 from vk_bot.handlers.details_handler import DetailsHandler
-from vk_bot.handlers.edit import handle_edit_command, handle_edit_command_step
 from vk_bot.handlers.edit_handler import EditHandler
 from vk_bot.handlers.export_handler import ExportHandler
 from vk_bot.handlers.help_handler import HelpHandler
-from vk_bot.handlers.list import handle_list_command, handle_list_command_step
 from vk_bot.handlers.list_handler import ListHandler
 from vk_bot.handlers.start_handler import StartHandler
 from vk_bot.handlers.stats_handler import StatsHandler
@@ -115,27 +112,10 @@ class VkBookShelfBot:
                 context.user_id,
             )
 
-            # Попытка роутинга через CommandRouter
+            # Маршрутизация через CommandRouter (включая роутинг по стейту)
             routed = self.router.route(context)
             if routed is not None:
                 return
-
-            command = context.command
-
-            if command == "/list":
-                handle_list_command(context)
-            elif command == "/edit":
-                handle_edit_command(context)
-            elif command == "/details":
-                handle_details(context)
-            elif context.is_active():
-                state_command = context.command_state
-                if state_command == "/list":
-                    handle_list_command_step(context)
-                elif state_command == "/edit":
-                    handle_edit_command_step(context)
-                elif state_command == "/details":
-                    handle_details_step(context)
 
         except Exception as e:
             self.logger.error(f"Возникла ошибка при обработке сообщения: {e}")
