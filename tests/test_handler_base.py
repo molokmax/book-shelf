@@ -127,7 +127,7 @@ def test_details_handler_handle_returns_true():
     handler = DetailsHandler()
     fake_context = make_fake_context()
 
-    with patch("vk_bot.handlers.details_handler.handle_details") as mock_cmd:
+    with patch.object(handler, "_handle_entry") as mock_entry:
         result = handler.handle(fake_context)
         assert result is True
-        mock_cmd.assert_called_once_with(fake_context)
+        mock_entry.assert_called_once_with(fake_context)

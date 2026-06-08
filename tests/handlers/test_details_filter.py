@@ -43,7 +43,9 @@ with patch(
     "utils.config.load_config",
     return_value=type("Config", (), {"BOT_TOKEN": "dummy", "data_dir": "data"}),
 ):
-    from vk_bot.handlers.details import handle_details, handle_details_step
+    from vk_bot.handlers.details_handler import DetailsHandler
+
+    handler = DetailsHandler()
 
 
 class FakeVk:
@@ -83,12 +85,12 @@ def test_filter_all_path_shows_book_list_and_allows_selection():
     ]
     ctx = make_context(fake_api, user_id=123, text="Все")
     with patch(
-        "vk_bot.handlers.details.BookService", return_value=FakeBookService(books)
+        "vk_bot.handlers.details_handler.BookService", return_value=FakeBookService(books)
     ):
-        handle_details(ctx)
+        handler.handle(ctx)
         assert len(fake_api.sent_messages) == 1
         assert "Какие книги интересуют?" in fake_api.sent_messages[0]["message"]
-        handle_details_step(ctx)
+        handler.handle(ctx)
         assert len(fake_api.sent_messages) == 2
         msg = fake_api.sent_messages[1]["message"]
         assert "1. 📖" in msg and "2. 📎" in msg

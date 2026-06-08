@@ -43,7 +43,9 @@ with patch(
     "utils.config.load_config",
     return_value=type("Config", (), {"BOT_TOKEN": "dummy", "data_dir": "data"}),
 ):
-    from vk_bot.handlers.details import handle_details_step
+    from vk_bot.handlers.details_handler import DetailsHandler
+
+    handler = DetailsHandler()
 
 
 class FakeVk:
@@ -94,14 +96,14 @@ def test_details_counts_today_pages():
     })
     ctx = make_context(fake_api, user_id=1, text="1", storage=fake_storage)
     with patch(
-        "vk_bot.handlers.details.BookService", return_value=FakeBookService([book])
+        "vk_bot.handlers.details_handler.BookService", return_value=FakeBookService([book])
     ):
-        with patch("vk_bot.handlers.details.ReadingStatsService") as MockStats:
+        with patch("vk_bot.handlers.details_handler.ReadingStatsService") as MockStats:
             instance = MockStats.return_value
             instance.get_reading_stats.return_value = 30
             instance.avg_pages_per_day.return_value = 5.0
             instance.predict_completion_date.return_value = None
-            handle_details_step(ctx)
+            handler.handle(ctx)
     assert len(fake_api.sent_messages) == 1
     msg = fake_api.sent_messages[0]["message"]
     assert "30" in msg

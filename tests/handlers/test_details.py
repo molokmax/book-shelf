@@ -47,7 +47,9 @@ with patch(
     "utils.config.load_config",
     return_value=type("Config", (), {"BOT_TOKEN": "dummy", "data_dir": "data"}),
 ):
-    from vk_bot.handlers.details import handle_details, handle_details_step
+    from vk_bot.handlers.details_handler import DetailsHandler
+
+    handler = DetailsHandler()
 
 
 # Helper fake VkApiMethod
@@ -94,7 +96,7 @@ def test_handle_details_shows_book_list():
         FakeBook(id="2", title="Book Two", author="Author B", status="want_to_read"),
     ]
     with patch(
-        "vk_bot.handlers.details.BookService", return_value=FakeBookService(books)
+        "vk_bot.handlers.details_handler.BookService", return_value=FakeBookService(books)
     ):
         with patch("core.services.UserService") as MockUserService:
             MockUserService.return_value.get_or_create_user = (
@@ -103,14 +105,14 @@ def test_handle_details_shows_book_list():
                 )
             )
             ctx = make_context(fake_api, user_id=123, text="Все")
-            handle_details(ctx)
+            handler.handle(ctx)
             assert len(fake_api.sent_messages) == 1
             msg = fake_api.sent_messages[0]["message"]
             assert msg == "Какие книги интересуют?"
             fake_api.sent_messages.clear()
             state = ctx.get_state()
             assert state["state"] == "choose_filter"
-            handle_details_step(ctx)
+            handler.handle(ctx)
     assert len(fake_api.sent_messages) == 1
     list_msg = fake_api.sent_messages[0]["message"]
     assert "1. 📖 Book One" in list_msg
@@ -142,9 +144,9 @@ def test_handle_details_step_valid_selection_formats_details():
     })
     ctx = make_context(fake_api, user_id=456, text="1", storage=fake_storage)
     with patch(
-        "vk_bot.handlers.details.BookService", return_value=FakeBookService([book])
+        "vk_bot.handlers.details_handler.BookService", return_value=FakeBookService([book])
     ) as _book_service:
-        handle_details_step(ctx)
+        handler.handle(ctx)
     assert len(fake_api.sent_messages) == 1
     details_msg = fake_api.sent_messages[0]["message"]
     assert "Sample Book" in details_msg
