@@ -12,8 +12,13 @@ from vk_api.utils import get_random_id
 from core.services import BookService
 from utils import helpers, logger
 from utils.helpers import get_status_name
-from vk_bot.keyboards import (cancel_keyboard, filter_keyboard, main_keyboard,
-                              status_keyboard, tags_keyboard)
+from vk_bot.keyboards import (
+    cancel_keyboard,
+    filter_keyboard,
+    main_keyboard,
+    status_keyboard,
+    tags_keyboard,
+)
 from vk_bot.user_helpers import get_or_create_user
 
 from ..context import BotContext
@@ -150,9 +155,7 @@ class EditHandler(AbstractCommandHandler):
                     "data": {"books": [book.id for book in books]},
                 }
             )
-            lines = [
-                "📚 Введи номер книги для редактирования.\nБиблиотека:\n\n"
-            ]
+            lines = ["📚 Введи номер книги для редактирования.\nБиблиотека:\n\n"]
             for i, book in enumerate(books, 1):
                 lines.append(helpers.format_book_info(i, book) + "\n")
             api.messages.send(
@@ -214,9 +217,7 @@ class EditHandler(AbstractCommandHandler):
         context.set_state(state_info)
         api.messages.send(
             user_id=user_id,
-            message=(
-                f"Выбрана книга '{selected_book.title}'. Что нужно сделать?"
-            ),
+            message=(f"Выбрана книга '{selected_book.title}'. Что нужно сделать?"),
             keyboard=self._create_book_keyboard().get_keyboard(),
             random_id=get_random_id(),
         )
@@ -269,7 +270,7 @@ class EditHandler(AbstractCommandHandler):
                 user_id=user_id,
                 message=(
                     f"📖 Выбрана книга '{book.title}'.\n"
-                    f"Введи текущую страницу (от 0 до {book.pages}):"
+                    f"Предыдущее значение - {book.current_page}. Введи текущую страницу (от 0 до {book.pages}):"
                 ),
                 keyboard=cancel_keyboard().get_keyboard(),
                 random_id=get_random_id(),
@@ -293,9 +294,7 @@ class EditHandler(AbstractCommandHandler):
             context.set_state(state_info)
             api.messages.send(
                 user_id=user_id,
-                message=(
-                    f"📖 Выбрана книга '{book.title}'. Выбери новый статус:"
-                ),
+                message=(f"📖 Выбрана книга '{book.title}'. Выбери новый статус:"),
                 keyboard=self._create_status_keyboard().get_keyboard(),
                 random_id=get_random_id(),
             )
@@ -343,9 +342,7 @@ class EditHandler(AbstractCommandHandler):
                 "data": {"books": [book.id for book in books]},
             }
         )
-        lines = [
-            "📚 Введи номер книги для редактирования.\nБиблиотека:\n\n"
-        ]
+        lines = ["📚 Введи номер книги для редактирования.\nБиблиотека:\n\n"]
         for i, book in enumerate(books, 1):
             lines.append(helpers.format_book_info(i, book) + "\n")
         api.messages.send(
