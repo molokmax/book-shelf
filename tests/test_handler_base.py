@@ -103,10 +103,10 @@ def test_edit_handler_handle_returns_true():
     handler = EditHandler()
     fake_context = make_fake_context()
 
-    with patch("vk_bot.handlers.edit_handler.handle_edit_command") as mock_cmd:
+    with patch.object(handler, "_handle_entry") as mock_entry:
         result = handler.handle(fake_context)
         assert result is True
-        mock_cmd.assert_called_once_with(fake_context)
+        mock_entry.assert_called_once_with(fake_context)
 
 
 def test_list_handler_handle_returns_true():
