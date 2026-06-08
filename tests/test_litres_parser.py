@@ -1,12 +1,14 @@
 """Тесты для парсера Литрес."""
 
-import pytest
-from unittest.mock import Mock, patch, MagicMock
 import sys
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
 
 sys.path.insert(0, "src")
 
-from utils.litres_parser import parse_litres_book, is_litres_url, LitresParserError
+from utils.litres_parser import (LitresParserError, is_litres_url,
+                                 parse_litres_book)
 
 
 @pytest.fixture

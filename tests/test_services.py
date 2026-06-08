@@ -1,7 +1,9 @@
-import pytest
-from core.services import BookService
-from core.models import ReadingStatus
 from unittest.mock import patch
+
+import pytest
+
+from core.models import ReadingStatus
+from core.services import BookService
 
 
 # Use a fake repository via monkeypatching BookService's internal repository

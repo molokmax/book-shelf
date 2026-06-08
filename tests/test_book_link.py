@@ -1,8 +1,9 @@
 """Tests for link handling in BookService."""
 
 import pytest
-from core.services import BookService, UserService
+
 from core.models import ReadingStatus, User
+from core.services import BookService, UserService
 
 
 @pytest.fixture

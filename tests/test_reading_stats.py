@@ -1,7 +1,8 @@
 import pytest
-from core.services import BookService, UserService, ReadingStatsService
-from core.models import User
+
 from core.db import get_db
+from core.models import User
+from core.services import BookService, ReadingStatsService, UserService
 
 
 @pytest.fixture

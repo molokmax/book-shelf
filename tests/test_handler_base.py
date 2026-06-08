@@ -1,5 +1,6 @@
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 
 from vk_bot.handlers.base import AbstractCommandHandler
 
@@ -91,10 +92,10 @@ def test_add_handler_handle_returns_true():
     handler = AddHandler()
     fake_context = make_fake_context()
 
-    with patch("vk_bot.handlers.add_handler.handle_add_command") as mock_cmd:
+    with patch.object(handler, "_handle_start") as mock_start:
         result = handler.handle(fake_context)
         assert result is True
-        mock_cmd.assert_called_once_with(fake_context)
+        mock_start.assert_called_once_with(fake_context)
 
 
 def test_edit_handler_handle_returns_true():

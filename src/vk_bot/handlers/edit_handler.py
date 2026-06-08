@@ -12,13 +12,8 @@ from vk_api.utils import get_random_id
 from core.services import BookService
 from utils import helpers, logger
 from utils.helpers import get_status_name
-from vk_bot.keyboards import (
-    cancel_keyboard,
-    filter_keyboard,
-    main_keyboard,
-    status_keyboard,
-    tags_keyboard,
-)
+from vk_bot.keyboards import (cancel_keyboard, filter_keyboard, main_keyboard,
+                              status_keyboard, tags_keyboard)
 from vk_bot.user_helpers import get_or_create_user
 
 from ..context import BotContext

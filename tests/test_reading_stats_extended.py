@@ -1,9 +1,11 @@
-import pytest
 import uuid
-from datetime import datetime, timedelta, date
-from core.services import BookService, ReadingStatsService
+from datetime import date, datetime, timedelta
+
+import pytest
+
 from core.db import get_db
 from core.models import User as ModelUser
+from core.services import BookService, ReadingStatsService
 
 
 @pytest.fixture

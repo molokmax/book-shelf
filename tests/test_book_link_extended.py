@@ -1,8 +1,9 @@
 """Extended tests for link handling in BookService and add_litres command."""
 
 import pytest
-from core.services import BookService, UserService
+
 from core.models import ReadingStatus, User
+from core.services import BookService, UserService
 
 
 @pytest.fixture

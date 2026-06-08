@@ -4,9 +4,9 @@ from datetime import datetime
 
 import pytest
 
-from utils.export import export_to_csv
 from core.models import Book, ReadingStatus
 from utils.config import load_config
+from utils.export import export_to_csv
 
 
 @pytest.fixture(autouse=True)
