@@ -19,7 +19,7 @@ This file provides guidance to Open Code when working with code in this reposito
   - `bot.py` contains `VkBookShelfBot`, which uses `vk_api`, loads configuration, and runs handlers.
   - `command_router.py` – `CommandRouter` — central command router with priority‑based handler dispatching.
   - `handlers/base.py` – `AbstractCommandHandler` base class with `can_handle`, `priority`, and `commands`.
-  - `handlers/` are split by use cases. Each command has an underlying function file (`add.py`, `edit.py`) and a handler wrapper (`add_handler.py`, `edit_handler.py`) inheriting `AbstractCommandHandler`.
+  - `handlers/` – directory with command handlers. Each file is a single handler (`add.py`, `edit.py`, `list.py`, etc.) with a class inheriting `AbstractCommandHandler`.
   - `repository/user_state.py` – `UserStateRepository` for persisting user state in SQLite (`user_state` table).
   - `keyboards.py` – Shared keyboard layouts used by the several commands. Specific keyboards should be in command handler file.
 - **src/core/** – Core application logic, independent of Telegram:
@@ -50,6 +50,6 @@ This file provides guidance to Open Code when working with code in this reposito
 ## Development Tips
 
 - Keep configuration values in a `.env` file (ignored by git) and load them with `python-dotenv`.
-- When adding new functionality, place bot‑related code in `src/bot/handlers/` and core logic in `src/core/` to maintain separation.
+- When adding new functionality, place bot‑related code in `src/vk_bot/handlers/` and core logic in `src/core/` to maintain separation.
 - Run the test suite frequently (`pytest -x`) to catch regressions early.
 - Use the provided keyboards for consistent UI layout across new commands.
