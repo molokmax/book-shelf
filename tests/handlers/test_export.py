@@ -49,14 +49,14 @@ def test_handle_export_sends_csv_and_message():
     ctx = make_context(fake_api, fake_upload, user_id, chat_id)
 
     with (
-        patch("vk_bot.handlers.export_handler.get_or_create_user", return_value=mock_user),
-        patch("vk_bot.handlers.export_handler.BookService") as MockBookService,
+        patch("vk_bot.handlers.export.get_or_create_user", return_value=mock_user),
+        patch("vk_bot.handlers.export.BookService") as MockBookService,
         patch(
-            "vk_bot.handlers.export_handler.export_to_csv", return_value=mock_path
+            "vk_bot.handlers.export.export_to_csv", return_value=mock_path
         ) as mock_export_to_csv,
     ):
         MockBookService.return_value.get_all_books.return_value = fake_books
-        from vk_bot.handlers.export_handler import ExportHandler
+        from vk_bot.handlers.export import ExportHandler
 
         ExportHandler().handle(ctx)
 
@@ -92,12 +92,12 @@ def test_handle_export_with_no_books_creates_empty_csv():
     ctx = make_context(fake_api, fake_upload, user_id, chat_id)
 
     with (
-        patch("vk_bot.handlers.export_handler.get_or_create_user", return_value=mock_user),
-        patch("vk_bot.handlers.export_handler.BookService") as MockBookService,
-        patch("vk_bot.handlers.export_handler.export_to_csv", return_value=mock_path),
+        patch("vk_bot.handlers.export.get_or_create_user", return_value=mock_user),
+        patch("vk_bot.handlers.export.BookService") as MockBookService,
+        patch("vk_bot.handlers.export.export_to_csv", return_value=mock_path),
     ):
         MockBookService.return_value.get_all_books.return_value = []
-        from vk_bot.handlers.export_handler import ExportHandler
+        from vk_bot.handlers.export import ExportHandler
 
         ExportHandler().handle(ctx)
 

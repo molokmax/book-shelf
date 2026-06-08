@@ -67,7 +67,7 @@ def test_handle_list_flow_all_books():
         FakeBook("Book Two", "Author B", type("S", (), {"value": "want_to_read"})),
     ]
     with patch(
-        "vk_bot.handlers.list_handler.BookService",
+        "vk_bot.handlers.list.BookService",
         return_value=type(
             "Svc",
             (),
@@ -78,12 +78,12 @@ def test_handle_list_flow_all_books():
             },
         )(),
     ):
-        with patch("vk_bot.handlers.list_handler.helpers.sort_books_by_status", lambda b: b):
+        with patch("vk_bot.handlers.list.helpers.sort_books_by_status", lambda b: b):
             with patch(
-                "vk_bot.handlers.list_handler.helpers.format_book_info",
+                "vk_bot.handlers.list.helpers.format_book_info",
                 lambda i, b: f"{i}. {b.title} by {b.author}",
             ):
-                from vk_bot.handlers.list_handler import ListHandler
+                from vk_bot.handlers.list import ListHandler
 
                 handler = ListHandler()
                 ctx = make_context(fake_api, user_id=123, text="Все")
@@ -100,7 +100,7 @@ def test_handle_list_flow_by_status():
     fake_api = FakeVkApiMethod()
     book = FakeBook("Book One", "Author A", type("S", (), {"value": "reading"}))
     with patch(
-        "vk_bot.handlers.list_handler.BookService",
+        "vk_bot.handlers.list.BookService",
         return_value=type(
             "Svc",
             (),
@@ -112,12 +112,12 @@ def test_handle_list_flow_by_status():
             },
         )(),
     ):
-        with patch("vk_bot.handlers.list_handler.helpers.sort_books_by_status", lambda b: b):
+        with patch("vk_bot.handlers.list.helpers.sort_books_by_status", lambda b: b):
             with patch(
-                "vk_bot.handlers.list_handler.helpers.format_book_info",
+                "vk_bot.handlers.list.helpers.format_book_info",
                 lambda i, b: f"{i}. {b.title}",
             ):
-                from vk_bot.handlers.list_handler import ListHandler
+                from vk_bot.handlers.list import ListHandler
 
                 handler = ListHandler()
                 storage = FakeStateStorage()

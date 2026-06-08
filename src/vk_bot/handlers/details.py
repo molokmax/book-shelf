@@ -84,6 +84,7 @@ class DetailsHandler(AbstractCommandHandler):
         choice = text.strip().lower()
         if choice == "по статусу":
             state_info["state"] = "selecting_status_filter"
+            context.set_state(state_info)
             api.messages.send(
                 user_id=user_id,
                 message="Выбери статус книги:",
@@ -96,6 +97,7 @@ class DetailsHandler(AbstractCommandHandler):
             book_service = BookService()
             tags = book_service.get_all_tags(user.id)
             state_info["state"] = "selecting_tag_filter"
+            context.set_state(state_info)
             api.messages.send(
                 user_id=user_id,
                 message="Выбери тег:",
@@ -119,6 +121,7 @@ class DetailsHandler(AbstractCommandHandler):
                 return
             state_info["state"] = "selecting_book"
             state_info["data"]["books"] = [book.id for book in books]
+            context.set_state(state_info)
             lines = ["📚 Введи номер книги.\nТвоя библиотека:\n\n"]
             for i, book in enumerate(books, 1):
                 lines.append(helpers.format_book_info(i, book) + "\n")
@@ -160,6 +163,7 @@ class DetailsHandler(AbstractCommandHandler):
 
         state_info["state"] = "selecting_book"
         state_info["data"]["books"] = [book.id for book in books]
+        context.set_state(state_info)
         lines = ["📚 Введи номер книги.\nКниги с выбранным статусом:\n\n"]
         for i, book in enumerate(books, 1):
             lines.append(helpers.format_book_info(i, book) + "\n")
@@ -193,6 +197,7 @@ class DetailsHandler(AbstractCommandHandler):
 
         state_info["state"] = "selecting_book"
         state_info["data"]["books"] = [book.id for book in books]
+        context.set_state(state_info)
         lines = ["📚 Введи номер книги.\nКниги с выбранным тегом:\n\n"]
         for i, book in enumerate(books, 1):
             lines.append(helpers.format_book_info(i, book) + "\n")

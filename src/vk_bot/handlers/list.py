@@ -63,6 +63,7 @@ class ListHandler(AbstractCommandHandler):
             )
             state_info = context.get_state()
             state_info["state"] = "choose_status"
+            context.set_state(state_info)
             return
 
         if choice == "по тегам":
@@ -76,6 +77,7 @@ class ListHandler(AbstractCommandHandler):
             )
             state_info = context.get_state()
             state_info["state"] = "choose_tag"
+            context.set_state(state_info)
             return
 
         if choice == "все":

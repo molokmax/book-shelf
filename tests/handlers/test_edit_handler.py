@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from core.models import ReadingStatus
-from vk_bot.handlers import edit_handler as eh
+from vk_bot.handlers import edit as eh
 
 
 class FakeStateStorage:

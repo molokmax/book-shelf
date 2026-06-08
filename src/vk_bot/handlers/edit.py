@@ -106,6 +106,7 @@ class EditHandler(AbstractCommandHandler):
         if choice == "по статусу":
             state_info["data"]["filter_mode"] = "status"
             state_info["state"] = "selecting_status_filter"
+            context.set_state(state_info)
             api.messages.send(
                 user_id=user_id,
                 message="Выбери статус книги:",
@@ -119,6 +120,7 @@ class EditHandler(AbstractCommandHandler):
             tags = book_service.get_all_tags(user.id)
             state_info["data"]["filter_mode"] = "tags"
             state_info["state"] = "selecting_tag_filter"
+            context.set_state(state_info)
             api.messages.send(
                 user_id=user_id,
                 message="Выбери тег:",
@@ -209,6 +211,7 @@ class EditHandler(AbstractCommandHandler):
 
         state_info["state"] = "selecting_action"
         state_info["data"]["selected_book_id"] = book_id
+        context.set_state(state_info)
         api.messages.send(
             user_id=user_id,
             message=(
@@ -261,6 +264,7 @@ class EditHandler(AbstractCommandHandler):
 
             state_info["state"] = "waiting_for_progress_input"
             state_info["data"]["progress_book_pages"] = book.pages
+            context.set_state(state_info)
             api.messages.send(
                 user_id=user_id,
                 message=(
@@ -286,6 +290,7 @@ class EditHandler(AbstractCommandHandler):
                 return
 
             state_info["state"] = "selecting_status"
+            context.set_state(state_info)
             api.messages.send(
                 user_id=user_id,
                 message=(
@@ -310,6 +315,7 @@ class EditHandler(AbstractCommandHandler):
                 return
 
             state_info["state"] = "editing_title"
+            context.set_state(state_info)
             api.messages.send(
                 user_id=user_id,
                 message=(
@@ -388,6 +394,7 @@ class EditHandler(AbstractCommandHandler):
 
         state_info["data"]["new_title"] = new_title
         state_info["state"] = "editing_author"
+        context.set_state(state_info)
         book_id = state_info["data"]["selected_book_id"]
         book = BookService().get_book_by_id(book_id)
         if not book:
@@ -422,6 +429,7 @@ class EditHandler(AbstractCommandHandler):
 
         state_info["data"]["new_author"] = new_author
         state_info["state"] = "editing_pages"
+        context.set_state(state_info)
         book_id = state_info["data"]["selected_book_id"]
         book = BookService().get_book_by_id(book_id)
         if not book:
@@ -465,6 +473,7 @@ class EditHandler(AbstractCommandHandler):
 
         state_info["data"]["new_pages"] = new_pages
         state_info["state"] = "editing_link"
+        context.set_state(state_info)
         book_id = state_info["data"]["selected_book_id"]
         book = BookService().get_book_by_id(book_id)
         if not book:
@@ -499,6 +508,7 @@ class EditHandler(AbstractCommandHandler):
 
         state_info["data"]["new_link"] = new_link
         state_info["state"] = "editing_tags"
+        context.set_state(state_info)
         book_id = state_info["data"]["selected_book_id"]
         book = BookService().get_book_by_id(book_id)
         if not book:

@@ -11,15 +11,15 @@ from utils import logger
 from utils.config import load_config
 from vk_bot.command_router import CommandRouter
 from vk_bot.context import BotContext
-from vk_bot.handlers.add_handler import AddHandler
-from vk_bot.handlers.cancel_handler import CancelHandler
-from vk_bot.handlers.details_handler import DetailsHandler
-from vk_bot.handlers.edit_handler import EditHandler
-from vk_bot.handlers.export_handler import ExportHandler
-from vk_bot.handlers.help_handler import HelpHandler
-from vk_bot.handlers.list_handler import ListHandler
-from vk_bot.handlers.start_handler import StartHandler
-from vk_bot.handlers.stats_handler import StatsHandler
+from vk_bot.handlers.add import AddHandler
+from vk_bot.handlers.cancel import CancelHandler
+from vk_bot.handlers.details import DetailsHandler
+from vk_bot.handlers.edit import EditHandler
+from vk_bot.handlers.export import ExportHandler
+from vk_bot.handlers.help import HelpHandler
+from vk_bot.handlers.list import ListHandler
+from vk_bot.handlers.start import StartHandler
+from vk_bot.handlers.stats import StatsHandler
 
 
 class VkBookShelfBot:

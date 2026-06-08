@@ -78,6 +78,7 @@ class AddHandler(AbstractCommandHandler):
 
         if text == "Ручное":
             state_info["state"] = "waiting_for_title"
+            context.set_state(state_info)
             api.messages.send(
                 user_id=user_id,
                 message="Отлично! Теперь введи название книги:",
@@ -86,6 +87,7 @@ class AddHandler(AbstractCommandHandler):
             )
         elif text == "Из LitRes":
             state_info["state"] = "waiting_for_litres_url"
+            context.set_state(state_info)
             api.messages.send(
                 user_id=user_id,
                 message="Введи ссылку на книгу с https://litres.ru:",
@@ -103,6 +105,7 @@ class AddHandler(AbstractCommandHandler):
     def _handle_waiting_for_title(self, context: BotContext, state_info: dict) -> None:
         state_info["data"]["title"] = context.text.strip()
         state_info["state"] = "waiting_for_author"
+        context.set_state(state_info)
         context.api.messages.send(
             user_id=context.user_id,
             message="Отлично! Теперь введи автора книги:",
@@ -113,6 +116,7 @@ class AddHandler(AbstractCommandHandler):
     def _handle_waiting_for_author(self, context: BotContext, state_info: dict) -> None:
         state_info["data"]["author"] = context.text.strip()
         state_info["state"] = "waiting_for_pages"
+        context.set_state(state_info)
         context.api.messages.send(
             user_id=context.user_id,
             message="Отлично! Теперь введи количество страниц в книге:",
@@ -140,6 +144,7 @@ class AddHandler(AbstractCommandHandler):
 
         state_info["data"]["pages"] = pages
         state_info["state"] = "waiting_for_link"
+        context.set_state(state_info)
         api.messages.send(
             user_id=user_id,
             message=(
@@ -169,6 +174,7 @@ class AddHandler(AbstractCommandHandler):
             state_info["data"]["link"] = text
 
         state_info["state"] = "waiting_for_tags"
+        context.set_state(state_info)
         api.messages.send(
             user_id=user_id,
             message=(
@@ -248,6 +254,7 @@ class AddHandler(AbstractCommandHandler):
             )
             data["link"] = url
             state_info["state"] = "waiting_for_litres_confirm"
+            context.set_state(state_info)
             api.messages.send(
                 user_id=user_id,
                 message=(
@@ -274,6 +281,7 @@ class AddHandler(AbstractCommandHandler):
         text = context.text.strip()
         if text == "Продолжить":
             state_info["state"] = "waiting_for_litres_tags"
+            context.set_state(state_info)
             context.api.messages.send(
                 user_id=context.user_id,
                 message=(
