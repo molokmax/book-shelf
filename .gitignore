@@ -10,5 +10,7 @@ temp/
 backups/
 .servers.csv
 
+releases/
+
 __pycache__/
 *.py[cod]
