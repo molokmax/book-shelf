@@ -96,14 +96,10 @@ def test_handle_details_shows_book_list():
         FakeBook(id="1", title="Book One", author="Author A", status="reading"),
         FakeBook(id="2", title="Book Two", author="Author B", status="want_to_read"),
     ]
-    with patch(
-        "vk_bot.handlers.details.BookService", return_value=FakeBookService(books)
-    ):
+    with patch("vk_bot.handlers.details.BookService", return_value=FakeBookService(books)):
         with patch("core.services.UserService") as MockUserService:
-            MockUserService.return_value.get_or_create_user = (
-                lambda vk_user_id, user_factory: type(
-                    "User", (), {"id": str(vk_user_id)}
-                )
+            MockUserService.return_value.get_or_create_user = lambda vk_user_id, user_factory: type(
+                "User", (), {"id": str(vk_user_id)}
             )
             ctx = make_context(fake_api, user_id=123, text="Все")
             handler.handle(ctx)
@@ -138,11 +134,14 @@ def test_handle_details_step_valid_selection_formats_details():
         link="https://example.com",
     )
     fake_storage = FakeStateStorage()
-    fake_storage.save(456, {
-        "command": "/details",
-        "state": "selecting_book",
-        "data": {"books": ["1"]},
-    })
+    fake_storage.save(
+        456,
+        {
+            "command": "/details",
+            "state": "selecting_book",
+            "data": {"books": ["1"]},
+        },
+    )
     ctx = make_context(fake_api, user_id=456, text="1", storage=fake_storage)
     with patch(
         "vk_bot.handlers.details.BookService", return_value=FakeBookService([book])

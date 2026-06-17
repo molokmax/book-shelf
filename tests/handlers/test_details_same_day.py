@@ -90,15 +90,16 @@ def test_details_counts_today_pages():
         link="http://example.com",
     )
     fake_storage = FakeStateStorage()
-    fake_storage.save(1, {
-        "command": "/details",
-        "state": "selecting_book",
-        "data": {"books": ["1"]},
-    })
+    fake_storage.save(
+        1,
+        {
+            "command": "/details",
+            "state": "selecting_book",
+            "data": {"books": ["1"]},
+        },
+    )
     ctx = make_context(fake_api, user_id=1, text="1", storage=fake_storage)
-    with patch(
-        "vk_bot.handlers.details.BookService", return_value=FakeBookService([book])
-    ):
+    with patch("vk_bot.handlers.details.BookService", return_value=FakeBookService([book])):
         with patch("vk_bot.handlers.details.ReadingStatsService") as MockStats:
             instance = MockStats.return_value
             instance.get_reading_stats.return_value = 30

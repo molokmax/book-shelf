@@ -85,9 +85,7 @@ def test_filter_all_path_shows_book_list_and_allows_selection():
         FakeBook(id="2", title="Book Two", author="B", status="want_to_read"),
     ]
     ctx = make_context(fake_api, user_id=123, text="Все")
-    with patch(
-        "vk_bot.handlers.details.BookService", return_value=FakeBookService(books)
-    ):
+    with patch("vk_bot.handlers.details.BookService", return_value=FakeBookService(books)):
         handler.handle(ctx)
         assert len(fake_api.sent_messages) == 1
         assert "Какие книги интересуют?" in fake_api.sent_messages[0]["message"]

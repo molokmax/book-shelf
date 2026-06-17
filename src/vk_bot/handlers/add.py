@@ -11,8 +11,7 @@ from vk_api.utils import get_random_id
 
 from core.services import BookService
 from utils import helpers
-from utils.litres_parser import (LitresParserError, is_litres_url,
-                                 parse_litres_book)
+from utils.litres_parser import LitresParserError, is_litres_url, parse_litres_book
 from vk_bot.keyboards import cancel_keyboard, main_keyboard
 from vk_bot.user_helpers import get_or_create_user
 
@@ -218,9 +217,7 @@ class AddHandler(AbstractCommandHandler):
             random_id=get_random_id(),
         )
 
-    def _handle_waiting_for_litres_url(
-        self, context: BotContext, state_info: dict
-    ) -> None:
+    def _handle_waiting_for_litres_url(self, context: BotContext, state_info: dict) -> None:
         api = context.api
         user_id = context.user_id
         text = context.text.strip()
@@ -275,9 +272,7 @@ class AddHandler(AbstractCommandHandler):
                 random_id=get_random_id(),
             )
 
-    def _handle_waiting_for_litres_confirm(
-        self, context: BotContext, state_info: dict
-    ) -> None:
+    def _handle_waiting_for_litres_confirm(self, context: BotContext, state_info: dict) -> None:
         text = context.text.strip()
         if text == "Продолжить":
             state_info["state"] = "waiting_for_litres_tags"
@@ -292,9 +287,7 @@ class AddHandler(AbstractCommandHandler):
                 random_id=get_random_id(),
             )
 
-    def _handle_waiting_for_litres_tags(
-        self, context: BotContext, state_info: dict
-    ) -> None:
+    def _handle_waiting_for_litres_tags(self, context: BotContext, state_info: dict) -> None:
         api = context.api
         user_id = context.user_id
         text = context.text.strip()

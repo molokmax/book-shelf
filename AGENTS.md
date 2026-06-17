@@ -41,11 +41,15 @@ This file provides guidance to Open Code when working with code in this reposito
 - `README.md` – High‑level project description and feature list.
 - `docs/project_structure.md` – Detailed directory overview (mirrored above).
 - `requirements.txt` – Python dependencies, including `pydantic`, `pytest`, `flake8`, etc.
+- `pyproject.toml` – Shared config for black, isort, pytest.
+- `.flake8` – Flake8 config (line-length и правила согласованы с black).
 
 ## Implementation Tips
-- В сообщениях обращайся к пользователю на "ты"
-- Комментарии в коде пиши на русском языке
-- Все импорты добавляй вверху файла, а не в середине кода
+- Address the user informally ("ты") in messages
+- Write code comments in Russian
+- Use relative imports when referencing modules within the same package
+- Always place imports at the top of the file, never inline
+- After completing changes, run: `isort .`, `black .`, `flake8 src/`, and `pytest`
 
 ## Development Tips
 

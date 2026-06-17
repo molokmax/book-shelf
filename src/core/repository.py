@@ -12,9 +12,7 @@ from utils import logger
 class BookRepository:
     """Репозиторий для работы с книгами."""
 
-    def __init__(
-        self, db: Database | None = None, db_path: str = "data/database.db"
-    ) -> None:
+    def __init__(self, db: Database | None = None, db_path: str = "data/database.db") -> None:
         """Инициализация репозитория."""
         self.db = db if db is not None else Database(db_path)
 
@@ -54,21 +52,15 @@ class BookRepository:
 class ReadStatsRepository:
     """Repository for reading statistics."""
 
-    def __init__(
-        self, db: Database | None = None, db_path: str = "data/database.db"
-    ) -> None:
+    def __init__(self, db: Database | None = None, db_path: str = "data/database.db") -> None:
         """Initialize the repository."""
         self.db = db if db is not None else Database(db_path)
 
-    def add_reading_stats(
-        self, book_id: str, pages_read: int, read_date: str | None = None
-    ) -> str:
+    def add_reading_stats(self, book_id: str, pages_read: int, read_date: str | None = None) -> str:
         """Добавляет запись статистики чтения."""
         return self.db.add_reading_stat(book_id, pages_read, read_date)
 
-    def fetch_reading_stats(
-        self, book_id: str, from_date: datetime, to_date: datetime
-    ) -> int:
+    def fetch_reading_stats(self, book_id: str, from_date: datetime, to_date: datetime) -> int:
         """Return total pages read for a book between dates (inclusive)."""
         log = logger.setup_logger(__name__)
         log.debug(
@@ -86,14 +78,10 @@ class ReadStatsRepository:
             result = cursor.fetchone()[0]
             return int(result) if result is not None else 0
 
-    def fetch_average_pages_per_day(
-        self, book_id: str, from_date: datetime
-    ) -> float:
+    def fetch_average_pages_per_day(self, book_id: str, from_date: datetime) -> float:
         """Calculate average pages per day over the given period."""
         log = logger.setup_logger(__name__)
-        to_date = datetime.now().replace(
-            hour=23, minute=59, second=59, microsecond=999999
-        )
+        to_date = datetime.now().replace(hour=23, minute=59, second=59, microsecond=999999)
         days = (to_date + timedelta(microseconds=1) - from_date).days
         log.debug(
             "Calculating average pages per day for book_id=%s over %d days",
@@ -107,9 +95,7 @@ class ReadStatsRepository:
 class UserRepository:
     """Репозиторий для работы с пользователями."""
 
-    def __init__(
-        self, db: Database | None = None, db_path: str = "data/database.db"
-    ) -> None:
+    def __init__(self, db: Database | None = None, db_path: str = "data/database.db") -> None:
         """Инициализация репозитория."""
         self.db = db if db is not None else Database(db_path)
 
@@ -138,9 +124,7 @@ class UserRepository:
 class UserStateRepository:
     """Хранилище состояния пользователя в таблице user_state."""
 
-    def __init__(
-        self, db: Database | None = None, db_path: str = "data/database.db"
-    ) -> None:
+    def __init__(self, db: Database | None = None, db_path: str = "data/database.db") -> None:
         self.db = db if db is not None else Database(db_path)
 
     def get_state(self, user_id: str) -> Dict[str, Any]:
@@ -149,9 +133,7 @@ class UserStateRepository:
         Если запись отсутствует — возвращает пустой словарь.
         """
         with self.db.get_cursor() as cursor:
-            cursor.execute(
-                "SELECT json FROM user_state WHERE user_id = ?", (user_id,)
-            )
+            cursor.execute("SELECT json FROM user_state WHERE user_id = ?", (user_id,))
             row = cursor.fetchone()
             if row and row[0]:
                 try:
@@ -165,14 +147,11 @@ class UserStateRepository:
         json_state = json.dumps(state)
         with self.db.get_cursor() as cursor:
             cursor.execute(
-                "INSERT OR REPLACE INTO user_state "
-                "(user_id, json) VALUES (?, ?)",
+                "INSERT OR REPLACE INTO user_state " "(user_id, json) VALUES (?, ?)",
                 (user_id, json_state),
             )
 
     def delete_state(self, user_id: str) -> None:
         """Удаляет запись состояния пользователя."""
         with self.db.get_cursor() as cursor:
-            cursor.execute(
-                "DELETE FROM user_state WHERE user_id = ?", (user_id,)
-            )
+            cursor.execute("DELETE FROM user_state WHERE user_id = ?", (user_id,))

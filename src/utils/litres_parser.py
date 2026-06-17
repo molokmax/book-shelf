@@ -22,9 +22,7 @@ def is_litres_url(url: str) -> bool:
     """Проверяет, является ли URL ссылкой на Литрес."""
     try:
         parsed = urlparse(url)
-        return parsed.netloc.endswith("litres.ru") or parsed.netloc.endswith(
-            "litres.com"
-        )
+        return parsed.netloc.endswith("litres.ru") or parsed.netloc.endswith("litres.com")
     except Exception as e:
         log.warning(f"Возникла ошибка при разборе ссылки: {e}")
         return False
@@ -93,9 +91,7 @@ def parse_litres_book(url: str) -> Dict:
             author = data.get("author", {}).get("name", "Неизвестный автор")
         elif isinstance(data.get("author"), list):
             authors = data.get("author", [])
-            author = ", ".join(
-                x.get("name", "Неизвестный автор") for x in authors
-            )
+            author = ", ".join(x.get("name", "Неизвестный автор") for x in authors)
         else:
             author = "Неизвестный автор"
         pages = data.get("numberOfPages", 0)
@@ -115,11 +111,7 @@ def parse_litres_book(url: str) -> Dict:
         raise LitresParserError(f"Не удалось загрузить страницу: {e}")
     except json.JSONDecodeError as e:
         log.error(f"Ошибка при парсинге JSON-LD: {e}")
-        raise LitresParserError(
-            f"Не удалось распарсить информацию о книге: {e}"
-        )
+        raise LitresParserError(f"Не удалось распарсить информацию о книге: {e}")
     except Exception as e:
         log.error(f"Ошибка при парсинге страницы Литрес: {e}")
-        raise LitresParserError(
-            f"Не удалось распарсить информацию о книге: {e}"
-        )
+        raise LitresParserError(f"Не удалось распарсить информацию о книге: {e}")

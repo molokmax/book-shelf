@@ -70,10 +70,7 @@ def format_book_details(
         else:
             lines.append(f"Среднее за 30 дней: {avg_pages:.2f} стр/день")
     if predicted_date:
-        lines.append(
-            f"Ожидаемая дата завершения: "
-            f"{predicted_date.strftime('%Y-%m-%d')}"
-        )
+        lines.append(f"Ожидаемая дата завершения: " f"{predicted_date.strftime('%Y-%m-%d')}")
     return "\n".join(lines)
 
 

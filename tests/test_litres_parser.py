@@ -7,8 +7,7 @@ import pytest
 
 sys.path.insert(0, "src")
 
-from utils.litres_parser import (LitresParserError, is_litres_url,
-                                 parse_litres_book)
+from utils.litres_parser import LitresParserError, is_litres_url, parse_litres_book
 
 
 @pytest.fixture

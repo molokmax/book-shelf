@@ -70,16 +70,12 @@ class VkBookShelfBot:
 
             except (ConnectionError, TimeoutError) as e:
                 # Ошибки сети
-                self.logger.error(
-                    f"[Сетевая ошибка] {e}. Переподключение через 10 сек..."
-                )
+                self.logger.error(f"[Сетевая ошибка] {e}. Переподключение через 10 сек...")
                 time.sleep(10)
 
             except Exception as e:
                 # Любая другая неожиданная ошибка
-                self.logger.critical(
-                    f"[Критическая ошибка] {e}. Перезапуск через 30 сек..."
-                )
+                self.logger.critical(f"[Критическая ошибка] {e}. Перезапуск через 30 сек...")
                 time.sleep(30)
 
     def handle_event(self, event: Event):
@@ -90,8 +86,7 @@ class VkBookShelfBot:
                 return
             if not event.user_id:
                 self.logger.warning(
-                    "Сообщение не будет обработано: "
-                    "неизвестен идентификатор пользователя"
+                    "Сообщение не будет обработано: " "неизвестен идентификатор пользователя"
                 )
                 return
             if not event.peer_id:

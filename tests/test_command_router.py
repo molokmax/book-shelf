@@ -2,9 +2,7 @@ from unittest.mock import MagicMock, patch
 
 with patch(
     "utils.config.load_config",
-    return_value=type(
-        "Config", (), {"BOT_TOKEN": "dummy", "data_dir": "data"}
-    ),
+    return_value=type("Config", (), {"BOT_TOKEN": "dummy", "data_dir": "data"}),
 ):
     from vk_bot.command_router import CommandRouter
 
@@ -140,6 +138,7 @@ def test_can_handle_returns_false_for_unknown_command():
 # Тесты для роутинга по активному стейту (state-based-routing)
 # -----------------------------------------------------------------------
 
+
 class FakeStateStorage:
     def __init__(self):
         self._data = {}
@@ -184,8 +183,8 @@ def test_route_by_active_state_when_no_command_match():
     """Если ни один обработчик не совпал по введённой команде,
     но есть активный стейт — роутинг идёт по команде из стейта."""
     router = CommandRouter()
-    router.register_handler(HandlerA())   # /add, priority 10
-    router.register_handler(HandlerC())   # /list, priority 5
+    router.register_handler(HandlerA())  # /add, priority 10
+    router.register_handler(HandlerC())  # /list, priority 5
 
     ctx = make_context_with_state(command="просто текст", state_command="/add")
     result = router.route(ctx)
@@ -197,7 +196,7 @@ def test_route_high_priority_intercepts_before_state_check():
     """Обработчик с высоким приоритетом должен перехватить сообщение
     до того, как начнётся поиск по стейту."""
     router = CommandRouter()
-    router.register_handler(HandlerA())   # /add, priority 10
+    router.register_handler(HandlerA())  # /add, priority 10
 
     class CancelLikeHandler(AbstractCommandHandler):
         priority = 100
@@ -217,8 +216,8 @@ def test_route_high_priority_intercepts_before_state_check():
 def test_route_state_based_preserves_priority():
     """При поиске по стейту выбирается обработчик с наивысшим приоритетом."""
     router = CommandRouter()
-    router.register_handler(HandlerA())   # /add, priority 10
-    router.register_handler(HandlerB())   # /add, priority 20
+    router.register_handler(HandlerA())  # /add, priority 10
+    router.register_handler(HandlerB())  # /add, priority 20
 
     ctx = make_context_with_state(command="просто текст", state_command="/add")
     result = router.route(ctx)
@@ -243,7 +242,7 @@ def test_route_returns_none_when_state_command_has_no_handler():
     """Если есть активный стейт, но ни один обработчик
     не поддерживает команду из стейта — возвращается None."""
     router = CommandRouter()
-    router.register_handler(HandlerA())   # /add, priority 10
+    router.register_handler(HandlerA())  # /add, priority 10
 
     ctx = make_context_with_state(command="просто текст", state_command="/unknown")
     result = router.route(ctx)

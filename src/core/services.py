@@ -100,16 +100,10 @@ class BookService:
         book.status = ReadingStatus(status)
         book.updated_at = datetime.now()
 
-        if (
-            status == ReadingStatus.READING.value
-            and not book.reading_start_date
-        ):
+        if status == ReadingStatus.READING.value and not book.reading_start_date:
             book.reading_start_date = datetime.now()
 
-        if (
-            status == ReadingStatus.READ.value
-            and book.current_page == book.pages
-        ):
+        if status == ReadingStatus.READ.value and book.current_page == book.pages:
             book.reading_end_date = datetime.now()
 
         return self.book_repo.update_book(book)
@@ -132,8 +126,7 @@ class BookService:
             if book.status == ReadingStatus.WANT_TO_READ:
                 book.status = ReadingStatus.READING
             if not book.reading_start_date and (
-                book.status == ReadingStatus.WANT_TO_READ
-                or book.status == ReadingStatus.READING
+                book.status == ReadingStatus.WANT_TO_READ or book.status == ReadingStatus.READING
             ):
                 book.reading_start_date = datetime.now()
 
@@ -167,23 +160,14 @@ class BookService:
 
         total_books = len(books)
         read_books = len([b for b in books if b.status == ReadingStatus.READ])
-        reading_books = len(
-            [b for b in books if b.status == ReadingStatus.READING]
-        )
-        want_to_read_books = len(
-            [b for b in books if b.status == ReadingStatus.WANT_TO_READ]
-        )
-        postponed_books = len(
-            [b for b in books if b.status == ReadingStatus.POSTPONED]
-        )
+        reading_books = len([b for b in books if b.status == ReadingStatus.READING])
+        want_to_read_books = len([b for b in books if b.status == ReadingStatus.WANT_TO_READ])
+        postponed_books = len([b for b in books if b.status == ReadingStatus.POSTPONED])
 
         total_pages = sum(b.pages for b in books)
         read_pages = sum(b.current_page for b in books)
         avg_progress = (
-            (
-                sum(b.current_page for b in books)
-                / sum(b.pages for b in books) * 100
-            )
+            (sum(b.current_page for b in books) / sum(b.pages for b in books) * 100)
             if books and sum(b.pages for b in books) > 0
             else 0
         )
@@ -232,27 +216,17 @@ class ReadingStatsService:
         self.db = get_db(db_path)
         self.read_stats_repo = ReadStatsRepository(self.db)
 
-    def add_record(
-        self, book_id: str, pages_read: int, read_date: str | None = None
-    ) -> str:
+    def add_record(self, book_id: str, pages_read: int, read_date: str | None = None) -> str:
         """Добавляет запись статистики чтения."""
-        return self.read_stats_repo.add_reading_stats(
-            book_id, pages_read, read_date
-        )
+        return self.read_stats_repo.add_reading_stats(book_id, pages_read, read_date)
 
-    def get_reading_stats(
-        self, book_id: str, from_date: datetime, to_date: datetime
-    ) -> int:
+    def get_reading_stats(self, book_id: str, from_date: datetime, to_date: datetime) -> int:
         """Возвращает количество прочитанных страниц за период."""
-        return self.read_stats_repo.fetch_reading_stats(
-            book_id, from_date, to_date
-        )
+        return self.read_stats_repo.fetch_reading_stats(book_id, from_date, to_date)
 
     def avg_pages_per_day(self, book: Book) -> float:
         """Среднее количество страниц за последние 30 дней."""
-        today = datetime.now().replace(
-            hour=0, minute=0, second=0, microsecond=0
-        )
+        today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
         if book.reading_start_date:
             reading_start_date = book.reading_start_date.replace(
                 hour=0, minute=0, second=0, microsecond=0
@@ -260,9 +234,7 @@ class ReadingStatsService:
         else:
             reading_start_date = today
         from_date = max(today - timedelta(days=29), reading_start_date)
-        return self.read_stats_repo.fetch_average_pages_per_day(
-            book.id, from_date
-        )
+        return self.read_stats_repo.fetch_average_pages_per_day(book.id, from_date)
 
     def predict_completion_date(self, book: Book) -> date | None:
         """Прогнозирует дату завершения чтения книги."""

@@ -6,8 +6,7 @@ from vk_api.utils import get_random_id
 
 from core.services import BookService
 from utils import helpers
-from vk_bot.keyboards import (filter_keyboard, main_keyboard, status_keyboard,
-                              tags_keyboard)
+from vk_bot.keyboards import filter_keyboard, main_keyboard, status_keyboard, tags_keyboard
 from vk_bot.user_helpers import get_or_create_user
 
 from ..context import BotContext
@@ -141,9 +140,7 @@ class ListHandler(AbstractCommandHandler):
         api.messages.send(
             user_id=user_id,
             message=message,
-            keyboard=(
-                keyboard.get_keyboard() if keyboard else main_keyboard().get_keyboard()
-            ),
+            keyboard=(keyboard.get_keyboard() if keyboard else main_keyboard().get_keyboard()),
             random_id=get_random_id(),
         )
         context.delete_state()

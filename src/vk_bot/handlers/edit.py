@@ -270,7 +270,8 @@ class EditHandler(AbstractCommandHandler):
                 user_id=user_id,
                 message=(
                     f"📖 Выбрана книга '{book.title}'.\n"
-                    f"Предыдущее значение - {book.current_page}. Введи текущую страницу (от 0 до {book.pages}):"
+                    f"Предыдущее значение - {book.current_page}. "
+                    f"Введи текущую страницу (от 0 до {book.pages}):"
                 ),
                 keyboard=cancel_keyboard().get_keyboard(),
                 random_id=get_random_id(),
@@ -521,8 +522,7 @@ class EditHandler(AbstractCommandHandler):
         api.messages.send(
             user_id=user_id,
             message=(
-                f"Текущие тэги: {tags_text}.\n"
-                "Введи новые через запятую или нажми 'Дальше'."
+                f"Текущие тэги: {tags_text}.\n" "Введи новые через запятую или нажми 'Дальше'."
             ),
             keyboard=self._create_edit_keyboard().get_keyboard(),
             random_id=get_random_id(),

@@ -20,9 +20,7 @@ class FakeRepo:
 
 books = [
     # status reading, tags ['fantasy']
-    type(
-        "B", (), {"status": ReadingStatus.READING, "tags": ["fantasy", "adventure"]}
-    )(),
+    type("B", (), {"status": ReadingStatus.READING, "tags": ["fantasy", "adventure"]})(),
     # status want_to_read, tags ['sci-fi']
     type("B", (), {"status": ReadingStatus.WANT_TO_READ, "tags": ["sci-fi"]})(),
     # status read, tags []

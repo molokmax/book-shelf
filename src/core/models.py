@@ -50,18 +50,10 @@ class Book:
             author=data.get("author", ""),
             tags=data.get("tags", []),
             pages=data.get("pages", 0),
-            current_page=data.get(
-                "current_page", data.get("progress", 0)
-            ),  # Поддержка миграции
-            status=ReadingStatus(
-                data.get("status", ReadingStatus.WANT_TO_READ.value)
-            ),
-            created_at=datetime.fromisoformat(
-                data.get("created_at", datetime.now().isoformat())
-            ),
-            updated_at=datetime.fromisoformat(
-                data.get("updated_at", datetime.now().isoformat())
-            ),
+            current_page=data.get("current_page", data.get("progress", 0)),  # Поддержка миграции
+            status=ReadingStatus(data.get("status", ReadingStatus.WANT_TO_READ.value)),
+            created_at=datetime.fromisoformat(data.get("created_at", datetime.now().isoformat())),
+            updated_at=datetime.fromisoformat(data.get("updated_at", datetime.now().isoformat())),
             cover_image=data.get("cover_image"),
             notes=data.get("notes"),
             link=data.get("link"),
@@ -100,12 +92,8 @@ class User:
             username=data.get("username"),
             first_name=data.get("first_name"),
             last_name=data.get("last_name"),
-            created_at=datetime.fromisoformat(
-                data.get("created_at", datetime.now().isoformat())
-            ),
-            last_active=datetime.fromisoformat(
-                data.get("last_active", datetime.now().isoformat())
-            ),
+            created_at=datetime.fromisoformat(data.get("created_at", datetime.now().isoformat())),
+            last_active=datetime.fromisoformat(data.get("last_active", datetime.now().isoformat())),
         )
 
 
@@ -125,7 +113,5 @@ class ReadStat:
             id=data.get("id", str(uuid.uuid4())),
             book_id=data.get("book_id", ""),
             pages_read=data.get("pages_read", 0),
-            read_date=datetime.fromisoformat(
-                data.get("read_date", datetime.now().isoformat())
-            ),
+            read_date=datetime.fromisoformat(data.get("read_date", datetime.now().isoformat())),
         )

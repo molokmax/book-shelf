@@ -9,9 +9,7 @@ from core.services import UserService
 def get_or_create_user(vk: VkApiMethod, vk_user_id: int):
     """Retrieve an existing user by VK user ID or create a new one."""
     user_service = UserService()
-    return user_service.get_or_create_user(
-        vk_user_id, lambda user_id: __create_user(vk, user_id)
-    )
+    return user_service.get_or_create_user(vk_user_id, lambda user_id: __create_user(vk, user_id))
 
 
 def __create_user(vk: VkApiMethod, vk_user_id: int):

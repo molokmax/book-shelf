@@ -51,9 +51,7 @@ def test_handle_export_sends_csv_and_message():
     with (
         patch("vk_bot.handlers.export.get_or_create_user", return_value=mock_user),
         patch("vk_bot.handlers.export.BookService") as MockBookService,
-        patch(
-            "vk_bot.handlers.export.export_to_csv", return_value=mock_path
-        ) as mock_export_to_csv,
+        patch("vk_bot.handlers.export.export_to_csv", return_value=mock_path) as mock_export_to_csv,
     ):
         MockBookService.return_value.get_all_books.return_value = fake_books
         from vk_bot.handlers.export import ExportHandler

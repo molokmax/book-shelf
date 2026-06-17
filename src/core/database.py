@@ -39,15 +39,11 @@ class Database:
 
         # Создаём подключение к базе данных
         self.conn = sqlite3.connect(str(self.db_path))
-        self.conn.execute(
-            "PRAGMA foreign_keys = ON"
-        )  # Включаем поддержку внешних ключей
+        self.conn.execute("PRAGMA foreign_keys = ON")  # Включаем поддержку внешних ключей
         self.conn.execute(
             "PRAGMA journal_mode = WAL"
         )  # Используем WAL для лучшей производительности
-        self.conn.execute(
-            "PRAGMA busy_timeout = 5000"
-        )  # Таймаут при блокировке
+        self.conn.execute("PRAGMA busy_timeout = 5000")  # Таймаут при блокировке
 
         # Создаём таблицы при инициализации
         self._create_tables()
@@ -112,8 +108,7 @@ class Database:
         )
 
         cursor.execute(
-            "CREATE TABLE IF NOT EXISTS user_state "
-            "(user_id TEXT PRIMARY KEY, json TEXT)"
+            "CREATE TABLE IF NOT EXISTS user_state " "(user_id TEXT PRIMARY KEY, json TEXT)"
         )
 
         self.conn.commit()
@@ -143,9 +138,7 @@ class Database:
         """Закрывает подключение при выходе из контекста."""
         self.close()
 
-    def add_reading_stat(
-        self, book_id: str, pages_read: int, read_date: str | None = None
-    ) -> str:
+    def add_reading_stat(self, book_id: str, pages_read: int, read_date: str | None = None) -> str:
         """Вставляет запись о статистике чтения в таблицу `read_stats`."""
         if read_date is None:
             read_date = datetime.now().isoformat()
@@ -221,9 +214,7 @@ class Database:
         """Получает пользователя по Telegram ID."""
 
         with self.get_cursor() as cursor:
-            cursor.execute(
-                "SELECT * FROM users WHERE external_id = ?", (external_id,)
-            )
+            cursor.execute("SELECT * FROM users WHERE external_id = ?", (external_id,))
             row = cursor.fetchone()
 
             if row:
@@ -266,16 +257,8 @@ class Database:
                     book.cover_image,
                     book.notes,
                     book.link,
-                    (
-                        book.reading_start_date.isoformat()
-                        if book.reading_start_date
-                        else None
-                    ),
-                    (
-                        book.reading_end_date.isoformat()
-                        if book.reading_end_date
-                        else None
-                    ),
+                    (book.reading_start_date.isoformat() if book.reading_start_date else None),
+                    (book.reading_end_date.isoformat() if book.reading_end_date else None),
                     book.user_id,
                 ),
             )
@@ -375,10 +358,7 @@ class Database:
 
         with self.get_cursor() as cursor:
             columns = ", ".join(self._book_column_list)
-            sql = (
-                f"SELECT {columns} FROM books "
-                "WHERE user_id = ? ORDER BY updated_at DESC"
-            )
+            sql = f"SELECT {columns} FROM books " "WHERE user_id = ? ORDER BY updated_at DESC"
             cursor.execute(sql, (user_id,))
             rows = cursor.fetchall()
 
@@ -410,10 +390,7 @@ class Database:
 
         with self.get_cursor() as cursor:
             cols = ", ".join(self._book_column_list)
-            sql = (
-                f"SELECT {cols} FROM books "
-                "WHERE status = ? ORDER BY updated_at DESC"
-            )
+            sql = f"SELECT {cols} FROM books " "WHERE status = ? ORDER BY updated_at DESC"
             cursor.execute(sql, (status,))
             rows = cursor.fetchall()
 

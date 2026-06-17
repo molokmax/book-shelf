@@ -7,9 +7,7 @@ from core.storage import ActiveStateStorage
 class BotContext:
     __slots__ = ("_vk", "_api", "_upload", "_event", "_storage")
 
-    def __init__(
-        self, vk, upload, event, storage: ActiveStateStorage | None = None
-    ):
+    def __init__(self, vk, upload, event, storage: ActiveStateStorage | None = None):
         self._vk = vk
         self._api = vk.get_api()
         self._upload = upload

@@ -94,10 +94,14 @@ def fake_format_book_info(index, book):
 def patch_dependencies(monkeypatch):
     monkeypatch.setattr(eh, "BookService", StubBookService)
     monkeypatch.setattr(eh, "get_or_create_user", fake_get_or_create_user)
-    monkeypatch.setattr(eh, "helpers", types.SimpleNamespace(
-        format_book_info=fake_format_book_info,
-        sort_books_by_status=lambda books: books,
-    ))
+    monkeypatch.setattr(
+        eh,
+        "helpers",
+        types.SimpleNamespace(
+            format_book_info=fake_format_book_info,
+            sort_books_by_status=lambda books: books,
+        ),
+    )
 
 
 def test_choose_status_filter_shows_status_message(monkeypatch):

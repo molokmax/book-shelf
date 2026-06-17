@@ -125,7 +125,11 @@ def test_handle_list_flow_by_status():
                 handler.handle(ctx1)
                 handler.handle(ctx1)
                 ctx2 = make_context(
-                    fake_api, user_id=456, text="Читаю", payload={"status": "reading"}, storage=storage
+                    fake_api,
+                    user_id=456,
+                    text="Читаю",
+                    payload={"status": "reading"},
+                    storage=storage,
                 )
                 handler.handle(ctx2)
                 last_msg = fake_api.sent_messages[-1]["message"]
