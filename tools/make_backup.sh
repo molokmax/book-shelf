@@ -61,7 +61,7 @@ mkdir -p "$OUTPUT_DIR"
 
 BACKUP_EXIT_CODE=0
 
-while IFS=',' read -r SERVER_NAME HOST USER SSH_KEY DB_PATH; do
+while IFS=',' read -r SERVER_NAME HOST USER SSH_KEY _ _ DB_PATH; do
     SERVER_NAME="${SERVER_NAME// /}"
     HOST="${HOST// /}"
     USER="${USER// /}"
