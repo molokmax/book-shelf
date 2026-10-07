@@ -4,12 +4,13 @@
 выбор фильтра → выбор книги → действие над книгой.
 """
 
+from datetime import datetime, timedelta
 from typing import Any
 
 from vk_api.keyboard import VkKeyboard
 from vk_api.utils import get_random_id
 
-from core.services import BookService
+from core.services import BookService, ReadingStatsService
 from utils import helpers, logger
 from utils.helpers import get_status_name
 from vk_bot.keyboards import (
@@ -662,12 +663,30 @@ class EditHandler(AbstractCommandHandler):
 
         book_service = BookService()
         updated_book = book_service.update_book_progress(book_id, current_page)
+
+        # Собираем мини-статистику по книге для ответа пользователю
+        stats_service = ReadingStatsService()
+        today = datetime.now().replace(hour=23, minute=59, second=59, microsecond=999999)
+        week_start = (today - timedelta(days=7)).replace(hour=0, minute=0, second=0, microsecond=0)
+        month_start = (today - timedelta(days=30)).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
+        weekly_pages = stats_service.get_reading_stats(updated_book.id, week_start, today)
+        monthly_pages = stats_service.get_reading_stats(updated_book.id, month_start, today)
+        avg_pages = stats_service.avg_pages_per_day(updated_book)
+        predicted_date = stats_service.predict_completion_date(updated_book)
+        progress_stats = helpers.format_progress_stats(
+            updated_book,
+            weekly_pages=weekly_pages,
+            monthly_pages=monthly_pages,
+            avg_pages=avg_pages,
+            predicted_date=predicted_date,
+        )
+
         api.messages.send(
             user_id=user_id,
             message=(
-                f"✅ Прогресс чтения книги '{updated_book.title}' обновлён.\n"
-                f"Прочитано {updated_book.current_page}"
-                f" из {total_pages} страниц."
+                f"✅ Прогресс чтения книги '{updated_book.title}' обновлён.\n\n{progress_stats}"
             ),
             keyboard=main_keyboard().get_keyboard(),
             random_id=get_random_id(),

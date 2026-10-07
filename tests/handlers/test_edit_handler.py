@@ -1,10 +1,12 @@
 import json
 import types
+from datetime import date
 from unittest.mock import MagicMock
 
 import pytest
 
 from core.models import ReadingStatus
+from utils.helpers import format_progress_stats
 from vk_bot.handlers import edit as eh
 
 
@@ -82,6 +84,39 @@ class StubBookService:
         ]
 
 
+class ProgressBook:
+    def __init__(self, book_id="1", title="Book1", current_page=55, pages=319):
+        self.id = book_id
+        self.title = title
+        self.current_page = current_page
+        self.pages = pages
+
+
+class ProgressBookService:
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def update_book_progress(self, book_id, current_page):
+        return ProgressBook(book_id=book_id, current_page=current_page)
+
+
+def make_stats_stub(weekly=20, monthly=55, avg=2.89, predicted=date(2027, 1, 7)):
+    class StubReadingStatsService:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def get_reading_stats(self, book_id, from_date, to_date):
+            return weekly if (to_date - from_date).days <= 8 else monthly
+
+        def avg_pages_per_day(self, book):
+            return avg
+
+        def predict_completion_date(self, book):
+            return predicted
+
+    return StubReadingStatsService
+
+
 def fake_get_or_create_user(api, user_id):
     return FakeUser()
 
@@ -100,6 +135,7 @@ def patch_dependencies(monkeypatch):
         types.SimpleNamespace(
             format_book_info=fake_format_book_info,
             sort_books_by_status=lambda books: books,
+            format_progress_stats=format_progress_stats,
         ),
     )
 
@@ -150,3 +186,81 @@ def test_tag_selection_filters_books_and_shows_list():
     last_msg = fake_api.sent_messages[-1]
     assert "Введи номер книги" in last_msg["message"]
     assert "Book1" in last_msg["message"]
+
+
+def test_progress_update_shows_reading_stats(monkeypatch):
+    fake_api = FakeVkApiMethod()
+    user_id = 999
+    storage = FakeStateStorage()
+    storage.save(
+        user_id,
+        {
+            "command": "/edit",
+            "state": "waiting_for_progress_input",
+            "data": {"selected_book_id": "1", "progress_book_pages": 319},
+        },
+    )
+    monkeypatch.setattr(eh, "BookService", ProgressBookService)
+    monkeypatch.setattr(eh, "ReadingStatsService", make_stats_stub())
+
+    ctx = make_context(fake_api, user_id, "55", storage=storage)
+    eh.EditHandler().handle(ctx)
+
+    msg = fake_api.sent_messages[-1]["message"]
+    assert "Прогресс: 55/319 (17%)" in msg
+    assert "За последнюю неделю прочитано: 20 стр." in msg
+    assert "За последний месяц прочитано: 55 стр." in msg
+    assert "Среднее за 30 дней: 2.89 стр/день" in msg
+    assert "Ожидаемая дата завершения: 2027-01-07" in msg
+    assert not storage.is_active(user_id)
+
+
+def test_progress_update_without_data_shows_notice(monkeypatch):
+    fake_api = FakeVkApiMethod()
+    user_id = 1000
+    storage = FakeStateStorage()
+    storage.save(
+        user_id,
+        {
+            "command": "/edit",
+            "state": "waiting_for_progress_input",
+            "data": {"selected_book_id": "1", "progress_book_pages": 319},
+        },
+    )
+    monkeypatch.setattr(eh, "BookService", ProgressBookService)
+    monkeypatch.setattr(
+        eh,
+        "ReadingStatsService",
+        make_stats_stub(weekly=0, monthly=0, avg=0, predicted=None),
+    )
+
+    ctx = make_context(fake_api, user_id, "55", storage=storage)
+    eh.EditHandler().handle(ctx)
+
+    msg = fake_api.sent_messages[-1]["message"]
+    assert "Недостаточно данных для оценки завершения" in msg
+    assert "Среднее за 30 дней" not in msg
+    assert "Ожидаемая дата завершения" not in msg
+
+
+def test_progress_update_invalid_input_has_no_stats(monkeypatch):
+    fake_api = FakeVkApiMethod()
+    user_id = 1001
+    storage = FakeStateStorage()
+    storage.save(
+        user_id,
+        {
+            "command": "/edit",
+            "state": "waiting_for_progress_input",
+            "data": {"selected_book_id": "1", "progress_book_pages": 319},
+        },
+    )
+    monkeypatch.setattr(eh, "BookService", ProgressBookService)
+    monkeypatch.setattr(eh, "ReadingStatsService", make_stats_stub())
+
+    ctx = make_context(fake_api, user_id, "abc", storage=storage)
+    eh.EditHandler().handle(ctx)
+
+    msg = fake_api.sent_messages[-1]["message"]
+    assert "Введи число" in msg
+    assert "Прогресс: 55/319" not in msg
