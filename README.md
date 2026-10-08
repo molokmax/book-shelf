@@ -84,7 +84,7 @@ git tag vX.Y.Z
 git push origin vX.Y.Z
 ```
 
-После завершения workflow в Docker Hub появится образ `<DOCKERHUB_USERNAME>/book-shelf` с тегами `X.Y.Z`, `X.Y` и `latest`. Тег `latest` обновляется только для стабильных версий (без суффикса pre-release).
+После завершения workflow в Docker Hub появится образ `<DOCKERHUB_USERNAME>/book-shelf` с тегами `X.Y.Z`, `X.Y` и `latest`. Тег `latest` обновляется только для стабильных версий (без суффикса pre-release). Допустим и сокращённый тег вида `vX.Y` — образ получит теги `X.Y` и `latest`.
 
 Использование опубликованного образа:
 

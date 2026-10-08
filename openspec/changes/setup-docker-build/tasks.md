@@ -34,3 +34,9 @@
 - [x] 6.2 Исключить `.github/` из контекста сборки (`.dockerignore`)
 - [x] 6.3 Задокументировать в `README.md` публикацию образа, требуемые секреты и выпуск версии
 - [x] 6.4 Проверить YAML-синтаксис workflow и `openspec validate`
+
+## 7. Теги версии для сокращённых тегов vX.Y
+
+- [x] 7.1 Добавить в metadata-action `type=match,pattern=v(\d+\.\d+(\.\d+)?),group=1` с guard от pre-release, чтобы тег `v1.1` давал тег образа `1.1`
+- [x] 7.2 Обновить спеку `docker-image-publish` и README: сценарий для тега `vX.Y`
+- [x] 7.3 Проверить YAML-синтаксис обновлённого workflow
