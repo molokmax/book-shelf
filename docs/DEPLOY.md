@@ -141,6 +141,7 @@ docker start book-shelf
 
 ```bash
 docker cp ./backup-2026-10-08.db book-shelf:/app/data/database.db
+docker exec -u root book-shelf chown -R book-shelf:book-shelf /app/data
 docker restart book-shelf
 ```
 
@@ -148,8 +149,54 @@ docker restart book-shelf
 
 ```bash
 docker cp data/database.db book-shelf:/app/data/database.db
+docker exec -u root book-shelf chown -R book-shelf:book-shelf /app/data
 docker restart book-shelf
 ```
+
+Контейнер работает под непривилегированным пользователем `book-shelf` (uid 10001), а `docker cp` кладёт файлы под root. Поэтому после любого копирования базы в volume нужен `chown`, иначе SQLite откроет базу только на чтение и команды упадут с ошибкой `attempt to write a readonly database`. Если ошибка уже проявилась, её лечат те же команды:
+
+```bash
+docker exec -u root book-shelf chown -R book-shelf:book-shelf /app/data
+docker restart book-shelf
+```
+
+Автоматизация бэкапов с локальной машины: `tools/make_backup.sh` (справка — `--help`). Для Docker-деплоя в `.servers.csv` укажи путь к базе внутри контейнера (`/app/data/database.db`) и имя контейнера в колонке `container`. Колонка `enabled` (значения `0`, `no`, `false`, `off`) отключает бекап для конкретного сервера.
+
+Примеры:
+
+```bash
+# бэкап всех серверов с enabled=1 в каталог backups/ по умолчанию
+tools/make_backup.sh
+
+# бэкапы в произвольный каталог (например, на внешний диск)
+tools/make_backup.sh --output /d/backups/book-shelf
+
+# конфиг серверов в нестандартном месте
+tools/make_backup.sh --config ./my-servers.csv
+```
+
+Восстановление базы из локального бекапа на любой сервер из `.servers.csv`: `tools/restore_backup.sh` (справка — `--help`). Скрипт останавливает сервис/контейнер, заменяет базу, чистит WAL/shm и исправляет права на volume, перед заменой делает страховочный бекап текущей базы в `backups/` (отключается флагом `--no-pre-backup`).
+
+Примеры:
+
+```bash
+# интерактивно: выбор бекапа и сервера из списков
+tools/restore_backup.sh
+
+# откат на CloudCore к последнему бекапу без вопросов
+tools/restore_backup.sh --server CloudCore --yes
+
+# конкретный бекап на конкретный сервер (например, перенос базы с FastVPS на CloudCore)
+tools/restore_backup.sh --backup FastVPS_2026-10-08_19-00-01.db --server CloudCore
+
+# восстановление без страховочного бекапа текущей базы
+tools/restore_backup.sh --server CloudCore --no-pre-backup --yes
+
+# бекап из другого каталога
+tools/restore_backup.sh --backup /d/backups/book-shelf/CloudCore_2026-10-08_20-35-55.db --server CloudCore
+```
+
+Скрипты запускаются локально (в Git Bash на Windows или в bash на Linux), на VPS ходят по SSH с ключами из `.servers.csv`. На время восстановления бот не работает: сервис/контейнер останавливается на этапе замены базы и поднимается сразу после.
 
 ## 6. Обновление версии
 

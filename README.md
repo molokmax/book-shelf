@@ -53,18 +53,31 @@ docker compose down
 
 ```bash
 systemctl --user stop book-shelf
-docker compose up -d
+docker run -d --name book-shelf --env-file .env \
+  -v book-shelf-data:/app/data --restart unless-stopped \
+  <DOCKERHUB_USERNAME>/book-shelf:latest
 docker cp data/database.db book-shelf:/app/data/database.db
-docker compose restart
+docker exec -u root book-shelf chown -R book-shelf:book-shelf /app/data
+docker restart book-shelf
+```
+
+Контейнер работает под непривилегированным пользователем `book-shelf` (uid 10001), а `docker cp` кладёт файлы под root. Без `chown` SQLite откроет базу только на чтение, и команды упадут с ошибкой `attempt to write a readonly database`. Если ошибка уже проявилась, её лечат те же команды:
+
+```bash
+docker exec -u root book-shelf chown -R book-shelf:book-shelf /app/data
+docker restart book-shelf
 ```
 
 Откат на systemd:
 
 ```bash
 docker cp book-shelf:/app/data/database.db data/database.db   # вернуть актуальные данные на хост
-docker compose down
+docker stop book-shelf
+docker rm book-shelf
 systemctl --user start book-shelf
 ```
+
+Named volume `book-shelf-data` после `docker rm` сохраняется, так что данные не пропадут, если позже снова запустить контейнер.
 
 Пошаговая инструкция по запуску на VPS: [docs/DEPLOY.md](./docs/DEPLOY.md).
 
