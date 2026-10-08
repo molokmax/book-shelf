@@ -1,0 +1,15 @@
+services:
+  book-shelf:
+    build: .
+    image: book-shelf
+    container_name: book-shelf
+    env_file:
+      - .env
+    environment:
+      TZ: Europe/Moscow
+    volumes:
+      - book-shelf-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  book-shelf-data:
