@@ -260,12 +260,14 @@ class DetailsHandler(AbstractCommandHandler):
         weekly_pages = stats_service.get_reading_stats(book.id, week_start, today)
         monthly_pages = stats_service.get_reading_stats(book.id, month_start, today)
         avg_pages = stats_service.avg_pages_per_day(book)
+        days_left = stats_service.predict_days_to_completion(book)
         pred_date = stats_service.predict_completion_date(book)
         details = format_book_details(
             book,
             weekly_pages=weekly_pages,
             monthly_pages=monthly_pages,
             avg_pages=avg_pages,
+            days_to_completion=days_left,
             predicted_date=pred_date,
         )
         api.messages.send(

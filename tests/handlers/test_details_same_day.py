@@ -104,6 +104,7 @@ def test_details_counts_today_pages():
             instance = MockStats.return_value
             instance.get_reading_stats.return_value = 30
             instance.avg_pages_per_day.return_value = 5.0
+            instance.predict_days_to_completion.return_value = None
             instance.predict_completion_date.return_value = None
             handler.handle(ctx)
     assert len(fake_api.sent_messages) == 1

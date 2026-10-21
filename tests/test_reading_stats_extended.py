@@ -116,3 +116,79 @@ def test_predict_completion_date_no_data(services):
     # No reading stats added → avg = 0
     pred = reading_stats_service.predict_completion_date(book)
     assert pred is None
+
+
+def test_predict_days_to_completion_with_data(services):
+    book_service, reading_stats_service, db_path = services
+    # Книга на 200 страниц, прочитано 50
+    book = book_service.create_book(
+        title="Days Book",
+        author="Author",
+        tags=[],
+        pages=200,
+        user_id="1",
+        link=None,
+    )
+    book.reading_start_date = datetime.now() - timedelta(days=31)
+    book.current_page = 50
+    # Статистика: 10 страниц в день за последние 30 дней.
+    # Полные datetime-строки, чтобы все 30 записей попали в окно: средняя ровно 10
+    db = get_db(db_path)
+    now = datetime.now()
+    for days_ago in range(30):
+        read_date = (now - timedelta(days=days_ago)).isoformat()
+        db.add_reading_stat(book.id, pages_read=10, read_date=read_date)
+    # Остаток 150 / средняя 10 = 15 дней
+    assert reading_stats_service.predict_days_to_completion(book) == 15
+
+
+def test_predict_days_to_completion_rounds_up(services):
+    book_service, reading_stats_service, db_path = services
+    book = book_service.create_book(
+        title="Round Days Book",
+        author="Author",
+        tags=[],
+        pages=200,
+        user_id="1",
+        link=None,
+    )
+    book.reading_start_date = datetime.now() - timedelta(days=31)
+    book.current_page = 49  # остаток 151
+    db = get_db(db_path)
+    now = datetime.now()
+    for days_ago in range(30):
+        read_date = (now - timedelta(days=days_ago)).isoformat()
+        db.add_reading_stat(book.id, pages_read=10, read_date=read_date)
+    # 151 / 10 = 15.1 → округление вверх → 16
+    assert reading_stats_service.predict_days_to_completion(book) == 16
+
+
+def test_predict_days_to_completion_no_data(services):
+    book_service, reading_stats_service, _ = services
+    book = book_service.create_book(
+        title="NoDays Book",
+        author="Author",
+        tags=[],
+        pages=100,
+        user_id="1",
+        link=None,
+    )
+    book.reading_start_date = datetime.now() - timedelta(days=31)
+    # Нет записей статистики → средняя 0 → прогноз невозможен
+    assert reading_stats_service.predict_days_to_completion(book) is None
+
+
+def test_predict_days_to_completion_finished_book(services):
+    book_service, reading_stats_service, _ = services
+    book = book_service.create_book(
+        title="Done Days Book",
+        author="Author",
+        tags=[],
+        pages=100,
+        user_id="1",
+        link=None,
+    )
+    book.current_page = 100
+    # Книга дочитана: 0 дней, дата завершения = сегодня
+    assert reading_stats_service.predict_days_to_completion(book) == 0
+    assert reading_stats_service.predict_completion_date(book) == date.today()
