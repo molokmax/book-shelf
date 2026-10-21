@@ -236,15 +236,21 @@ class ReadingStatsService:
         from_date = max(today - timedelta(days=29), reading_start_date)
         return self.read_stats_repo.fetch_average_pages_per_day(book.id, from_date)
 
-    def predict_completion_date(self, book: Book) -> date | None:
-        """Прогнозирует дату завершения чтения книги."""
+    def predict_days_to_completion(self, book: Book) -> int | None:
+        """Прогнозирует количество дней до завершения чтения книги."""
         remaining_pages = book.pages - book.current_page
         if remaining_pages <= 0:
-            return date.today()
+            return 0  # книга уже дочитана
         avg = self.avg_pages_per_day(book)
         if avg == 0:
+            return None  # недостаточно данных о скорости чтения
+        return int((remaining_pages / avg) + 0.9999)  # округление вверх
+
+    def predict_completion_date(self, book: Book) -> date | None:
+        """Прогнозирует дату завершения чтения книги на основе количества дней."""
+        days_needed = self.predict_days_to_completion(book)
+        if days_needed is None:
             return None
-        days_needed = int((remaining_pages / avg) + 0.9999)  # округление вверх
         return date.today() + timedelta(days=days_needed)
 
 

@@ -674,12 +674,14 @@ class EditHandler(AbstractCommandHandler):
         weekly_pages = stats_service.get_reading_stats(updated_book.id, week_start, today)
         monthly_pages = stats_service.get_reading_stats(updated_book.id, month_start, today)
         avg_pages = stats_service.avg_pages_per_day(updated_book)
+        days_left = stats_service.predict_days_to_completion(updated_book)
         predicted_date = stats_service.predict_completion_date(updated_book)
         progress_stats = helpers.format_progress_stats(
             updated_book,
             weekly_pages=weekly_pages,
             monthly_pages=monthly_pages,
             avg_pages=avg_pages,
+            days_to_completion=days_left,
             predicted_date=predicted_date,
         )
 

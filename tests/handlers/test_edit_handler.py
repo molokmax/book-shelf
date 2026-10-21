@@ -111,6 +111,11 @@ def make_stats_stub(weekly=20, monthly=55, avg=2.89, predicted=date(2027, 1, 7))
         def avg_pages_per_day(self, book):
             return avg
 
+        def predict_days_to_completion(self, book):
+            if predicted is None:
+                return None
+            return (predicted - date.today()).days
+
         def predict_completion_date(self, book):
             return predicted
 
@@ -207,11 +212,13 @@ def test_progress_update_shows_reading_stats(monkeypatch):
     eh.EditHandler().handle(ctx)
 
     msg = fake_api.sent_messages[-1]["message"]
+    expected_days = (date(2027, 1, 7) - date.today()).days
     assert "Прогресс: 55/319 (17%)" in msg
-    assert "За последнюю неделю прочитано: 20 стр." in msg
-    assert "За последний месяц прочитано: 55 стр." in msg
+    assert "За неделю прочитано: 20 стр." in msg
+    assert "За месяц прочитано: 55 стр." in msg
     assert "Среднее за 30 дней: 2.89 стр/день" in msg
-    assert "Ожидаемая дата завершения: 2027-01-07" in msg
+    assert f"Осталось: {expected_days} дн." in msg
+    assert "Дата завершения: 2027-01-07" in msg
     assert not storage.is_active(user_id)
 
 
@@ -240,7 +247,34 @@ def test_progress_update_without_data_shows_notice(monkeypatch):
     msg = fake_api.sent_messages[-1]["message"]
     assert "Недостаточно данных для оценки завершения" in msg
     assert "Среднее за 30 дней" not in msg
-    assert "Ожидаемая дата завершения" not in msg
+    assert "Осталось" not in msg
+    assert "Дата завершения" not in msg
+
+
+def test_progress_update_finished_book_suppresses_forecast(monkeypatch):
+    fake_api = FakeVkApiMethod()
+    user_id = 1002
+    storage = FakeStateStorage()
+    storage.save(
+        user_id,
+        {
+            "command": "/edit",
+            "state": "waiting_for_progress_input",
+            "data": {"selected_book_id": "1", "progress_book_pages": 319},
+        },
+    )
+    monkeypatch.setattr(eh, "BookService", ProgressBookService)
+    monkeypatch.setattr(eh, "ReadingStatsService", make_stats_stub())
+
+    ctx = make_context(fake_api, user_id, "319", storage=storage)
+    eh.EditHandler().handle(ctx)
+
+    msg = fake_api.sent_messages[-1]["message"]
+    assert "Прогресс: 319/319 (100%)" in msg
+    assert "Среднее за 30 дней: 2.89 стр/день" in msg
+    assert "Осталось" not in msg
+    assert "Дата завершения" not in msg
+    assert "Недостаточно данных" not in msg
 
 
 def test_progress_update_invalid_input_has_no_stats(monkeypatch):

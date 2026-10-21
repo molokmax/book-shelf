@@ -43,6 +43,7 @@ def format_book_details(
     weekly_pages: int | None = None,
     monthly_pages: int | None = None,
     avg_pages: float | None = None,
+    days_to_completion: int | None = None,
     predicted_date: date | None = None,
 ) -> str:
     """Форматирует детальную информацию о книге со статистикой и прогнозом."""
@@ -61,16 +62,22 @@ def format_book_details(
         f"{book.reading_start_date.strftime('%Y-%m-%d') if book.reading_start_date else '—'}",  # noqa: E501
     ]
     if weekly_pages is not None:
-        lines.append(f"За последнюю неделю прочитано: {weekly_pages} стр.")
+        lines.append(f"За неделю прочитано: {weekly_pages} стр.")
     if monthly_pages is not None:
-        lines.append(f"За последний месяц прочитано: {monthly_pages} стр.")
+        lines.append(f"За месяц прочитано: {monthly_pages} стр.")
     if avg_pages is not None:
         if avg_pages == 0:
-            lines.append("Недостаточно данных для оценки завершения")
+            # Дочитанной книге оценка завершения не нужна
+            if book.current_page < book.pages:
+                lines.append("Недостаточно данных для оценки завершения")
         else:
             lines.append(f"Среднее за 30 дней: {avg_pages:.2f} стр/день")
-    if predicted_date:
-        lines.append(f"Ожидаемая дата завершения: " f"{predicted_date.strftime('%Y-%m-%d')}")
+    # Блок прогноза: выводим, только если книгу есть что дочитывать
+    if book.current_page < book.pages:
+        if days_to_completion is not None:
+            lines.append(f"Осталось: {days_to_completion} дн.")
+        if predicted_date:
+            lines.append(f"Дата завершения: {predicted_date.strftime('%Y-%m-%d')}")
     return "\n".join(lines)
 
 
@@ -79,22 +86,29 @@ def format_progress_stats(
     weekly_pages: int | None = None,
     monthly_pages: int | None = None,
     avg_pages: float | None = None,
+    days_to_completion: int | None = None,
     predicted_date: date | None = None,
 ) -> str:
     """Форматирует блок мини-статистики чтения книги."""
     progress_percent = _get_read_book_progress(book)
     lines = [f"Прогресс: {book.current_page}/{book.pages} ({progress_percent}%)"]
     if weekly_pages is not None:
-        lines.append(f"За последнюю неделю прочитано: {weekly_pages} стр.")
+        lines.append(f"За неделю прочитано: {weekly_pages} стр.")
     if monthly_pages is not None:
-        lines.append(f"За последний месяц прочитано: {monthly_pages} стр.")
+        lines.append(f"За месяц прочитано: {monthly_pages} стр.")
     if avg_pages is not None:
         if avg_pages == 0:
-            lines.append("Недостаточно данных для оценки завершения")
+            # Дочитанной книге оценка завершения не нужна
+            if book.current_page < book.pages:
+                lines.append("Недостаточно данных для оценки завершения")
         else:
             lines.append(f"Среднее за 30 дней: {avg_pages:.2f} стр/день")
-            if predicted_date:
-                lines.append(f"Ожидаемая дата завершения: {predicted_date.strftime('%Y-%m-%d')}")
+    # Блок прогноза: выводим, только если книгу есть что дочитывать
+    if book.current_page < book.pages:
+        if days_to_completion is not None:
+            lines.append(f"Осталось: {days_to_completion} дн.")
+        if predicted_date:
+            lines.append(f"Дата завершения: {predicted_date.strftime('%Y-%m-%d')}")
     return "\n".join(lines)
 
 
