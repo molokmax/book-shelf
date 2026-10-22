@@ -172,7 +172,12 @@ def is_valid_url(url: str) -> bool:
         return False
 
 
+def get_progress_percent(current_page: int, pages: int) -> int:
+    """Возвращает процент прочитанного по текущей странице."""
+    return round((current_page / pages * 100)) if pages > 0 else 0
+
+
 def _get_read_book_progress(book) -> int:
     current_page = getattr(book, "current_page", 0)
     pages = getattr(book, "pages", 0)
-    return round((current_page / pages * 100)) if pages > 0 else 0
+    return get_progress_percent(current_page, pages)

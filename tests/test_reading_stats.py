@@ -45,3 +45,43 @@ def test_reading_stats_record_creation(services):
     # Should have a single record with pages_read equal to 30
     assert len(rows) == 1
     assert rows[0][0] == 30
+
+
+def test_backward_progress_does_not_create_stats_record(services):
+    book_service, _ = services
+    book = book_service.create_book(
+        title="Backward Book",
+        author="Author",
+        tags=[],
+        pages=200,
+        user_id="1",
+        link=None,
+    )
+    book_service.update_book_progress(book.id, 50)
+    book_service.update_book_progress(book.id, 40)
+
+    db = get_db(book_service.book_repo.db.db_path)
+    with db.get_cursor() as cur:
+        cur.execute("SELECT pages_read FROM read_stats WHERE book_id = ?", (book.id,))
+        rows = cur.fetchall()
+    assert rows == [(50,)]
+
+
+def test_unchanged_progress_does_not_create_stats_record(services):
+    book_service, _ = services
+    book = book_service.create_book(
+        title="Same Page Book",
+        author="Author",
+        tags=[],
+        pages=200,
+        user_id="1",
+        link=None,
+    )
+    book_service.update_book_progress(book.id, 50)
+    book_service.update_book_progress(book.id, 50)
+
+    db = get_db(book_service.book_repo.db.db_path)
+    with db.get_cursor() as cur:
+        cur.execute("SELECT pages_read FROM read_stats WHERE book_id = ?", (book.id,))
+        rows = cur.fetchall()
+    assert rows == [(50,)]

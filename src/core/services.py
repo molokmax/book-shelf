@@ -131,11 +131,12 @@ class BookService:
                 book.reading_start_date = datetime.now()
 
         # сохраняем запись о статистике чтения (кол-во новых страниц)
-        pages_read = max(0, book.current_page - previous_page)
-        try:
-            self.reading_stats_service.add_record(book.id, pages_read)
-        except Exception as e:
-            log.error(f"Failed to add reading stat for book {book.id}: {e}")
+        pages_read = book.current_page - previous_page
+        if pages_read > 0:
+            try:
+                self.reading_stats_service.add_record(book.id, pages_read)
+            except Exception as e:
+                log.error(f"Failed to add reading stat for book {book.id}: {e}")
 
         return self.book_repo.update_book(book)
 
