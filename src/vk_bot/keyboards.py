@@ -7,13 +7,15 @@ from utils.helpers import get_status_name
 def main_keyboard() -> VkKeyboard:
     """Главная клавиатура бота."""
     kb = VkKeyboard()
-    kb.add_button("/list")
+    kb.add_button("/progress")
     kb.add_button("/edit")
     kb.add_button("/add")
+    kb.add_line()
+    kb.add_button("/list")
     kb.add_button("/details")
+    kb.add_button("/export")
     kb.add_line()
     kb.add_button("/stats")
-    kb.add_button("/export")
     kb.add_button("/help")
     return kb
 

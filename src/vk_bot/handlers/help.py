@@ -20,6 +20,7 @@ class HelpHandler(AbstractCommandHandler):
             "💬 Доступные команды\n"
             "* /start - Начало работы\n"
             "* /add - Добавить новую книгу\n"
+            "* /progress - Обновить прогресс чтения\n"
             "* /list - Показать список книг\n"
             "* /edit - Редактировать книгу\n"
             "* /export - Экспорт списка книг в CSV\n"

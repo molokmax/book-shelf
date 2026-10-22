@@ -19,6 +19,11 @@ def sanitize_text(text: str) -> str:
     return text.strip()
 
 
+def format_invalid_input(hint: str) -> str:
+    """Форматирует стандартное сообщение о неверном вводе."""
+    return f"⚠️ Не удалось обработать сообщение. {hint}"
+
+
 def format_book_info(index, book) -> str:
     """Форматирует информацию о книге для отображения."""
     status = getattr(book, "status", "unknown")
