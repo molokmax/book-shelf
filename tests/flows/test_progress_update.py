@@ -1,4 +1,5 @@
 import json
+import types
 from datetime import date
 from unittest.mock import MagicMock
 
@@ -52,14 +53,15 @@ class FakeVkApiMethod:
 
 
 class ProgressBook:
-    def __init__(self, book_id="1", title="Book1", current_page=55, pages=319):
+    def __init__(self, book_id="1", title="Book1", current_page=55, pages=319, user_id=None):
         self.id = book_id
         self.title = title
         self.current_page = current_page
         self.pages = pages
+        self.user_id = user_id
 
 
-def make_progress_book_service(current_page=55, pages=319, updates=None):
+def make_progress_book_service(current_page=55, pages=319, updates=None, user_id=None):
     updates = updates if updates is not None else []
 
     class StubProgressBookService:
@@ -67,13 +69,31 @@ def make_progress_book_service(current_page=55, pages=319, updates=None):
             pass
 
         def get_book_by_id(self, book_id):
-            return ProgressBook(book_id=book_id, current_page=current_page, pages=pages)
+            return ProgressBook(
+                book_id=book_id, current_page=current_page, pages=pages, user_id=user_id
+            )
 
         def update_book_progress(self, book_id, new_page):
             updates.append(new_page)
-            return ProgressBook(book_id=book_id, current_page=new_page, pages=pages)
+            return ProgressBook(
+                book_id=book_id, current_page=new_page, pages=pages, user_id=user_id
+            )
 
     return StubProgressBookService
+
+
+def make_goal_stub(target=None, pages_today=0):
+    class StubGoalService:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def get_goal(self, user_id):
+            return types.SimpleNamespace(target=target) if target is not None else None
+
+        def today_pages(self, user_id):
+            return pages_today
+
+    return StubGoalService
 
 
 def make_stats_stub(weekly=20, monthly=55, avg=2.89, predicted=date(2027, 1, 7)):
@@ -432,3 +452,88 @@ def test_unchanged_progress_shows_notice(monkeypatch):
     assert "За неделю прочитано: 20 стр." in msg
     assert updates == []
     assert not storage.is_active(user_id)
+
+
+def test_progress_update_shows_goal_line(monkeypatch):
+    fake_api = FakeVkApiMethod()
+    user_id = 3000
+    storage = FakeStateStorage()
+    save_progress_state(storage, user_id)
+    monkeypatch.setattr(puf, "BookService", make_progress_book_service(user_id="user-1"))
+    monkeypatch.setattr(puf, "ReadingStatsService", make_stats_stub())
+    monkeypatch.setattr(puf, "GoalService", make_goal_stub(target=50, pages_today=35))
+
+    ctx = make_context(fake_api, user_id, "60", storage=storage)
+    puf.ProgressUpdateFlow().handle(ctx)
+
+    msg = fake_api.sent_messages[-1]["message"]
+    assert "Цель на день: 35/50 стр." in msg
+    assert "🎉" not in msg
+
+
+def test_progress_update_congratulates_on_goal_completion(monkeypatch):
+    fake_api = FakeVkApiMethod()
+    user_id = 3001
+    storage = FakeStateStorage()
+    save_progress_state(storage, user_id)
+    monkeypatch.setattr(puf, "BookService", make_progress_book_service(user_id="user-1"))
+    monkeypatch.setattr(puf, "ReadingStatsService", make_stats_stub())
+    monkeypatch.setattr(puf, "GoalService", make_goal_stub(target=50, pages_today=52))
+
+    ctx = make_context(fake_api, user_id, "60", storage=storage)
+    puf.ProgressUpdateFlow().handle(ctx)
+
+    msg = fake_api.sent_messages[-1]["message"]
+    assert "🎉 Цель на день выполнена! Сегодня прочитано 52 из 50 страниц." in msg
+    assert "Цель на день: 52/50 стр." not in msg
+
+
+def test_progress_update_without_goal_has_no_goal_line(monkeypatch):
+    fake_api = FakeVkApiMethod()
+    user_id = 3002
+    storage = FakeStateStorage()
+    save_progress_state(storage, user_id)
+    monkeypatch.setattr(puf, "BookService", make_progress_book_service(user_id="user-1"))
+    monkeypatch.setattr(puf, "ReadingStatsService", make_stats_stub())
+    monkeypatch.setattr(puf, "GoalService", make_goal_stub(target=None))
+
+    ctx = make_context(fake_api, user_id, "60", storage=storage)
+    puf.ProgressUpdateFlow().handle(ctx)
+
+    msg = fake_api.sent_messages[-1]["message"]
+    assert "Цель на день" not in msg
+    assert "🎉" not in msg
+
+
+def test_progress_update_does_not_repeat_congratulation(monkeypatch):
+    fake_api = FakeVkApiMethod()
+    user_id = 3003
+    storage = FakeStateStorage()
+    save_progress_state(storage, user_id)
+    monkeypatch.setattr(puf, "BookService", make_progress_book_service(user_id="user-1"))
+    monkeypatch.setattr(puf, "ReadingStatsService", make_stats_stub())
+    monkeypatch.setattr(puf, "GoalService", make_goal_stub(target=50, pages_today=60))
+
+    ctx = make_context(fake_api, user_id, "60", storage=storage)
+    puf.ProgressUpdateFlow().handle(ctx)
+
+    msg = fake_api.sent_messages[-1]["message"]
+    assert "Цель на день: 60/50 стр." in msg
+    assert "🎉" not in msg
+
+
+def test_unchanged_progress_does_not_congratulate(monkeypatch):
+    fake_api = FakeVkApiMethod()
+    user_id = 3004
+    storage = FakeStateStorage()
+    save_progress_state(storage, user_id)
+    monkeypatch.setattr(puf, "BookService", make_progress_book_service(user_id="user-1"))
+    monkeypatch.setattr(puf, "ReadingStatsService", make_stats_stub())
+    monkeypatch.setattr(puf, "GoalService", make_goal_stub(target=50, pages_today=50))
+
+    ctx = make_context(fake_api, user_id, "55", storage=storage)
+    puf.ProgressUpdateFlow().handle(ctx)
+
+    msg = fake_api.sent_messages[-1]["message"]
+    assert "Цель на день: 50/50 стр." in msg
+    assert "🎉" not in msg

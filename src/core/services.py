@@ -5,8 +5,15 @@ from pathlib import Path
 from typing import Callable, Dict, List, Optional
 
 from core.db import get_db
-from core.models import Book, ReadingStatus, User
-from core.repository import BookRepository, ReadStatsRepository, UserRepository
+from core.models import (
+    DAILY_PAGES_GOAL,
+    Book,
+    Goal,
+    GoalStatus,
+    ReadingStatus,
+    User,
+)
+from core.repository import BookRepository, GoalRepository, ReadStatsRepository, UserRepository
 from utils import logger
 from utils.config import load_config
 
@@ -134,7 +141,7 @@ class BookService:
         pages_read = book.current_page - previous_page
         if pages_read > 0:
             try:
-                self.reading_stats_service.add_record(book.id, pages_read)
+                self.reading_stats_service.add_record(book.id, pages_read, user_id=book.user_id)
             except Exception as e:
                 log.error(f"Failed to add reading stat for book {book.id}: {e}")
 
@@ -217,9 +224,15 @@ class ReadingStatsService:
         self.db = get_db(db_path)
         self.read_stats_repo = ReadStatsRepository(self.db)
 
-    def add_record(self, book_id: str, pages_read: int, read_date: str | None = None) -> str:
+    def add_record(
+        self,
+        book_id: str,
+        pages_read: int,
+        read_date: str | None = None,
+        user_id: str | None = None,
+    ) -> str:
         """Добавляет запись статистики чтения."""
-        return self.read_stats_repo.add_reading_stats(book_id, pages_read, read_date)
+        return self.read_stats_repo.add_reading_stats(book_id, pages_read, read_date, user_id)
 
     def get_reading_stats(self, book_id: str, from_date: datetime, to_date: datetime) -> int:
         """Возвращает количество прочитанных страниц за период."""
@@ -253,6 +266,52 @@ class ReadingStatsService:
         if days_needed is None:
             return None
         return date.today() + timedelta(days=days_needed)
+
+
+class GoalService:
+    """Сервис дневной цели чтения."""
+
+    def __init__(self, db_path: str | None = None) -> None:
+        """Инициализация сервиса."""
+        db_path = db_path or get_default_db_path()
+        db = get_db(db_path)
+        self.goal_repo = GoalRepository(db)
+        self.read_stats_repo = ReadStatsRepository(db)
+
+    def get_goal(self, user_id: str, kind: str = DAILY_PAGES_GOAL) -> Optional[Goal]:
+        """Возвращает цель пользователя или None."""
+        return self.goal_repo.get_goal(user_id, kind)
+
+    def set_daily_goal(self, user_id: str, target: int) -> Goal:
+        """Устанавливает дневную цель по страницам."""
+        if target <= 0:
+            raise ValueError("Цель должна быть положительным целым числом")
+        return self.goal_repo.upsert_goal(user_id, target)
+
+    def disable_goal(self, user_id: str, kind: str = DAILY_PAGES_GOAL) -> bool:
+        """Отключает цель пользователя. Возвращает True, если цель была."""
+        return self.goal_repo.delete_goal(user_id, kind)
+
+    def today_pages(self, user_id: str, now: datetime | None = None) -> int:
+        """Сколько страниц прочитано сегодня (локальный календарный день сервера)."""
+        day_start = (now or datetime.now()).replace(hour=0, minute=0, second=0, microsecond=0)
+        day_end = day_start + timedelta(days=1) - timedelta(microseconds=1)
+        return self.read_stats_repo.fetch_pages_by_user(user_id, day_start, day_end)
+
+    def get_goal_status(self, user_id: str, kind: str = DAILY_PAGES_GOAL) -> Optional[GoalStatus]:
+        """Возвращает состояние дневной цели или None, если цели нет."""
+        goal = self.get_goal(user_id, kind)
+        if not goal:
+            return None
+        pages_today = self.today_pages(user_id)
+        percent = min(100, round(pages_today / goal.target * 100)) if goal.target > 0 else 0
+        return GoalStatus(
+            goal=goal,
+            pages_today=pages_today,
+            percent=percent,
+            completed=pages_today >= goal.target,
+            remaining=max(0, goal.target - pages_today),
+        )
 
 
 def get_default_db_path() -> str:

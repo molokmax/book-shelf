@@ -335,7 +335,7 @@ def test_main_keyboard_contains_progress_command():
 
     assert labels[:3] == ["/progress", "/edit", "/add"]
     assert labels[3:6] == ["/list", "/details", "/export"]
-    assert labels[6:] == ["/stats", "/help"]
+    assert labels[6:] == ["/goal", "/stats", "/help"]
 
 
 def test_select_book_from_filter_opens_progress_prompt(monkeypatch):

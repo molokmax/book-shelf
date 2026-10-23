@@ -20,7 +20,7 @@ This file provides guidance to Open Code when working with code in this reposito
   - `command_router.py` – `CommandRouter` — central command router with priority‑based handler dispatching.
   - `handlers/base.py` – `AbstractCommandHandler` base class with `can_handle`, `priority`, and `commands`.
   - `handlers/` – directory with command handlers. Each file is a single handler (`add.py`, `edit.py`, `list.py`, etc.) with a class inheriting `AbstractCommandHandler`.
-  - `repository/user_state.py` – `UserStateRepository` for persisting user state in SQLite (`user_state` table).
+  - `core/repository.py` – `UserStateRepository` for persisting user state in SQLite (`user_state` table).
   - `keyboards.py` – Shared keyboard layouts used by the several commands. Specific keyboards should be in command handler file.
 - **src/core/** – Core application logic, independent of Telegram:
   - `models.py` – Pydantic data models for books and related entities.
@@ -49,6 +49,7 @@ This file provides guidance to Open Code when working with code in this reposito
 - Write code comments in Russian
 - Use relative imports when referencing modules within the same package
 - Always place imports at the top of the file, never inline
+- A handler must not intercept messages while another command's scenario is active. The router makes two passes: first by the typed command, then (if nothing matched and a user state is active) by the state's command. So at the top of `handle()` return `None` when `context.is_active()` and `state_info.get("command") != "<this handler's command>"` — the message then reaches the active scenario's handler. Exception: system commands like "Отмена" (`CancelHandler`, priority 100) intentionally intercept any scenario.
 - After completing changes, run: `isort .`, `black .`, `flake8 src/`, and `pytest`
 
 ## Development Tips

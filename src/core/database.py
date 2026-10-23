@@ -7,7 +7,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
 
-from core.migrations import add_link_column
+from core.migrations import add_link_column, add_read_stats_user_id
 from core.models import Book, User
 
 
@@ -50,6 +50,7 @@ class Database:
 
         # Миграции
         add_link_column(self.conn)
+        add_read_stats_user_id(self.conn)
 
     def _create_tables(self) -> None:
         """Создаёт таблицы в базе данных."""
@@ -102,6 +103,7 @@ class Database:
             book_id TEXT NOT NULL,
             pages_read INTEGER NOT NULL,
             read_date TEXT NOT NULL,
+            user_id TEXT,
             FOREIGN KEY (book_id) REFERENCES books(id)
         )
         """
@@ -109,6 +111,22 @@ class Database:
 
         cursor.execute(
             "CREATE TABLE IF NOT EXISTS user_state " "(user_id TEXT PRIMARY KEY, json TEXT)"
+        )
+
+        # Таблица целей пользователя (дневная цель по страницам и будущие виды целей)
+        cursor.execute(
+            """
+        CREATE TABLE IF NOT EXISTS goals (
+            id TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL,
+            kind TEXT NOT NULL,
+            target INTEGER NOT NULL,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            UNIQUE(user_id, kind),
+            FOREIGN KEY (user_id) REFERENCES users (id)
+        )
+        """
         )
 
         self.conn.commit()
@@ -138,15 +156,21 @@ class Database:
         """Закрывает подключение при выходе из контекста."""
         self.close()
 
-    def add_reading_stat(self, book_id: str, pages_read: int, read_date: str | None = None) -> str:
+    def add_reading_stat(
+        self,
+        book_id: str,
+        pages_read: int,
+        read_date: str | None = None,
+        user_id: str | None = None,
+    ) -> str:
         """Вставляет запись о статистике чтения в таблицу `read_stats`."""
         if read_date is None:
             read_date = datetime.now().isoformat()
         with self.get_cursor() as cursor:
             cursor.execute(
                 "INSERT INTO read_stats "
-                "(id, book_id, pages_read, read_date) VALUES (?, ?, ?, ?)",
-                (str(uuid.uuid4()), book_id, pages_read, read_date),
+                "(id, book_id, pages_read, read_date, user_id) VALUES (?, ?, ?, ?, ?)",
+                (str(uuid.uuid4()), book_id, pages_read, read_date, user_id),
             )
             return cursor.lastrowid
 
