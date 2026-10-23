@@ -145,7 +145,7 @@ def test_progress_prompt_uses_formatted_message():
 
     msg = fake_api.sent_messages[-1]["message"]
     assert msg == (
-        "📖 Книга: Book1\n\n" "Прогресс: 55/319 (17%)\n\n" "Введи текущую страницу (от 0 до 319)."
+        "📖 Книга: Book1\n" "Прогресс: 55/319 (17%)\n\n" "Введи текущую страницу (от 0 до 319)."
     )
     assert storage.get(user_id)["state"] == "waiting_for_progress_input"
 

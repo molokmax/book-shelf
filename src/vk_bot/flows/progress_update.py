@@ -36,7 +36,7 @@ class ProgressUpdateFlow:
         self._send(
             context,
             (
-                f"📖 Книга: {book.title}\n\n"
+                f"📖 Книга: {book.title}\n"
                 f"Прогресс: {book.current_page}/{book.pages} ({percent}%)\n\n"
                 f"Введи текущую страницу (от 0 до {book.pages})."
             ),
