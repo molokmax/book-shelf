@@ -15,6 +15,7 @@ def main_keyboard() -> VkKeyboard:
     kb.add_button("/details")
     kb.add_button("/export")
     kb.add_line()
+    kb.add_button("/goal")
     kb.add_button("/stats")
     kb.add_button("/help")
     return kb

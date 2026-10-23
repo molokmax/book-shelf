@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 from core.database import Database
-from core.models import Book, User
+from core.models import DAILY_PAGES_GOAL, Book, Goal, User
 from utils import logger
 
 
@@ -56,9 +56,26 @@ class ReadStatsRepository:
         """Initialize the repository."""
         self.db = db if db is not None else Database(db_path)
 
-    def add_reading_stats(self, book_id: str, pages_read: int, read_date: str | None = None) -> str:
+    def add_reading_stats(
+        self,
+        book_id: str,
+        pages_read: int,
+        read_date: str | None = None,
+        user_id: str | None = None,
+    ) -> str:
         """Добавляет запись статистики чтения."""
-        return self.db.add_reading_stat(book_id, pages_read, read_date)
+        return self.db.add_reading_stat(book_id, pages_read, read_date, user_id)
+
+    def fetch_pages_by_user(self, user_id: str, from_date: datetime, to_date: datetime) -> int:
+        """Сумма прочитанных страниц пользователя за период (включительно)."""
+        with self.db.get_cursor() as cursor:
+            cursor.execute(
+                "SELECT SUM(pages_read) FROM read_stats "
+                "WHERE user_id = ? AND read_date BETWEEN ? AND ?",
+                (user_id, from_date.isoformat(), to_date.isoformat()),
+            )
+            result = cursor.fetchone()[0]
+            return int(result) if result is not None else 0
 
     def fetch_reading_stats(self, book_id: str, from_date: datetime, to_date: datetime) -> int:
         """Return total pages read for a book between dates (inclusive)."""
@@ -119,6 +136,73 @@ class UserRepository:
         """Закрывает подключение к базе данных."""
         if hasattr(self, "db") and self.db is not None:
             self.db.close()
+
+
+class GoalRepository:
+    """Репозиторий целей пользователя."""
+
+    def __init__(self, db: Database | None = None, db_path: str = "data/database.db") -> None:
+        self.db = db if db is not None else Database(db_path)
+
+    def get_goal(self, user_id: str, kind: str = DAILY_PAGES_GOAL) -> Optional[Goal]:
+        """Возвращает цель пользователя заданного вида."""
+        with self.db.get_cursor() as cursor:
+            cursor.execute(
+                "SELECT id, user_id, kind, target, created_at, updated_at "
+                "FROM goals WHERE user_id = ? AND kind = ?",
+                (user_id, kind),
+            )
+            row = cursor.fetchone()
+            if not row:
+                return None
+            return Goal(
+                id=row[0],
+                user_id=row[1],
+                kind=row[2],
+                target=row[3],
+                created_at=datetime.fromisoformat(row[4]),
+                updated_at=datetime.fromisoformat(row[5]),
+            )
+
+    def upsert_goal(self, user_id: str, target: int, kind: str = DAILY_PAGES_GOAL) -> Goal:
+        """Создаёт или обновляет цель пользователя."""
+        now = datetime.now()
+        existing = self.get_goal(user_id, kind)
+        with self.db.get_cursor() as cursor:
+            if existing:
+                cursor.execute(
+                    "UPDATE goals SET target = ?, updated_at = ? " "WHERE user_id = ? AND kind = ?",
+                    (target, now.isoformat(), user_id, kind),
+                )
+                return Goal(
+                    id=existing.id,
+                    user_id=user_id,
+                    kind=kind,
+                    target=target,
+                    created_at=existing.created_at,
+                    updated_at=now,
+                )
+
+            goal = Goal(user_id=user_id, kind=kind, target=target)
+            cursor.execute(
+                "INSERT INTO goals (id, user_id, kind, target, created_at, updated_at) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
+                (
+                    goal.id,
+                    goal.user_id,
+                    goal.kind,
+                    goal.target,
+                    goal.created_at.isoformat(),
+                    goal.updated_at.isoformat(),
+                ),
+            )
+            return goal
+
+    def delete_goal(self, user_id: str, kind: str = DAILY_PAGES_GOAL) -> bool:
+        """Удаляет цель пользователя. Возвращает True, если цель была."""
+        with self.db.get_cursor() as cursor:
+            cursor.execute("DELETE FROM goals WHERE user_id = ? AND kind = ?", (user_id, kind))
+            return cursor.rowcount > 0
 
 
 class UserStateRepository:

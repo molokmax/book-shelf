@@ -16,6 +16,10 @@ class ReadingStatus(str, Enum):
     POSTPONED = "postponed"
 
 
+# Вид дневной цели чтения: количество страниц в день.
+DAILY_PAGES_GOAL = "daily_pages"
+
+
 @dataclass
 class Book:
     """Модель книги."""
@@ -105,6 +109,7 @@ class ReadStat:
     book_id: str = ""
     pages_read: int = 0
     read_date: datetime = field(default_factory=datetime.now)
+    user_id: Optional[str] = None
 
     @classmethod
     def from_dict(cls, data: dict) -> "ReadStat":
@@ -114,4 +119,28 @@ class ReadStat:
             book_id=data.get("book_id", ""),
             pages_read=data.get("pages_read", 0),
             read_date=datetime.fromisoformat(data.get("read_date", datetime.now().isoformat())),
+            user_id=data.get("user_id"),
         )
+
+
+@dataclass
+class Goal:
+    """Цель пользователя (сейчас — дневная цель по страницам)."""
+
+    id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str = ""
+    kind: str = DAILY_PAGES_GOAL
+    target: int = 0
+    created_at: datetime = field(default_factory=datetime.now)
+    updated_at: datetime = field(default_factory=datetime.now)
+
+
+@dataclass
+class GoalStatus:
+    """Состояние дневной цели на текущий момент."""
+
+    goal: Goal
+    pages_today: int
+    percent: int
+    completed: bool
+    remaining: int

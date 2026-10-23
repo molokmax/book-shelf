@@ -10,7 +10,7 @@ from core.progress_validation import (
     SuspicionReason,
     classify_progress_update,
 )
-from core.services import BookService, ReadingStatsService
+from core.services import BookService, GoalService, ReadingStatsService
 from utils import helpers, logger
 from vk_bot.context import BotContext
 from vk_bot.keyboards import cancel_keyboard, main_keyboard
@@ -36,7 +36,7 @@ class ProgressUpdateFlow:
         self._send(
             context,
             (
-                f"📖 Книга: {book.title}\n\n"
+                f"📖 Книга: {book.title}\n"
                 f"Прогресс: {book.current_page}/{book.pages} ({percent}%)\n\n"
                 f"Введи текущую страницу (от 0 до {book.pages})."
             ),
@@ -133,10 +133,18 @@ class ProgressUpdateFlow:
             )
             return
 
-        updated_book = BookService().update_book_progress(book_id, new_page)
-        self._finish_progress_update(context, updated_book, unchanged=False)
+        service = BookService()
+        previous_book = service.get_book_by_id(book_id)
+        previous_page = previous_book.current_page if previous_book else 0
+        updated_book = service.update_book_progress(book_id, new_page)
+        pages_delta = max(0, updated_book.current_page - previous_page)
+        self._finish_progress_update(
+            context, updated_book, unchanged=False, pages_delta=pages_delta
+        )
 
-    def _finish_progress_update(self, context: BotContext, book, unchanged: bool) -> None:
+    def _finish_progress_update(
+        self, context: BotContext, book, unchanged: bool, pages_delta: int = 0
+    ) -> None:
         progress_stats = self._build_progress_stats(book)
         if unchanged:
             percent = helpers.get_progress_percent(book.current_page, book.pages)
@@ -144,8 +152,36 @@ class ProgressUpdateFlow:
         else:
             header = f"✅ Прогресс чтения книги '{book.title}' обновлён."
 
-        self._send(context, f"{header}\n\n{progress_stats}", main_keyboard())
+        parts = [header, progress_stats]
+        goal_line = self._format_goal_progress(book, pages_delta)
+        if goal_line:
+            parts.append(goal_line)
+
+        self._send(context, "\n\n".join(parts), main_keyboard())
         context.delete_state()
+
+    def _format_goal_progress(self, book, pages_delta: int) -> str | None:
+        """Строка о дневной цели; None, если цели нет или нет владельца книги."""
+        user_id = getattr(book, "user_id", None)
+        if not user_id:
+            return None
+
+        try:
+            service = GoalService()
+            goal = service.get_goal(user_id)
+            if not goal:
+                return None
+            pages_today = service.today_pages(user_id)
+        except Exception as e:
+            log.error(f"Failed to build daily goal progress for book {book.id}: {e}")
+            return None
+
+        if pages_delta > 0 and pages_today - pages_delta < goal.target <= pages_today:
+            return (
+                "🎉 Цель на день выполнена! "
+                f"Сегодня прочитано {pages_today} из {goal.target} страниц."
+            )
+        return f"Цель на день: {pages_today}/{goal.target} стр."
 
     @staticmethod
     def _avg_pages_per_day(book) -> float:
