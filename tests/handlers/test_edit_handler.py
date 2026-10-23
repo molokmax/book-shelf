@@ -182,30 +182,3 @@ def test_unknown_action_shows_fallback():
     last_msg = fake_api.sent_messages[-1]
     assert last_msg["message"] == "⚠️ Выбери действие"
     assert "Изменить" in keyboard_labels(last_msg["keyboard"])
-
-
-def test_legacy_progress_state_delegates_to_flow(monkeypatch):
-    calls = []
-
-    class FakeProgressFlow:
-        def handle(self, context):
-            calls.append(context.get_state()["state"])
-
-    monkeypatch.setattr(eh, "ProgressUpdateFlow", FakeProgressFlow)
-
-    fake_api = FakeVkApiMethod()
-    user_id = 3001
-    storage = FakeStateStorage()
-    storage.save(
-        user_id,
-        {
-            "command": "/edit",
-            "state": "waiting_for_progress_input",
-            "data": {"selected_book_id": "1", "progress_book_pages": 319},
-        },
-    )
-    ctx = make_context(fake_api, user_id, "65", storage=storage)
-
-    eh.EditHandler().handle(ctx)
-
-    assert calls == ["waiting_for_progress_input"]

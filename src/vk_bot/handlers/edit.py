@@ -12,7 +12,6 @@ from vk_api.utils import get_random_id
 from core.services import BookService
 from utils import helpers
 from utils.helpers import get_status_name
-from vk_bot.flows.progress_update import ProgressUpdateFlow
 from vk_bot.keyboards import (
     cancel_keyboard,
     filter_keyboard,
@@ -38,15 +37,10 @@ class EditHandler(AbstractCommandHandler):
     * editing_title, editing_author, editing_pages, editing_link, editing_tags
       → последовательное редактирование полей книги
     * selecting_status → смена статуса книги
-    * waiting_for_progress_input, waiting_for_progress_confirm → legacy-состояния
-      обновления прогресса, которые делегируют в ProgressUpdateFlow
     """
 
     priority = 10
     commands = ["/edit", "edit"]
-
-    def __init__(self) -> None:
-        self._progress_flow = ProgressUpdateFlow()
 
     def handle(self, context: BotContext) -> Any:
         if not context.is_active():
@@ -80,9 +74,6 @@ class EditHandler(AbstractCommandHandler):
             self._handle_editing_tags(context)
         elif state == "selecting_status":
             self._handle_selecting_status(context)
-        elif state in ("waiting_for_progress_input", "waiting_for_progress_confirm"):
-            # TODO(#69): удалить legacy-ветку после переходного периода.
-            self._progress_flow.handle(context)
 
         return True
 
