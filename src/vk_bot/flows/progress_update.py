@@ -21,7 +21,7 @@ log = logger.setup_logger(__name__)
 class ProgressUpdateFlow:
     """Сценарий обновления прогресса книги.
 
-    Используется новым ``ProgressHandler`` и legacy-состояниями ``EditHandler``.
+    Используется ``ProgressHandler``.
     Сохраняет ``command`` из переданного состояния, чтобы не ломать маршрутизацию.
     """
 
