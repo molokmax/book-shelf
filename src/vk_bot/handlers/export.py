@@ -5,8 +5,6 @@
 
 from typing import Any
 
-from vk_api.utils import get_random_id
-
 from core.services import BookService
 from utils.export import export_to_csv
 from vk_bot.user_helpers import get_or_create_user
@@ -40,10 +38,5 @@ class ExportHandler(AbstractCommandHandler):
         csv_path.unlink(missing_ok=True)
         doc = upload_resp["doc"]
         attach = f'doc{doc["owner_id"]}_{doc["id"]}'
-        api.messages.send(
-            user_id=user_id,
-            message="Список книг готов",
-            attachment=attach,
-            random_id=get_random_id(),
-        )
+        context.send_message("Список книг готов", attachment=attach)
         return True

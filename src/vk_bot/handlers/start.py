@@ -1,7 +1,5 @@
 from typing import Any
 
-from vk_api.utils import get_random_id
-
 from vk_bot.keyboards import main_keyboard
 
 from ..context import BotContext
@@ -26,10 +24,5 @@ class StartHandler(AbstractCommandHandler):
             "/help - Помощь\n\n"
             "Начни с добавления первой книги!"
         )
-        context.api.messages.send(
-            user_id=context.user_id,
-            message=greeting,
-            keyboard=main_keyboard().get_keyboard(),
-            random_id=get_random_id(),
-        )
+        context.send_message(greeting, keyboard=main_keyboard())
         return True

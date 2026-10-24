@@ -2,8 +2,6 @@
 
 from typing import Any
 
-from vk_api.utils import get_random_id
-
 from core.services import BookService
 from utils import helpers
 from vk_bot.keyboards import filter_keyboard, main_keyboard, status_keyboard, tags_keyboard
@@ -39,11 +37,9 @@ class ListHandler(AbstractCommandHandler):
             }
         )
 
-        api.messages.send(
-            user_id=user_id,
-            message="Какие книги интересуют?",
-            keyboard=filter_keyboard().get_keyboard(),
-            random_id=get_random_id(),
+        context.send_message(
+            "Какие книги интересуют?",
+            keyboard=filter_keyboard(),
         )
 
     def _handle_choose_filter(self, context: BotContext) -> None:
@@ -54,11 +50,9 @@ class ListHandler(AbstractCommandHandler):
 
         choice = text.strip().lower()
         if choice == "по статусу":
-            api.messages.send(
-                user_id=user_id,
-                message="Выбери статус книги:",
-                keyboard=status_keyboard().get_keyboard(),
-                random_id=get_random_id(),
+            context.send_message(
+                "Выбери статус книги:",
+                keyboard=status_keyboard(),
             )
             state_info = context.get_state()
             state_info["state"] = "choose_status"
@@ -68,11 +62,9 @@ class ListHandler(AbstractCommandHandler):
         if choice == "по тегам":
             book_service = BookService()
             tags = book_service.get_all_tags(user.id)
-            api.messages.send(
-                user_id=user_id,
-                message="Выбери тег:",
-                keyboard=tags_keyboard(tags).get_keyboard(),
-                random_id=get_random_id(),
+            context.send_message(
+                "Выбери тег:",
+                keyboard=tags_keyboard(tags),
             )
             state_info = context.get_state()
             state_info["state"] = "choose_tag"
@@ -92,11 +84,9 @@ class ListHandler(AbstractCommandHandler):
             self._finish(context, "".join(lines))
             return
 
-        api.messages.send(
-            user_id=user_id,
-            message="Выбери: По статусу, По тегам, Все или Отмена.",
-            keyboard=filter_keyboard().get_keyboard(),
-            random_id=get_random_id(),
+        context.send_message(
+            "Выбери: По статусу, По тегам, Все или Отмена.",
+            keyboard=filter_keyboard(),
         )
 
     def _handle_choose_status(self, context: BotContext) -> None:
@@ -135,12 +125,6 @@ class ListHandler(AbstractCommandHandler):
         self._finish(context, "".join(lines))
 
     def _finish(self, context: BotContext, message: str, keyboard=None):
-        api = context.api
-        user_id = context.user_id
-        api.messages.send(
-            user_id=user_id,
-            message=message,
-            keyboard=(keyboard.get_keyboard() if keyboard else main_keyboard().get_keyboard()),
-            random_id=get_random_id(),
-        )
+        # Финал: отправляем до delete_state, чтобы удалить висящий промпт.
+        context.send_message(message, keyboard=keyboard or main_keyboard())
         context.delete_state()

@@ -3,7 +3,6 @@
 from typing import Any
 
 from vk_api.keyboard import VkKeyboard
-from vk_api.utils import get_random_id
 
 from core.services import GoalService
 from utils import helpers
@@ -53,10 +52,9 @@ class GoalHandler(AbstractCommandHandler):
                 "data": {"user_id": user.id},
             }
         )
-        self._send(
-            context,
+        context.send_message(
             "Цель на день\n\nВыбери действие:",
-            self._create_menu_keyboard(),
+            keyboard=self._create_menu_keyboard(),
         )
 
     def _handle_menu(self, context: BotContext, state_info: dict) -> None:
@@ -68,10 +66,9 @@ class GoalHandler(AbstractCommandHandler):
         elif choice == "отключить":
             self._disable(context, state_info)
         else:
-            self._send(
-                context,
+            context.send_message(
                 helpers.format_invalid_input("Выбери действие из клавиатуры."),
-                self._create_menu_keyboard(),
+                keyboard=self._create_menu_keyboard(),
             )
 
     def _show_status(self, context: BotContext, state_info: dict) -> None:
@@ -98,28 +95,25 @@ class GoalHandler(AbstractCommandHandler):
     def _start_set(self, context: BotContext, state_info: dict) -> None:
         state_info["state"] = "waiting_for_goal_input"
         context.set_state(state_info)
-        self._send(
-            context,
+        context.send_message(
             "Введи количество страниц в день (целое число).\n\n0 — отключить цель.",
-            cancel_keyboard(),
+            keyboard=cancel_keyboard(),
         )
 
     def _handle_input(self, context: BotContext, state_info: dict) -> None:
         try:
             value = int(context.text.strip())
         except ValueError:
-            self._send(
-                context,
+            context.send_message(
                 helpers.format_invalid_input("Введи целое число, например 20."),
-                cancel_keyboard(),
+                keyboard=cancel_keyboard(),
             )
             return
 
         if value < 0:
-            self._send(
-                context,
+            context.send_message(
                 helpers.format_invalid_input("Цель не может быть отрицательной."),
-                cancel_keyboard(),
+                keyboard=cancel_keyboard(),
             )
             return
 
@@ -151,7 +145,8 @@ class GoalHandler(AbstractCommandHandler):
         return user_id
 
     def _finish(self, context: BotContext, message: str) -> None:
-        self._send(context, message, main_keyboard())
+        # Финал: отправляем до delete_state, чтобы удалить висящий промпт.
+        context.send_message(message, keyboard=main_keyboard())
         context.delete_state()
 
     @staticmethod
@@ -164,12 +159,3 @@ class GoalHandler(AbstractCommandHandler):
         kb.add_button("Отключить")
         kb.add_button("Отмена", payload={"command": "/cancel"})
         return kb
-
-    @staticmethod
-    def _send(context: BotContext, message: str, keyboard: VkKeyboard) -> None:
-        context.api.messages.send(
-            user_id=context.user_id,
-            message=message,
-            keyboard=keyboard.get_keyboard(),
-            random_id=get_random_id(),
-        )

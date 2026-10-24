@@ -7,10 +7,8 @@
 from datetime import datetime, timedelta
 from typing import Any
 
-from vk_api.utils import get_random_id
-
 from core.services import BookService, ReadingStatsService
-from utils import helpers, logger
+from utils import helpers
 from utils.helpers import format_book_details
 from vk_bot.keyboards import (
     cancel_keyboard,
@@ -23,8 +21,6 @@ from vk_bot.user_helpers import get_or_create_user
 
 from ..context import BotContext
 from .base import AbstractCommandHandler
-
-log = logger.setup_logger(__name__)
 
 
 class DetailsHandler(AbstractCommandHandler):
@@ -72,11 +68,9 @@ class DetailsHandler(AbstractCommandHandler):
                 "data": {"user_id": user.id},
             }
         )
-        api.messages.send(
-            user_id=user_id,
-            message="Какие книги интересуют?",
-            keyboard=filter_keyboard().get_keyboard(),
-            random_id=get_random_id(),
+        context.send_message(
+            "Какие книги интересуют?",
+            keyboard=filter_keyboard(),
         )
 
     def _handle_choose_filter(self, context) -> None:
@@ -90,11 +84,9 @@ class DetailsHandler(AbstractCommandHandler):
         if choice == "по статусу":
             state_info["state"] = "selecting_status_filter"
             context.set_state(state_info)
-            api.messages.send(
-                user_id=user_id,
-                message="Выбери статус книги:",
-                keyboard=status_keyboard().get_keyboard(),
-                random_id=get_random_id(),
+            context.send_message(
+                "Выбери статус книги:",
+                keyboard=status_keyboard(),
             )
             return
 
@@ -103,11 +95,9 @@ class DetailsHandler(AbstractCommandHandler):
             tags = book_service.get_all_tags(user.id)
             state_info["state"] = "selecting_tag_filter"
             context.set_state(state_info)
-            api.messages.send(
-                user_id=user_id,
-                message="Выбери тег:",
-                keyboard=tags_keyboard(tags).get_keyboard(),
-                random_id=get_random_id(),
+            context.send_message(
+                "Выбери тег:",
+                keyboard=tags_keyboard(tags),
             )
             return
 
@@ -116,11 +106,10 @@ class DetailsHandler(AbstractCommandHandler):
             books = book_service.get_all_books(user.id)
             books = helpers.sort_books_by_status(books)
             if not books:
-                api.messages.send(
-                    user_id=user_id,
-                    message="В библиотеке нет книг. Добавь книгу через /add",
-                    keyboard=main_keyboard().get_keyboard(),
-                    random_id=get_random_id(),
+                # Финал (пустой результат): отправляем до delete_state.
+                context.send_message(
+                    "В библиотеке нет книг. Добавь книгу через /add",
+                    keyboard=main_keyboard(),
                 )
                 context.delete_state()
                 return
@@ -130,19 +119,15 @@ class DetailsHandler(AbstractCommandHandler):
             lines = ["📚 Введи номер книги.\nТвоя библиотека:\n\n"]
             for i, book in enumerate(books, 1):
                 lines.append(helpers.format_book_info(i, book) + "\n")
-            api.messages.send(
-                user_id=user_id,
-                message="".join(lines),
-                keyboard=cancel_keyboard().get_keyboard(),
-                random_id=get_random_id(),
+            context.send_message(
+                "".join(lines),
+                keyboard=cancel_keyboard(),
             )
             return
 
-        api.messages.send(
-            user_id=user_id,
-            message="⚠️ Выбери: По статусу, По тегам или Все",
-            keyboard=filter_keyboard().get_keyboard(),
-            random_id=get_random_id(),
+        context.send_message(
+            "⚠️ Выбери: По статусу, По тегам или Все",
+            keyboard=filter_keyboard(),
         )
 
     def _handle_selecting_status_filter(self, context) -> None:
@@ -157,11 +142,10 @@ class DetailsHandler(AbstractCommandHandler):
         books = book_service.filter_books(user.id, status=status)
         books = helpers.sort_books_by_status(books)
         if not books:
-            api.messages.send(
-                user_id=user_id,
-                message="Книг с выбранным статусом нет.",
-                keyboard=main_keyboard().get_keyboard(),
-                random_id=get_random_id(),
+            # Финал (пустой результат): отправляем до delete_state.
+            context.send_message(
+                "Книг с выбранным статусом нет.",
+                keyboard=main_keyboard(),
             )
             context.delete_state()
             return
@@ -172,11 +156,9 @@ class DetailsHandler(AbstractCommandHandler):
         lines = ["📚 Введи номер книги.\nКниги с выбранным статусом:\n\n"]
         for i, book in enumerate(books, 1):
             lines.append(helpers.format_book_info(i, book) + "\n")
-        api.messages.send(
-            user_id=user_id,
-            message="".join(lines),
-            keyboard=cancel_keyboard().get_keyboard(),
-            random_id=get_random_id(),
+        context.send_message(
+            "".join(lines),
+            keyboard=cancel_keyboard(),
         )
 
     def _handle_selecting_tag_filter(self, context) -> None:
@@ -191,11 +173,10 @@ class DetailsHandler(AbstractCommandHandler):
         books = book_service.filter_books(user.id, tags=[selected_tag])
         books = helpers.sort_books_by_status(books)
         if not books:
-            api.messages.send(
-                user_id=user_id,
-                message="Книг с выбранным тегом нет.",
-                keyboard=main_keyboard().get_keyboard(),
-                random_id=get_random_id(),
+            # Финал (пустой результат): отправляем до delete_state.
+            context.send_message(
+                "Книг с выбранным тегом нет.",
+                keyboard=main_keyboard(),
             )
             context.delete_state()
             return
@@ -206,48 +187,38 @@ class DetailsHandler(AbstractCommandHandler):
         lines = ["📚 Введи номер книги.\nКниги с выбранным тегом:\n\n"]
         for i, book in enumerate(books, 1):
             lines.append(helpers.format_book_info(i, book) + "\n")
-        api.messages.send(
-            user_id=user_id,
-            message="".join(lines),
-            keyboard=cancel_keyboard().get_keyboard(),
-            random_id=get_random_id(),
+        context.send_message(
+            "".join(lines),
+            keyboard=cancel_keyboard(),
         )
 
     def _handle_selecting_book(self, context) -> None:
-        api = context.api
-        user_id = context.user_id
         text = context.text
         state_info = context.get_state()
 
         try:
             selection = int(text.strip())
         except ValueError:
-            api.messages.send(
-                user_id=user_id,
-                message="⚠️ Введи корректный номер книги.",
-                keyboard=cancel_keyboard().get_keyboard(),
-                random_id=get_random_id(),
+            context.send_message(
+                "⚠️ Введи корректный номер книги.",
+                keyboard=cancel_keyboard(),
             )
             return
 
         books_ids = state_info["data"]["books"]
         if selection < 1 or selection > len(books_ids):
-            api.messages.send(
-                user_id=user_id,
-                message="⚠️ Номер книги вне диапазона.",
-                keyboard=cancel_keyboard().get_keyboard(),
-                random_id=get_random_id(),
+            context.send_message(
+                "⚠️ Номер книги вне диапазона.",
+                keyboard=cancel_keyboard(),
             )
             return
 
         book_id = books_ids[selection - 1]
         book = BookService().get_book_by_id(book_id)
         if not book:
-            api.messages.send(
-                user_id=user_id,
-                message="⚠️ Книга не найдена.",
-                keyboard=cancel_keyboard().get_keyboard(),
-                random_id=get_random_id(),
+            context.send_message(
+                "⚠️ Книга не найдена.",
+                keyboard=cancel_keyboard(),
             )
             return
 
@@ -270,10 +241,5 @@ class DetailsHandler(AbstractCommandHandler):
             days_to_completion=days_left,
             predicted_date=pred_date,
         )
-        api.messages.send(
-            user_id=user_id,
-            message=details,
-            keyboard=main_keyboard().get_keyboard(),
-            random_id=get_random_id(),
-        )
+        context.send_message(details, keyboard=main_keyboard())
         context.delete_state()

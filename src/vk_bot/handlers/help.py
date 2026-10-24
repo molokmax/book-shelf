@@ -1,7 +1,5 @@
 from typing import Any
 
-from vk_api.utils import get_random_id
-
 from vk_bot.keyboards import main_keyboard
 
 from ..context import BotContext
@@ -39,10 +37,5 @@ class HelpHandler(AbstractCommandHandler):
             "🎯 Приоритеты\n"
             "Установите приоритет: Высокий, Средний, Низкий"
         )
-        context.api.messages.send(
-            user_id=context.user_id,
-            message=help_text,
-            keyboard=main_keyboard().get_keyboard(),
-            random_id=get_random_id(),
-        )
+        context.send_message(help_text, keyboard=main_keyboard())
         return True
