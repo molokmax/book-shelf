@@ -5,9 +5,6 @@ TODO(#42): перевести EditHandler, DetailsHandler и ListHandler на э
 
 from typing import Callable
 
-from vk_api.keyboard import VkKeyboard
-from vk_api.utils import get_random_id
-
 from core.models import Book
 from core.services import BookService
 from utils import helpers
@@ -42,7 +39,7 @@ class BookSelectionFlow:
         state_info["state"] = "choose_filter"
         state_info.setdefault("data", {}).setdefault("books", [])
         context.set_state(state_info)
-        self._send(context, message, filter_keyboard())
+        context.send_message(message, keyboard=filter_keyboard())
 
     def handle(self, context: BotContext) -> None:
         """Обрабатывает текущее состояние диалога."""
@@ -62,7 +59,7 @@ class BookSelectionFlow:
         if choice == "по статусу":
             state_info["state"] = "selecting_status_filter"
             context.set_state(state_info)
-            self._send(context, "Выбери статус книги:", status_keyboard())
+            context.send_message("Выбери статус книги:", keyboard=status_keyboard())
             return
 
         if choice == "по тегам":
@@ -70,7 +67,7 @@ class BookSelectionFlow:
             tags = BookService().get_all_tags(user_id)
             state_info["state"] = "selecting_tag_filter"
             context.set_state(state_info)
-            self._send(context, "Выбери тег:", tags_keyboard(tags))
+            context.send_message("Выбери тег:", keyboard=tags_keyboard(tags))
             return
 
         if choice == "все":
@@ -87,20 +84,18 @@ class BookSelectionFlow:
             )
             return
 
-        self._send(
-            context,
+        context.send_message(
             helpers.format_invalid_input("Выбери: По статусу, По тегам, Все или Отмена."),
-            filter_keyboard(),
+            keyboard=filter_keyboard(),
         )
 
     def _handle_selecting_status_filter(self, context: BotContext, state_info: dict) -> None:
         payload = context.payload
         status = payload.get("status")
         if not status:
-            self._send(
-                context,
+            context.send_message(
                 helpers.format_invalid_input("Выбери статус из клавиатуры."),
-                status_keyboard(),
+                keyboard=status_keyboard(),
             )
             return
 
@@ -136,25 +131,23 @@ class BookSelectionFlow:
         try:
             selection = int(context.text.strip())
         except ValueError:
-            self._send(
-                context,
+            context.send_message(
                 helpers.format_invalid_input("Введи корректный номер книги."),
-                cancel_keyboard(),
+                keyboard=cancel_keyboard(),
             )
             return
 
         books_ids = state_info.get("data", {}).get("books", [])
         if selection < 1 or selection > len(books_ids):
-            self._send(
-                context,
+            context.send_message(
                 helpers.format_invalid_input("Номер книги вне диапазона."),
-                cancel_keyboard(),
+                keyboard=cancel_keyboard(),
             )
             return
 
         book = BookService().get_book_by_id(books_ids[selection - 1])
         if not book:
-            self._send(context, "⚠️ Книга не найдена.", cancel_keyboard())
+            context.send_message("⚠️ Книга не найдена.", keyboard=cancel_keyboard())
             return
 
         self._on_selected(context, book)
@@ -173,7 +166,7 @@ class BookSelectionFlow:
         lines = [header]
         for i, book in enumerate(books, 1):
             lines.append(helpers.format_book_info(i, book) + "\n")
-        self._send(context, "".join(lines), cancel_keyboard())
+        context.send_message("".join(lines), keyboard=cancel_keyboard())
 
     def _get_user_id(self, context: BotContext, state_info: dict) -> str:
         user_id = state_info.get("data", {}).get("user_id")
@@ -185,14 +178,6 @@ class BookSelectionFlow:
         return user_id
 
     def _finish(self, context: BotContext, message: str) -> None:
-        self._send(context, message, main_keyboard())
+        # Финал: отправляем до delete_state, чтобы удалить висящий промпт.
+        context.send_message(message, keyboard=main_keyboard())
         context.delete_state()
-
-    @staticmethod
-    def _send(context: BotContext, message: str, keyboard: VkKeyboard) -> None:
-        context.api.messages.send(
-            user_id=context.user_id,
-            message=message,
-            keyboard=keyboard.get_keyboard(),
-            random_id=get_random_id(),
-        )

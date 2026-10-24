@@ -3,7 +3,6 @@
 from datetime import datetime, timedelta
 
 from vk_api.keyboard import VkKeyboard
-from vk_api.utils import get_random_id
 
 from core.models import MotivationContext, ReadingStatus
 from core.progress_validation import (
@@ -40,14 +39,13 @@ class ProgressUpdateFlow:
         context.set_state(state_info)
 
         percent = helpers.get_progress_percent(book.current_page, book.pages)
-        self._send(
-            context,
+        context.send_message(
             (
                 f"📖 Книга: {book.title}\n"
                 f"Прогресс: {book.current_page}/{book.pages} ({percent}%)\n\n"
                 f"Введи текущую страницу (от 0 до {book.pages})."
             ),
-            cancel_keyboard(),
+            keyboard=cancel_keyboard(),
         )
 
     def handle(self, context: BotContext) -> None:
@@ -64,7 +62,7 @@ class ProgressUpdateFlow:
             context.text, state_info["data"].get("progress_book_pages")
         )
         if error:
-            self._send(context, error, cancel_keyboard())
+            context.send_message(error, keyboard=cancel_keyboard())
             return
 
         self._submit_progress_value(context, state_info, value)
@@ -73,10 +71,9 @@ class ProgressUpdateFlow:
         if context.text.strip().lower() == "продолжить":
             pending_page = state_info["data"].get("pending_progress_page")
             if pending_page is None:
-                self._send(
-                    context,
+                context.send_message(
                     "⚠️ Нечего подтверждать: значение прогресса потеряно.",
-                    cancel_keyboard(),
+                    keyboard=cancel_keyboard(),
                 )
                 return
             self._apply_progress(context, state_info, pending_page)
@@ -86,7 +83,7 @@ class ProgressUpdateFlow:
             context.text, state_info["data"].get("progress_book_pages")
         )
         if error:
-            self._send(context, error, self._create_progress_confirm_keyboard())
+            context.send_message(error, keyboard=self._create_progress_confirm_keyboard())
             return
 
         self._submit_progress_value(context, state_info, value)
@@ -95,16 +92,15 @@ class ProgressUpdateFlow:
         """Применяет значение или запрашивает подтверждение, если оно подозрительно."""
         book_id = state_info["data"].get("selected_book_id")
         if not book_id:
-            self._send(
-                context,
+            context.send_message(
                 "⚠️ Идентификатор книги не найден.",
-                cancel_keyboard(),
+                keyboard=cancel_keyboard(),
             )
             return
 
         book = BookService().get_book_by_id(book_id)
         if not book:
-            self._send(context, "⚠️ Книга не найдена.", cancel_keyboard())
+            context.send_message("⚠️ Книга не найдена.", keyboard=cancel_keyboard())
             return
 
         if new_page == book.current_page:
@@ -124,19 +120,17 @@ class ProgressUpdateFlow:
         state_info["state"] = "waiting_for_progress_confirm"
         state_info["data"]["pending_progress_page"] = new_page
         context.set_state(state_info)
-        self._send(
-            context,
+        context.send_message(
             self._format_progress_confirm_message(book, new_page, reasons),
-            self._create_progress_confirm_keyboard(),
+            keyboard=self._create_progress_confirm_keyboard(),
         )
 
     def _apply_progress(self, context: BotContext, state_info: dict, new_page: int) -> None:
         book_id = state_info["data"].get("selected_book_id")
         if not book_id:
-            self._send(
-                context,
+            context.send_message(
                 "⚠️ Идентификатор книги не найден.",
-                cancel_keyboard(),
+                keyboard=cancel_keyboard(),
             )
             return
 
@@ -179,7 +173,7 @@ class ProgressUpdateFlow:
         if phrase:
             parts.append(phrase)
 
-        self._send(context, "\n\n".join(parts), main_keyboard())
+        context.send_message("\n\n".join(parts), keyboard=main_keyboard())
         context.delete_state()
 
     def _pick_motivation_phrase(
@@ -327,12 +321,3 @@ class ProgressUpdateFlow:
         kb.add_button("Продолжить")
         kb.add_button("Отмена", payload={"command": "/cancel"})
         return kb
-
-    @staticmethod
-    def _send(context: BotContext, message: str, keyboard: VkKeyboard) -> None:
-        context.api.messages.send(
-            user_id=context.user_id,
-            message=message,
-            keyboard=keyboard.get_keyboard(),
-            random_id=get_random_id(),
-        )

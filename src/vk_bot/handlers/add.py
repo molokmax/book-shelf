@@ -8,7 +8,6 @@
 from typing import Any
 
 from vk_api.keyboard import VkKeyboard
-from vk_api.utils import get_random_id
 
 from core.services import BookService
 from utils import helpers
@@ -43,14 +42,10 @@ class AddHandler(AbstractCommandHandler):
     # ── Входная точка ──────────────────────────────────────────────
 
     def _handle_start(self, context: BotContext) -> None:
-        api = context.api
-        user_id = context.user_id
         context.set_state({"command": "/add", "state": "choose_method", "data": {}})
-        api.messages.send(
-            user_id=user_id,
-            message="➕ Добавление новой книги. Выбери способ добавления:",
-            keyboard=self.create_add_method_keyboard().get_keyboard(),
-            random_id=get_random_id(),
+        context.send_message(
+            "➕ Добавление новой книги. Выбери способ добавления:",
+            keyboard=self.create_add_method_keyboard(),
         )
 
     # ── Диспетчер шагов ─────────────────────────────────────────────
@@ -66,72 +61,57 @@ class AddHandler(AbstractCommandHandler):
         if handler is not None:
             handler(self, context, state_info)
         else:
-            context.delete_state()
-            context.api.messages.send(
-                user_id=context.user_id,
-                message=("Добавление книги сброшено. Повтори команду /add."),
-                keyboard=main_keyboard().get_keyboard(),
-                random_id=get_random_id(),
+            # Финал: отправляем до delete_state, чтобы удалить висящий промпт.
+            context.send_message(
+                "Добавление книги сброшено. Повтори команду /add.",
+                keyboard=main_keyboard(),
             )
+            context.delete_state()
 
     # ── Обработчики состояний ──────────────────────────────────────
 
     def _handle_choose_method(self, context: BotContext, state_info: dict) -> None:
-        api = context.api
-        user_id = context.user_id
         text = context.text.strip()
 
         if text == "Ручное":
             state_info["state"] = "waiting_for_title"
             context.set_state(state_info)
-            api.messages.send(
-                user_id=user_id,
-                message="Отлично! Теперь введи название книги:",
-                keyboard=cancel_keyboard().get_keyboard(),
-                random_id=get_random_id(),
+            context.send_message(
+                "Отлично! Теперь введи название книги:",
+                keyboard=cancel_keyboard(),
             )
         elif text == "Из LitRes":
             state_info["state"] = "waiting_for_litres_url"
             context.set_state(state_info)
-            api.messages.send(
-                user_id=user_id,
-                message="Введи ссылку на книгу с https://litres.ru:",
-                keyboard=cancel_keyboard().get_keyboard(),
-                random_id=get_random_id(),
+            context.send_message(
+                "Введи ссылку на книгу с https://litres.ru:",
+                keyboard=cancel_keyboard(),
             )
         else:
-            api.messages.send(
-                user_id=user_id,
-                message="Пожалуйста, выбери: Ручное или Из LitRes.",
-                keyboard=self.create_add_method_keyboard().get_keyboard(),
-                random_id=get_random_id(),
+            context.send_message(
+                "Пожалуйста, выбери: Ручное или Из LitRes.",
+                keyboard=self.create_add_method_keyboard(),
             )
 
     def _handle_waiting_for_title(self, context: BotContext, state_info: dict) -> None:
         state_info["data"]["title"] = context.text.strip()
         state_info["state"] = "waiting_for_author"
         context.set_state(state_info)
-        context.api.messages.send(
-            user_id=context.user_id,
-            message="Отлично! Теперь введи автора книги:",
-            keyboard=cancel_keyboard().get_keyboard(),
-            random_id=get_random_id(),
+        context.send_message(
+            "Отлично! Теперь введи автора книги:",
+            keyboard=cancel_keyboard(),
         )
 
     def _handle_waiting_for_author(self, context: BotContext, state_info: dict) -> None:
         state_info["data"]["author"] = context.text.strip()
         state_info["state"] = "waiting_for_pages"
         context.set_state(state_info)
-        context.api.messages.send(
-            user_id=context.user_id,
-            message="Отлично! Теперь введи количество страниц в книге:",
-            keyboard=cancel_keyboard().get_keyboard(),
-            random_id=get_random_id(),
+        context.send_message(
+            "Отлично! Теперь введи количество страниц в книге:",
+            keyboard=cancel_keyboard(),
         )
 
     def _handle_waiting_for_pages(self, context: BotContext, state_info: dict) -> None:
-        api = context.api
-        user_id = context.user_id
         text = context.text.strip()
 
         try:
@@ -139,41 +119,33 @@ class AddHandler(AbstractCommandHandler):
             if pages <= 0:
                 raise ValueError
         except ValueError:
-            api.messages.send(
-                user_id=user_id,
-                message="⚠️ Введи положительное целое число страниц.",
-                keyboard=cancel_keyboard().get_keyboard(),
-                random_id=get_random_id(),
+            context.send_message(
+                "⚠️ Введи положительное целое число страниц.",
+                keyboard=cancel_keyboard(),
             )
             return
 
         state_info["data"]["pages"] = pages
         state_info["state"] = "waiting_for_link"
         context.set_state(state_info)
-        api.messages.send(
-            user_id=user_id,
-            message=(
+        context.send_message(
+            (
                 "Отлично! Теперь можешь указать ссылку на книгу. "
                 "Нажми Дальше чтобы оставить пустым."
             ),
-            keyboard=self.create_link_keyboard().get_keyboard(),
-            random_id=get_random_id(),
+            keyboard=self.create_link_keyboard(),
         )
 
     def _handle_waiting_for_link(self, context: BotContext, state_info: dict) -> None:
-        api = context.api
-        user_id = context.user_id
         text = context.text.strip()
 
         if not text or text.lower() == "дальше":
             state_info["data"]["link"] = None
         else:
             if not helpers.is_valid_url(text):
-                api.messages.send(
-                    user_id=user_id,
-                    message="⚠️ Введи корректный URL или нажми 'Дальше'.",
-                    keyboard=self.create_link_keyboard().get_keyboard(),
-                    random_id=get_random_id(),
+                context.send_message(
+                    "⚠️ Введи корректный URL или нажми 'Дальше'.",
+                    keyboard=self.create_link_keyboard(),
                 )
                 return
             state_info["data"]["link"] = text
@@ -200,7 +172,6 @@ class AddHandler(AbstractCommandHandler):
             user_id=user.id,
             link=data.get("link"),
         )
-        context.delete_state()
         message_text = (
             f"✅ Книга '{book.title}' успешно добавлена в твою библиотеку!\n"
             f"\nТеги: {format_tags_line(tags)}\n"
@@ -208,26 +179,19 @@ class AddHandler(AbstractCommandHandler):
             "/add - Добавить ещё одну книгу\n"
             "/list - Показать список книг"
         )
-        api.messages.send(
-            user_id=user_id,
-            message=message_text,
-            keyboard=self.create_book_added_keyboard().get_keyboard(),
-            random_id=get_random_id(),
-        )
+        # Финал: отправляем до delete_state, чтобы удалить висящий промпт.
+        context.send_message(message_text, keyboard=self.create_book_added_keyboard())
+        context.delete_state()
 
     def _handle_waiting_for_litres_url(self, context: BotContext, state_info: dict) -> None:
-        api = context.api
-        user_id = context.user_id
         text = context.text.strip()
         data = state_info["data"]
 
         url = text.strip()
         if not is_litres_url(url):
-            api.messages.send(
-                user_id=user_id,
-                message="⚠️ Введи корректную ссылку на LitRes.",
-                keyboard=cancel_keyboard().get_keyboard(),
-                random_id=get_random_id(),
+            context.send_message(
+                "⚠️ Введи корректную ссылку на LitRes.",
+                keyboard=cancel_keyboard(),
             )
             return
 
@@ -250,24 +214,20 @@ class AddHandler(AbstractCommandHandler):
             data["link"] = url
             state_info["state"] = "waiting_for_litres_confirm"
             context.set_state(state_info)
-            api.messages.send(
-                user_id=user_id,
-                message=(
+            context.send_message(
+                (
                     f"✅ Найдены данные книги:\n"
                     f"\nНазвание: {book_data.get('title', '—')}\n"
                     f"Автор: {book_data.get('author', '—')}\n"
                     f"Страниц: {book_data.get('pages', '—')}\n"
                     "\nПродолжить добавление?"
                 ),
-                keyboard=self.create_confirm_litres_keyboard().get_keyboard(),
-                random_id=get_random_id(),
+                keyboard=self.create_confirm_litres_keyboard(),
             )
         except LitresParserError as e:
-            api.messages.send(
-                user_id=user_id,
-                message=f"❌ Не удалось получить информацию о книге: {e}",
-                keyboard=cancel_keyboard().get_keyboard(),
-                random_id=get_random_id(),
+            context.send_message(
+                f"❌ Не удалось получить информацию о книге: {e}",
+                keyboard=cancel_keyboard(),
             )
 
     def _handle_waiting_for_litres_confirm(self, context: BotContext, state_info: dict) -> None:
