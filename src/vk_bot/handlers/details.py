@@ -9,7 +9,7 @@ from typing import Any
 
 from vk_api.utils import get_random_id
 
-from core.services import BookService, ReadingStatsService
+from core.services import BookService, ReadingStatsService, UserSettingsService
 from utils import helpers, logger
 from utils.helpers import format_book_details
 from vk_bot.keyboards import (
@@ -252,6 +252,9 @@ class DetailsHandler(AbstractCommandHandler):
             return
 
         stats_service = ReadingStatsService()
+        # Период берём по внутреннему идентификатору пользователя из состояния.
+        settings_user_id = state_info["data"].get("user_id")
+        period_days = UserSettingsService().get_reading_speed_period(settings_user_id)
         today = datetime.now().replace(hour=23, minute=59, second=59, microsecond=999999)
         week_start = (today - timedelta(days=7)).replace(hour=0, minute=0, second=0, microsecond=0)
         month_start = (today - timedelta(days=30)).replace(
@@ -269,6 +272,7 @@ class DetailsHandler(AbstractCommandHandler):
             avg_pages=avg_pages,
             days_to_completion=days_left,
             predicted_date=pred_date,
+            period_days=period_days,
         )
         api.messages.send(
             user_id=user_id,

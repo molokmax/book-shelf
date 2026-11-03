@@ -20,6 +20,7 @@ from vk_bot.handlers.goal import GoalHandler
 from vk_bot.handlers.help import HelpHandler
 from vk_bot.handlers.list import ListHandler
 from vk_bot.handlers.progress import ProgressHandler
+from vk_bot.handlers.settings import SettingsHandler
 from vk_bot.handlers.start import StartHandler
 from vk_bot.handlers.stats import StatsHandler
 
@@ -42,6 +43,7 @@ class VkBookShelfBot:
         self.router.register_handler(DetailsHandler())
         self.router.register_handler(ExportHandler())
         self.router.register_handler(GoalHandler())
+        self.router.register_handler(SettingsHandler())
         self.router.register_handler(HelpHandler())
         self.router.register_handler(StatsHandler())
 

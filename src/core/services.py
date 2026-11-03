@@ -7,13 +7,20 @@ from typing import Callable, Dict, List, Optional
 from core.db import get_db
 from core.models import (
     DAILY_PAGES_GOAL,
+    READING_SPEED_PERIODS,
     Book,
     Goal,
     GoalStatus,
     ReadingStatus,
     User,
 )
-from core.repository import BookRepository, GoalRepository, ReadStatsRepository, UserRepository
+from core.repository import (
+    BookRepository,
+    GoalRepository,
+    ReadStatsRepository,
+    UserRepository,
+    UserSettingsRepository,
+)
 from utils import logger
 from utils.config import load_config
 
@@ -223,6 +230,7 @@ class ReadingStatsService:
         db_path = db_path or get_default_db_path()
         self.db = get_db(db_path)
         self.read_stats_repo = ReadStatsRepository(self.db)
+        self.user_settings_repo = UserSettingsRepository(self.db)
 
     def add_record(
         self,
@@ -239,7 +247,7 @@ class ReadingStatsService:
         return self.read_stats_repo.fetch_reading_stats(book_id, from_date, to_date)
 
     def avg_pages_per_day(self, book: Book) -> float:
-        """Среднее количество страниц за последние 30 дней."""
+        """Среднее количество страниц за период скорости чтения пользователя."""
         today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
         if book.reading_start_date:
             reading_start_date = book.reading_start_date.replace(
@@ -247,7 +255,8 @@ class ReadingStatsService:
             )
         else:
             reading_start_date = today
-        from_date = max(today - timedelta(days=29), reading_start_date)
+        period_days = self.user_settings_repo.get_reading_speed_period(book.user_id)
+        from_date = max(today - timedelta(days=period_days - 1), reading_start_date)
         return self.read_stats_repo.fetch_average_pages_per_day(book.id, from_date)
 
     def predict_days_to_completion(self, book: Book) -> int | None:
@@ -312,6 +321,25 @@ class GoalService:
             completed=pages_today >= goal.target,
             remaining=max(0, goal.target - pages_today),
         )
+
+
+class UserSettingsService:
+    """Сервис персональных настроек пользователя."""
+
+    def __init__(self, db_path: str | None = None) -> None:
+        """Инициализация сервиса."""
+        db_path = db_path or get_default_db_path()
+        self.settings_repo = UserSettingsRepository(get_db(db_path))
+
+    def get_reading_speed_period(self, user_id: str) -> int:
+        """Возвращает период скорости чтения пользователя."""
+        return self.settings_repo.get_reading_speed_period(user_id)
+
+    def set_reading_speed_period(self, user_id: str, days: int) -> None:
+        """Сохраняет период скорости чтения пользователя."""
+        if days not in READING_SPEED_PERIODS:
+            raise ValueError("Период должен быть одним из: 7, 14, 30 дней")
+        self.settings_repo.set_reading_speed_period(user_id, days)
 
 
 def get_default_db_path() -> str:

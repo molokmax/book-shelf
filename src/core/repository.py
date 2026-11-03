@@ -5,7 +5,13 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 from core.database import Database
-from core.models import DAILY_PAGES_GOAL, Book, Goal, User
+from core.models import (
+    DAILY_PAGES_GOAL,
+    DEFAULT_READING_SPEED_PERIOD,
+    Book,
+    Goal,
+    User,
+)
 from utils import logger
 
 
@@ -203,6 +209,51 @@ class GoalRepository:
         with self.db.get_cursor() as cursor:
             cursor.execute("DELETE FROM goals WHERE user_id = ? AND kind = ?", (user_id, kind))
             return cursor.rowcount > 0
+
+
+class UserSettingsRepository:
+    """Репозиторий персональных настроек пользователя."""
+
+    def __init__(self, db: Database | None = None, db_path: str = "data/database.db") -> None:
+        self.db = db if db is not None else Database(db_path)
+
+    def get_reading_speed_period(self, user_id: str) -> int:
+        """Возвращает период скорости чтения пользователя.
+
+        Отсутствие строки означает значение по умолчанию.
+        """
+        with self.db.get_cursor() as cursor:
+            cursor.execute(
+                "SELECT reading_speed_period_days FROM user_settings WHERE user_id = ?",
+                (user_id,),
+            )
+            row = cursor.fetchone()
+            if not row:
+                return DEFAULT_READING_SPEED_PERIOD
+            return int(row[0])
+
+    def set_reading_speed_period(self, user_id: str, days: int) -> None:
+        """Создаёт или обновляет период скорости чтения пользователя."""
+        now = datetime.now().isoformat()
+        with self.db.get_cursor() as cursor:
+            cursor.execute(
+                "SELECT created_at FROM user_settings WHERE user_id = ?",
+                (user_id,),
+            )
+            row = cursor.fetchone()
+            if row:
+                cursor.execute(
+                    "UPDATE user_settings SET reading_speed_period_days = ?, updated_at = ? "
+                    "WHERE user_id = ?",
+                    (days, now, user_id),
+                )
+            else:
+                cursor.execute(
+                    "INSERT INTO user_settings "
+                    "(user_id, reading_speed_period_days, created_at, updated_at) "
+                    "VALUES (?, ?, ?, ?)",
+                    (user_id, days, now, now),
+                )
 
 
 class UserStateRepository:

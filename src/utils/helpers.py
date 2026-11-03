@@ -50,6 +50,7 @@ def format_book_details(
     avg_pages: float | None = None,
     days_to_completion: int | None = None,
     predicted_date: date | None = None,
+    period_days: int = 30,
 ) -> str:
     """Форматирует детальную информацию о книге со статистикой и прогнозом."""
     status = getattr(book, "status", "unknown")
@@ -76,7 +77,7 @@ def format_book_details(
             if book.current_page < book.pages:
                 lines.append("Недостаточно данных для оценки завершения")
         else:
-            lines.append(f"Среднее за 30 дней: {avg_pages:.2f} стр/день")
+            lines.append(f"Среднее за {period_days} дней: {avg_pages:.2f} стр/день")
     # Блок прогноза: выводим, только если книгу есть что дочитывать
     if book.current_page < book.pages:
         if days_to_completion is not None:
@@ -93,6 +94,7 @@ def format_progress_stats(
     avg_pages: float | None = None,
     days_to_completion: int | None = None,
     predicted_date: date | None = None,
+    period_days: int = 30,
 ) -> str:
     """Форматирует блок мини-статистики чтения книги."""
     progress_percent = _get_read_book_progress(book)
@@ -107,7 +109,7 @@ def format_progress_stats(
             if book.current_page < book.pages:
                 lines.append("Недостаточно данных для оценки завершения")
         else:
-            lines.append(f"Среднее за 30 дней: {avg_pages:.2f} стр/день")
+            lines.append(f"Среднее за {period_days} дней: {avg_pages:.2f} стр/день")
     # Блок прогноза: выводим, только если книгу есть что дочитывать
     if book.current_page < book.pages:
         if days_to_completion is not None:

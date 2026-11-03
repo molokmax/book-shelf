@@ -118,6 +118,23 @@ def make_stats_stub(weekly=20, monthly=55, avg=2.89, predicted=date(2027, 1, 7))
     return StubReadingStatsService
 
 
+def make_settings_stub(period=30):
+    class StubUserSettingsService:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def get_reading_speed_period(self, user_id):
+            return period
+
+    return StubUserSettingsService
+
+
+@pytest.fixture(autouse=True)
+def patch_settings_service(monkeypatch):
+    """Не трогаем реальную БД настроек из флоу обновления прогресса."""
+    monkeypatch.setattr(puf, "UserSettingsService", make_settings_stub())
+
+
 def save_progress_state(storage, user_id, state="waiting_for_progress_input", **data):
     storage.save(
         user_id,
@@ -171,6 +188,23 @@ def test_progress_update_shows_reading_stats(monkeypatch):
     assert "Дата завершения: 2027-01-07" in msg
     assert "обновлён" in msg
     assert not storage.is_active(user_id)
+
+
+def test_progress_update_shows_period_from_settings(monkeypatch):
+    fake_api = FakeVkApiMethod()
+    user_id = 998
+    storage = FakeStateStorage()
+    save_progress_state(storage, user_id)
+    monkeypatch.setattr(puf, "BookService", make_progress_book_service())
+    monkeypatch.setattr(puf, "ReadingStatsService", make_stats_stub())
+    monkeypatch.setattr(puf, "UserSettingsService", make_settings_stub(period=14))
+
+    ctx = make_context(fake_api, user_id, "65", storage=storage)
+    puf.ProgressUpdateFlow().handle(ctx)
+
+    msg = fake_api.sent_messages[-1]["message"]
+    assert "Среднее за 14 дней: 2.89 стр/день" in msg
+    assert "Среднее за 30 дней" not in msg
 
 
 def test_progress_update_without_data_shows_notice(monkeypatch):
