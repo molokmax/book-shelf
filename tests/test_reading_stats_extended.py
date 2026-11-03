@@ -5,6 +5,7 @@ import pytest
 
 from core.db import get_db
 from core.models import User as ModelUser
+from core.repository import UserSettingsRepository
 from core.services import BookService, ReadingStatsService
 
 
@@ -192,3 +193,99 @@ def test_predict_days_to_completion_finished_book(services):
     # Книга дочитана: 0 дней, дата завершения = сегодня
     assert reading_stats_service.predict_days_to_completion(book) == 0
     assert reading_stats_service.predict_completion_date(book) == date.today()
+
+
+def create_period_user(db) -> str:
+    """Создаёт пользователя с уникальным id, чтобы не влиять на другие тесты."""
+    user = ModelUser(id=str(uuid.uuid4()), external_id=uuid.uuid4().int & 0x7FFFFFFF)
+    with db.get_cursor() as cur:
+        cur.execute(
+            "INSERT INTO users "
+            "(id, external_id, username, first_name, last_name, created_at, last_active) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (
+                user.id,
+                user.external_id,
+                user.username,
+                user.first_name,
+                user.last_name,
+                user.created_at.isoformat(),
+                user.last_active.isoformat(),
+            ),
+        )
+    return user.id
+
+
+def test_average_pages_per_day_uses_user_period(services):
+    """Окно усреднения берётся из настроек пользователя."""
+    book_service, reading_stats_service, db_path = services
+    db = get_db(db_path)
+    user_unique = create_period_user(db)
+    settings = UserSettingsRepository(db)
+    settings.set_reading_speed_period(user_unique, 7)
+
+    book = book_service.create_book(
+        title="Period Book",
+        author="Author",
+        tags=[],
+        pages=300,
+        user_id=user_unique,
+        link=None,
+    )
+    book.reading_start_date = datetime.now() - timedelta(days=31)
+    # Статистика за 30 дней: 10 страниц каждый день
+    now = datetime.now()
+    for days_ago in range(30):
+        read_date = (now - timedelta(days=days_ago)).isoformat()
+        db.add_reading_stat(book.id, pages_read=10, read_date=read_date)
+    # Окно 7 дней: 70 / 7 = 10.0 (дефолтные 30 дней дали бы 70 / 30)
+    assert reading_stats_service.avg_pages_per_day(book) == 10.0
+
+
+def test_average_pages_per_day_default_without_settings(services):
+    """Без сохранённых настроек используется окно 30 дней."""
+    book_service, reading_stats_service, db_path = services
+    db = get_db(db_path)
+    user_unique = create_period_user(db)
+
+    book = book_service.create_book(
+        title="Default Period Book",
+        author="Author",
+        tags=[],
+        pages=300,
+        user_id=user_unique,
+        link=None,
+    )
+    book.reading_start_date = datetime.now() - timedelta(days=31)
+    # Статистика только за последние 7 дней
+    now = datetime.now()
+    for days_ago in range(7):
+        read_date = (now - timedelta(days=days_ago)).isoformat()
+        db.add_reading_stat(book.id, pages_read=10, read_date=read_date)
+    assert reading_stats_service.avg_pages_per_day(book) == 70.0 / 30.0
+
+
+def test_average_pages_per_day_not_earlier_than_reading_start(services):
+    """Окно не простирается раньше даты начала чтения книги."""
+    book_service, reading_stats_service, db_path = services
+    db = get_db(db_path)
+    user_unique = create_period_user(db)
+    settings = UserSettingsRepository(db)
+    settings.set_reading_speed_period(user_unique, 14)
+
+    book = book_service.create_book(
+        title="Start Cap Book",
+        author="Author",
+        tags=[],
+        pages=300,
+        user_id=user_unique,
+        link=None,
+    )
+    book.reading_start_date = datetime.now() - timedelta(days=5)
+    # Статистика за 8 дней, включая день старше начала чтения: 10 в день
+    now = datetime.now()
+    for days_ago in range(8):
+        read_date = (now - timedelta(days=days_ago)).isoformat()
+        db.add_reading_stat(book.id, pages_read=10, read_date=read_date)
+    # Окно 5 дней (со дня начала): 50 / 5 = 10.0
+    assert reading_stats_service.avg_pages_per_day(book) == 10.0

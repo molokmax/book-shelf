@@ -74,6 +74,20 @@ def test_format_progress_stats_zero_pages():
     assert result == "Прогресс: 0/0 (0%)"
 
 
+def test_format_progress_stats_custom_period():
+    book = FakeBook(current_page=55, pages=319)
+    result = format_progress_stats(book, avg_pages=2.89, period_days=14)
+    assert "Среднее за 14 дней: 2.89 стр/день" in result
+    assert "Среднее за 30 дней" not in result
+
+
+def test_format_book_details_custom_period():
+    book = FakeDetailsBook()
+    result = format_book_details(book, avg_pages=2.89, period_days=7)
+    assert "Среднее за 7 дней: 2.89 стр/день" in result
+    assert "Среднее за 30 дней" not in result
+
+
 def test_format_progress_stats_finished_book_suppresses_forecast():
     book = FakeBook(current_page=319, pages=319)
     result = format_progress_stats(

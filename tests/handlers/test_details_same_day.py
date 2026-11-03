@@ -106,7 +106,11 @@ def test_details_counts_today_pages():
             instance.avg_pages_per_day.return_value = 5.0
             instance.predict_days_to_completion.return_value = None
             instance.predict_completion_date.return_value = None
-            handler.handle(ctx)
+            with patch("vk_bot.handlers.details.UserSettingsService") as MockSettings:
+                MockSettings.return_value.get_reading_speed_period.return_value = 7
+                handler.handle(ctx)
     assert len(fake_api.sent_messages) == 1
     msg = fake_api.sent_messages[0]["message"]
     assert "30" in msg
+    # Период из настроек пользователя попадает в строку среднего
+    assert "Среднее за 7 дней: 5.00 стр/день" in msg

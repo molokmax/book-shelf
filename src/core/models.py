@@ -19,6 +19,11 @@ class ReadingStatus(str, Enum):
 # Вид дневной цели чтения: количество страниц в день.
 DAILY_PAGES_GOAL = "daily_pages"
 
+# Возможные периоды скорости чтения (за сколько дней считать среднее).
+READING_SPEED_PERIODS = (7, 14, 30)
+# Период по умолчанию при отсутствии сохранённых настроек пользователя.
+DEFAULT_READING_SPEED_PERIOD = 30
+
 
 @dataclass
 class Book:

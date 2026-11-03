@@ -10,7 +10,7 @@ from core.progress_validation import (
     SuspicionReason,
     classify_progress_update,
 )
-from core.services import BookService, GoalService, ReadingStatsService
+from core.services import BookService, GoalService, ReadingStatsService, UserSettingsService
 from utils import helpers, logger
 from vk_bot.context import BotContext
 from vk_bot.keyboards import cancel_keyboard, main_keyboard
@@ -195,6 +195,7 @@ class ProgressUpdateFlow:
     def _build_progress_stats(self, book) -> str:
         """Собирает мини-статистику по книге для ответа пользователю."""
         stats_service = ReadingStatsService()
+        period_days = UserSettingsService().get_reading_speed_period(book.user_id)
         today = datetime.now().replace(hour=23, minute=59, second=59, microsecond=999999)
         week_start = (today - timedelta(days=7)).replace(hour=0, minute=0, second=0, microsecond=0)
         month_start = (today - timedelta(days=30)).replace(
@@ -212,6 +213,7 @@ class ProgressUpdateFlow:
             avg_pages=avg_pages,
             days_to_completion=days_left,
             predicted_date=predicted_date,
+            period_days=period_days,
         )
 
     def _format_progress_confirm_message(

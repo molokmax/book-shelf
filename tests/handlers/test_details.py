@@ -66,6 +66,8 @@ class FakeVk:
 # Fake book object
 class FakeBook:
     def __init__(self, **kwargs):
+        # Идентификатор владельца: сервис настроек читает период по нему.
+        self.user_id = kwargs.pop("user_id", "1")
         for k, v in kwargs.items():
             setattr(self, k, v)
 

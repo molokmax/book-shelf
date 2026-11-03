@@ -129,6 +129,21 @@ class Database:
         """
         )
 
+        # Персональные настройки пользователя (одна строка на пользователя).
+        # Отсутствие строки означает значения по умолчанию (см. core.models).
+        cursor.execute(
+            """
+        CREATE TABLE IF NOT EXISTS user_settings (
+            user_id TEXT PRIMARY KEY,
+            reading_speed_period_days INTEGER NOT NULL
+                CHECK (reading_speed_period_days IN (7, 14, 30)),
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            FOREIGN KEY (user_id) REFERENCES users (id)
+        )
+        """
+        )
+
         self.conn.commit()
 
     @contextmanager
