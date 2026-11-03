@@ -21,9 +21,9 @@ class StartHandler(AbstractCommandHandler):
             "/add - Добавить новую книгу\n"
             "/progress - Обновить прогресс чтения\n"
             "/list - Показать список книг\n"
-            "/edit - Редактировать книгу\n"
-            "/stats - Статистика чтения\n"
+            "/details - Детали книги\n"
             "/help - Помощь\n\n"
+            "Остальные команды доступны через кнопку «Ещё».\n\n"
             "Начни с добавления первой книги!"
         )
         context.api.messages.send(

@@ -169,7 +169,8 @@ def test_back_returns_to_main_menu(monkeypatch):
     msg = fake_api.sent_messages[-1]
     assert msg["message"] == "Возврат в главное меню"
     labels = keyboard_labels(msg["keyboard"])
-    assert "/settings" in labels
+    assert labels[:3] == ["/progress", "/details", "/list"]
+    assert "Ещё" in labels
     assert not storage.is_active(5)
 
 

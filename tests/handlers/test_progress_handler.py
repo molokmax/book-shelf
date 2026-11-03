@@ -331,11 +331,15 @@ def test_empty_filter_result_returns_to_main(monkeypatch):
 def test_main_keyboard_contains_progress_command():
     from vk_bot.keyboards import main_keyboard
 
-    labels = keyboard_labels(main_keyboard().get_keyboard())
+    data = json.loads(main_keyboard().get_keyboard())
+    actions = [button["action"] for row in data["buttons"] for button in row]
+    labels = [action["label"] for action in actions]
 
-    assert labels[:3] == ["/progress", "/edit", "/add"]
-    assert labels[3:6] == ["/list", "/details", "/export"]
-    assert labels[6:] == ["/goal", "/stats", "/help", "/settings"]
+    assert labels[:3] == ["/progress", "/details", "/list"]
+    assert labels[3:] == ["/add", "/help", "Ещё"]
+    # Кнопки команд без payload, навигационная только «Ещё»
+    assert json.loads(actions[-1]["payload"]) == {"command": "/more"}
+    assert all(action["payload"] is None for action in actions[:-1])
 
 
 def test_select_book_from_filter_opens_progress_prompt(monkeypatch):
