@@ -24,6 +24,7 @@ class HelpHandler(AbstractCommandHandler):
             "* /goal - Дневная цель чтения\n"
             "* /list - Показать список книг\n"
             "* /edit - Редактировать книгу\n"
+            "* /details - Полная информация о выбранной книге\n"
             "* /export - Экспорт списка книг в CSV\n"
             "* /stats - Статистика чтения\n"
             "* /settings - Настройки приложения\n"

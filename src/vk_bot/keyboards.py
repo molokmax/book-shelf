@@ -8,17 +8,25 @@ def main_keyboard() -> VkKeyboard:
     """Главная клавиатура бота."""
     kb = VkKeyboard()
     kb.add_button("/progress")
-    kb.add_button("/edit")
-    kb.add_button("/add")
-    kb.add_line()
-    kb.add_button("/list")
     kb.add_button("/details")
-    kb.add_button("/export")
+    kb.add_button("/list")
     kb.add_line()
-    kb.add_button("/goal")
-    kb.add_button("/stats")
+    kb.add_button("/add")
     kb.add_button("/help")
+    kb.add_button("Ещё", payload={"command": "/more"})
+    return kb
+
+
+def more_keyboard() -> VkKeyboard:
+    """Клавиатура подменю «Ещё»."""
+    kb = VkKeyboard()
+    kb.add_button("/edit")
+    kb.add_button("/export")
+    kb.add_button("/goal")
+    kb.add_line()
+    kb.add_button("/stats")
     kb.add_button("/settings")
+    kb.add_button("Назад", payload={"command": "/back"})
     return kb
 
 
