@@ -18,6 +18,7 @@ from core.repository import (
     BookRepository,
     GoalRepository,
     ReadStatsRepository,
+    TagRepository,
     UserRepository,
     UserSettingsRepository,
 )
@@ -36,6 +37,7 @@ class BookService:
         db = get_db(db_path)
         self.book_repo = BookRepository(db)
         self.user_repo = UserRepository(db)
+        self.tag_repo = TagRepository(db)
         self.reading_stats_service = ReadingStatsService(db_path)
 
     def filter_books(
@@ -56,12 +58,8 @@ class BookService:
         return books
 
     def get_all_tags(self, user_id: str) -> list[str]:
-        """Возвращает список всех уникальных тегов, используемых в книгах."""
-        books = self.get_all_books(user_id)
-        tag_set: set[str] = set()
-        for b in books:
-            tag_set.update(b.tags)
-        return sorted(tag_set)
+        """Возвращает теги пользователя, привязанные хотя бы к одной книге."""
+        return self.tag_repo.get_used_tags(user_id)
 
     def create_book(
         self,
@@ -159,7 +157,7 @@ class BookService:
         return self.book_repo.delete_book(book_id)
 
     def update_book_tags(self, book_id: str, tags: list[str]) -> Book:
-        """Обновляет тэги книги."""
+        """Обновляет теги книги."""
         book = self.book_repo.get_book_by_id(book_id)
         if not book:
             raise ValueError(f"Книга с ID {book_id} не найдена")
@@ -168,6 +166,23 @@ class BookService:
         book.updated_at = datetime.now()
 
         return self.book_repo.update_book(book)
+
+
+class TagService:
+    """Сервис персонального набора тегов пользователя."""
+
+    def __init__(self, db_path: str | None = None) -> None:
+        """Инициализация сервиса."""
+        db_path = db_path or get_default_db_path()
+        self.tag_repo = TagRepository(get_db(db_path))
+
+    def get_user_tags(self, user_id: str) -> list[str]:
+        """Возвращает набор тегов пользователя (справочник)."""
+        return self.tag_repo.get_user_tags(user_id)
+
+    def get_used_tags(self, user_id: str) -> list[str]:
+        """Возвращает теги пользователя, привязанные хотя бы к одной его книге."""
+        return self.tag_repo.get_used_tags(user_id)
 
     def get_stats(self, user_id: Optional[str] = None) -> Dict:
         """Получает статистику чтения, опционально фильтруя по user_id."""

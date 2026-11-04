@@ -7,7 +7,12 @@ from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
 
-from core.migrations import add_link_column, add_read_stats_user_id
+from core.migrations import (
+    add_link_column,
+    add_read_stats_user_id,
+    migrate_books_tags,
+    resolve_or_create_tags,
+)
 from core.models import Book, User
 
 
@@ -18,7 +23,6 @@ class Database:
         "id",
         "title",
         "author",
-        "tags",
         "pages",
         "current_page",
         "status",
@@ -51,6 +55,7 @@ class Database:
         # Миграции
         add_link_column(self.conn)
         add_read_stats_user_id(self.conn)
+        migrate_books_tags(self.conn)
 
     def _create_tables(self) -> None:
         """Создаёт таблицы в базе данных."""
@@ -78,7 +83,6 @@ class Database:
             id TEXT PRIMARY KEY,
             title TEXT NOT NULL,
             author TEXT NOT NULL,
-            tags TEXT,  -- Хранится как JSON-строка
             pages INTEGER NOT NULL,
             current_page INTEGER NOT NULL DEFAULT 0,
             status TEXT NOT NULL,
@@ -91,6 +95,33 @@ class Database:
             reading_end_date TEXT,
             user_id TEXT NOT NULL,
             FOREIGN KEY (user_id) REFERENCES users (id)
+        )
+        """
+        )
+
+        # Персональный справочник тегов пользователя
+        cursor.execute(
+            """
+        CREATE TABLE IF NOT EXISTS tags (
+            id TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL,
+            name TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            UNIQUE (user_id, name),
+            FOREIGN KEY (user_id) REFERENCES users (id)
+        )
+        """
+        )
+
+        # Привязка тегов к книгам
+        cursor.execute(
+            """
+        CREATE TABLE IF NOT EXISTS book_tags (
+            book_id TEXT NOT NULL,
+            tag_id TEXT NOT NULL,
+            PRIMARY KEY (book_id, tag_id),
+            FOREIGN KEY (book_id) REFERENCES books (id) ON DELETE CASCADE,
+            FOREIGN KEY (tag_id) REFERENCES tags (id) ON DELETE CASCADE
         )
         """
         )
@@ -271,23 +302,27 @@ class Database:
             return None
 
     def add_or_update_book(self, book: "Book") -> "Book":
-        """Добавляет или обновляет книгу в базе данных."""
+        """Добавляет или обновляет книгу вместе с тегами.
+
+        Одним курсором: upsert строки книги, проверка наличия тегов в
+        справочнике пользователя (новые теги создаются) и пересборка
+        привязок в `book_tags`.
+        """
 
         with self.get_cursor() as cursor:
             cursor.execute(
                 """
             INSERT OR REPLACE INTO books (
-                id, title, author, tags, pages,
+                id, title, author, pages,
                 current_page, status, created_at, updated_at,
                 cover_image, notes, link,
                 reading_start_date, reading_end_date, user_id
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
                 (
                     book.id,
                     book.title,
                     book.author,
-                    str(book.tags) if book.tags else "[]",
                     book.pages,
                     book.current_page,
                     book.status.value,
@@ -301,6 +336,7 @@ class Database:
                     book.user_id,
                 ),
             )
+            self._sync_book_tags(cursor, book.id, book.user_id, book.tags)
 
             columns = ", ".join(self._book_column_list)
             sql = f"SELECT {columns} FROM books WHERE id = ?"
@@ -308,26 +344,57 @@ class Database:
             row = cursor.fetchone()
 
             if row:
-                return Book.from_dict(
-                    {
-                        "id": row[0],
-                        "title": row[1],
-                        "author": row[2],
-                        "tags": eval(row[3]) if row[3] else [],
-                        "pages": row[4],
-                        "current_page": row[5],
-                        "status": row[6],
-                        "created_at": row[7],
-                        "updated_at": row[8],
-                        "cover_image": row[9],
-                        "notes": row[10],
-                        "link": row[11],
-                        "reading_start_date": row[12],
-                        "reading_end_date": row[13],
-                        "user_id": row[14],
-                    }
-                )
+                return self._row_to_book(cursor, row)
             return book
+
+    def _sync_book_tags(
+        self,
+        cursor: sqlite3.Cursor,
+        book_id: str,
+        user_id: str,
+        tag_names: list[str],
+    ) -> None:
+        """Пересобирает привязки тегов книги и пополняет справочник."""
+        tag_ids = resolve_or_create_tags(cursor, user_id, tag_names)
+        if tag_ids:
+            cursor.execute("DELETE FROM book_tags WHERE book_id = ?", (book_id,))
+            cursor.executemany(
+                "INSERT OR IGNORE INTO book_tags (book_id, tag_id) VALUES (?, ?)",
+                [(book_id, tag_id) for tag_id in tag_ids],
+            )
+
+    def _load_book_tags(self, cursor: sqlite3.Cursor, book_id: str) -> list[str]:
+        """Читает теги книги из привязок, отсортированные по алфавиту."""
+        cursor.execute(
+            "SELECT t.name FROM book_tags bt "
+            "JOIN tags t ON t.id = bt.tag_id "
+            "WHERE bt.book_id = ?",
+            (book_id,),
+        )
+        names = [row[0] for row in cursor.fetchall()]
+        return sorted(names, key=str.casefold)
+
+    def _row_to_book(self, cursor: sqlite3.Cursor, row: tuple) -> "Book":
+        """Собирает Book из строки выборки по `_book_column_list`."""
+        return Book.from_dict(
+            {
+                "id": row[0],
+                "title": row[1],
+                "author": row[2],
+                "tags": self._load_book_tags(cursor, row[0]),
+                "pages": row[3],
+                "current_page": row[4],
+                "status": row[5],
+                "created_at": row[6],
+                "updated_at": row[7],
+                "cover_image": row[8],
+                "notes": row[9],
+                "link": row[10],
+                "reading_start_date": row[11],
+                "reading_end_date": row[12],
+                "user_id": row[13],
+            }
+        )
 
     def get_book_by_id(self, book_id: str) -> Optional["Book"]:
         """Получает книгу по ID."""
@@ -339,25 +406,7 @@ class Database:
             row = cursor.fetchone()
 
             if row:
-                return Book.from_dict(
-                    {
-                        "id": row[0],
-                        "title": row[1],
-                        "author": row[2],
-                        "tags": eval(row[3]) if row[3] else [],
-                        "pages": row[4],
-                        "current_page": row[5],
-                        "status": row[6],
-                        "created_at": row[7],
-                        "updated_at": row[8],
-                        "cover_image": row[9],
-                        "notes": row[10],
-                        "link": row[11],
-                        "reading_start_date": row[12],
-                        "reading_end_date": row[13],
-                        "user_id": row[14],
-                    }
-                )
+                return self._row_to_book(cursor, row)
             return None
 
     def get_all_books(self) -> List["Book"]:
@@ -369,92 +418,29 @@ class Database:
             cursor.execute(sql)
             rows = cursor.fetchall()
 
-            return [
-                Book.from_dict(
-                    {
-                        "id": row[0],
-                        "title": row[1],
-                        "author": row[2],
-                        "tags": eval(row[3]) if row[3] else [],
-                        "pages": row[4],
-                        "current_page": row[5],
-                        "status": row[6],
-                        "created_at": row[7],
-                        "updated_at": row[8],
-                        "cover_image": row[9],
-                        "notes": row[10],
-                        "link": row[11],
-                        "reading_start_date": row[12],
-                        "reading_end_date": row[13],
-                        "user_id": row[14],
-                    }
-                )
-                for row in rows
-            ]
+            return [self._row_to_book(cursor, row) for row in rows]
 
     def get_books_by_user_id(self, user_id: str) -> List["Book"]:
         """Получает книги по ID пользователя."""
 
         with self.get_cursor() as cursor:
             columns = ", ".join(self._book_column_list)
-            sql = f"SELECT {columns} FROM books " "WHERE user_id = ? ORDER BY updated_at DESC"
+            sql = f"SELECT {columns} FROM books WHERE user_id = ? ORDER BY updated_at DESC"
             cursor.execute(sql, (user_id,))
             rows = cursor.fetchall()
 
-            return [
-                Book.from_dict(
-                    {
-                        "id": row[0],
-                        "title": row[1],
-                        "author": row[2],
-                        "tags": eval(row[3]) if row[3] else [],
-                        "pages": row[4],
-                        "current_page": row[5],
-                        "status": row[6],
-                        "created_at": row[7],
-                        "updated_at": row[8],
-                        "cover_image": row[9],
-                        "notes": row[10],
-                        "link": row[11],
-                        "reading_start_date": row[12],
-                        "reading_end_date": row[13],
-                        "user_id": row[14],
-                    }
-                )
-                for row in rows
-            ]
+            return [self._row_to_book(cursor, row) for row in rows]
 
     def get_books_by_status(self, status: str) -> List["Book"]:
         """Получает книги по статусу."""
 
         with self.get_cursor() as cursor:
             cols = ", ".join(self._book_column_list)
-            sql = f"SELECT {cols} FROM books " "WHERE status = ? ORDER BY updated_at DESC"
+            sql = f"SELECT {cols} FROM books WHERE status = ? ORDER BY updated_at DESC"
             cursor.execute(sql, (status,))
             rows = cursor.fetchall()
 
-            return [
-                Book.from_dict(
-                    {
-                        "id": row[0],
-                        "title": row[1],
-                        "author": row[2],
-                        "tags": eval(row[3]) if row[3] else [],
-                        "pages": row[4],
-                        "current_page": row[5],
-                        "status": row[6],
-                        "created_at": row[7],
-                        "updated_at": row[8],
-                        "cover_image": row[9],
-                        "notes": row[10],
-                        "link": row[11],
-                        "reading_start_date": row[12],
-                        "reading_end_date": row[13],
-                        "user_id": row[14],
-                    }
-                )
-                for row in rows
-            ]
+            return [self._row_to_book(cursor, row) for row in rows]
 
     def delete_book(self, book_id: str) -> Optional["Book"]:
         """Удаляет книгу по ID."""

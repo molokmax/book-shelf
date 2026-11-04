@@ -15,6 +15,33 @@ from core.models import (
 from utils import logger
 
 
+class TagRepository:
+    """Репозиторий персонального справочника тегов пользователя."""
+
+    def __init__(self, db: Database | None = None, db_path: str = "data/database.db") -> None:
+        """Инициализация репозитория."""
+        self.db = db if db is not None else Database(db_path)
+
+    def get_user_tags(self, user_id: str) -> List[str]:
+        """Возвращает набор тегов пользователя (справочник), отсортированный по алфавиту."""
+        with self.db.get_cursor() as cursor:
+            cursor.execute("SELECT name FROM tags WHERE user_id = ?", (user_id,))
+            names = [row[0] for row in cursor.fetchall()]
+        return sorted(names, key=str.casefold)
+
+    def get_used_tags(self, user_id: str) -> List[str]:
+        """Возвращает теги пользователя, привязанные хотя бы к одной его книге."""
+        with self.db.get_cursor() as cursor:
+            cursor.execute(
+                "SELECT DISTINCT t.name FROM tags t "
+                "WHERE t.user_id = ? AND EXISTS "
+                "(SELECT 1 FROM book_tags bt WHERE bt.tag_id = t.id)",
+                (user_id,),
+            )
+            names = [row[0] for row in cursor.fetchall()]
+        return sorted(names, key=str.casefold)
+
+
 class BookRepository:
     """Репозиторий для работы с книгами."""
 
