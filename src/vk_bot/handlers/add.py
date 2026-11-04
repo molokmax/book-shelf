@@ -1,7 +1,8 @@
 """Add command handler.
 
 Содержит всю логику обработки команды /add: входную точку,
-стейт-машину с диспетчеризацией по state и фабрики клавиатур.
+стейт-машину с диспетчеризацией по state, переиспользуемый шаг выбора
+тегов и фабрики клавиатур.
 """
 
 from typing import Any
@@ -11,7 +12,9 @@ from vk_api.utils import get_random_id
 
 from core.services import BookService
 from utils import helpers
+from utils.helpers import format_tags_line
 from utils.litres_parser import LitresParserError, is_litres_url, parse_litres_book
+from vk_bot.flows.tag_editing import TagEditingFlow
 from vk_bot.keyboards import cancel_keyboard, main_keyboard
 from vk_bot.user_helpers import get_or_create_user
 
@@ -24,6 +27,9 @@ class AddHandler(AbstractCommandHandler):
 
     priority = 10
     commands = ["/add", "add"]
+
+    def __init__(self) -> None:
+        self._tag_flow = TagEditingFlow("/add", self._finish_with_book)
 
     _STATE_DISPATCH = {}
 
@@ -172,33 +178,24 @@ class AddHandler(AbstractCommandHandler):
                 return
             state_info["data"]["link"] = text
 
-        state_info["state"] = "waiting_for_tags"
-        context.set_state(state_info)
-        api.messages.send(
-            user_id=user_id,
-            message=(
-                "Хорошо! Теперь введи теги книги через запятую "
-                "(например: Tech, Программирование):"
-            ),
-            keyboard=cancel_keyboard().get_keyboard(),
-            random_id=get_random_id(),
-        )
+        # Дальше переиспользуемый шаг выбора тегов
+        self._tag_flow.start(context, state_info, preselected=[])
 
-    def _handle_waiting_for_tags(self, context: BotContext, state_info: dict) -> None:
+    def _handle_selecting_tags(self, context: BotContext, state_info: dict) -> None:
+        """Шаг выбора тегов делегируется TagEditingFlow."""
+        self._tag_flow.handle(context)
+
+    def _finish_with_book(self, context: BotContext, tags: list[str]) -> None:
+        """Завершение шага тегов в /add: создаёт книгу с итоговой выборкой."""
         api = context.api
         user_id = context.user_id
-        text = context.text.strip()
-        data = state_info["data"]
-
-        tags = [tag.strip() for tag in text.split(",") if tag.strip()]
-        data["tags"] = tags
+        data = context.get_state()["data"]
 
         user = get_or_create_user(api, user_id)
-        book_service = BookService()
-        book = book_service.create_book(
+        book = BookService().create_book(
             title=data["title"],
             author=data["author"],
-            tags=data["tags"],
+            tags=tags,
             pages=data["pages"],
             user_id=user.id,
             link=data.get("link"),
@@ -206,6 +203,7 @@ class AddHandler(AbstractCommandHandler):
         context.delete_state()
         message_text = (
             f"✅ Книга '{book.title}' успешно добавлена в твою библиотеку!\n"
+            f"\nТеги: {format_tags_line(tags)}\n"
             "\nТы можешь\n"
             "/add - Добавить ещё одну книгу\n"
             "/list - Показать список книг"
@@ -275,50 +273,8 @@ class AddHandler(AbstractCommandHandler):
     def _handle_waiting_for_litres_confirm(self, context: BotContext, state_info: dict) -> None:
         text = context.text.strip()
         if text == "Продолжить":
-            state_info["state"] = "waiting_for_litres_tags"
-            context.set_state(state_info)
-            context.api.messages.send(
-                user_id=context.user_id,
-                message=(
-                    "Отлично! Теперь введи теги книги через запятую "
-                    "(например: Tech, Программирование):"
-                ),
-                keyboard=cancel_keyboard().get_keyboard(),
-                random_id=get_random_id(),
-            )
-
-    def _handle_waiting_for_litres_tags(self, context: BotContext, state_info: dict) -> None:
-        api = context.api
-        user_id = context.user_id
-        text = context.text.strip()
-        data = state_info["data"]
-
-        tags = [tag.strip() for tag in text.split(",") if tag.strip()]
-        data["tags"] = tags
-
-        user = get_or_create_user(api, user_id)
-        book_service = BookService()
-        book = book_service.create_book(
-            title=data["title"],
-            author=data["author"],
-            tags=data["tags"],
-            pages=data["pages"],
-            user_id=user.id,
-            link=data["link"],
-        )
-        context.delete_state()
-        message_text = (
-            f"✅ Книга '{book.title}' успешно добавлена!\n"
-            "\nТы можешь\n"
-            "/add - Добавить ещё одну книгу\n"
-            "/list - Показать список книг"
-        )
-        api.messages.send(
-            user_id=user_id,
-            message=message_text,
-            keyboard=self.create_book_added_keyboard().get_keyboard(),
-            random_id=get_random_id(),
-        )
+            # Дальше переиспользуемый шаг выбора тегов
+            self._tag_flow.start(context, state_info, preselected=[])
 
     # ── Фабрики клавиатур ──────────────────────────────────────────
 
@@ -358,8 +314,7 @@ AddHandler._STATE_DISPATCH = {
     "waiting_for_author": AddHandler._handle_waiting_for_author,
     "waiting_for_pages": AddHandler._handle_waiting_for_pages,
     "waiting_for_link": AddHandler._handle_waiting_for_link,
-    "waiting_for_tags": AddHandler._handle_waiting_for_tags,
+    "selecting_tags": AddHandler._handle_selecting_tags,
     "waiting_for_litres_url": AddHandler._handle_waiting_for_litres_url,
     "waiting_for_litres_confirm": AddHandler._handle_waiting_for_litres_confirm,
-    "waiting_for_litres_tags": AddHandler._handle_waiting_for_litres_tags,
 }

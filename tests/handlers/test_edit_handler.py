@@ -5,6 +5,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from core.models import ReadingStatus
+from vk_bot.flows import tag_editing as tf
 from vk_bot.handlers import edit as eh
 
 
@@ -59,10 +60,21 @@ class FakeUser:
 
 class StubBookService:
     def __init__(self, *args, **kwargs):
-        pass
+        self.book_repo = types.SimpleNamespace(update_book=lambda book: book)
 
     def get_all_tags(self, user_id):
         return ["fantasy", "science"]
+
+    def get_book_by_id(self, book_id):
+        return types.SimpleNamespace(
+            id=book_id,
+            title="Book1",
+            author="Author1",
+            pages=100,
+            status=ReadingStatus.READING,
+            tags=["old"],
+            link=None,
+        )
 
     def filter_books(self, user_id, status=None, tags=None):
         Book = types.SimpleNamespace
@@ -85,6 +97,19 @@ def fake_get_or_create_user(api, user_id):
 
 def fake_format_book_info(index, book):
     return f"{index}. {book.title}"
+
+
+@pytest.fixture
+def stub_dictionary(monkeypatch):
+    """Справочник тегов пользователя для шага выбора тегов."""
+    tags = {"list": ["classic", "fantasy"]}
+
+    class StubTagService:
+        def get_user_tags(self, user_id):
+            return list(tags["list"])
+
+    monkeypatch.setattr(tf, "TagService", StubTagService)
+    return tags
 
 
 @pytest.fixture(autouse=True)
@@ -182,3 +207,127 @@ def test_unknown_action_shows_fallback():
     last_msg = fake_api.sent_messages[-1]
     assert last_msg["message"] == "⚠️ Выбери действие"
     assert "Изменить" in keyboard_labels(last_msg["keyboard"])
+
+
+# ── Шаг выбора тегов ─────────────────────────────────────────────────────────
+
+
+def test_editing_link_opens_tag_step(stub_dictionary):
+    fake_api = FakeVkApiMethod()
+    user_id = 4000
+    storage = FakeStateStorage()
+    storage.save(
+        user_id,
+        {
+            "command": "/edit",
+            "state": "editing_link",
+            "data": {"selected_book_id": "1"},
+        },
+    )
+    ctx = make_context(fake_api, user_id, "Дальше", storage=storage)
+
+    eh.EditHandler().handle(ctx)
+
+    state = storage.get(user_id)
+    assert state["state"] == "selecting_tags"
+    # Текущие теги книги («old») предвыбраны
+    assert state["data"]["selected_tags"] == ["old"]
+    message = fake_api.sent_messages[-1]["message"]
+    assert "Выбрано: old" in message
+    assert "Готово" in keyboard_labels(fake_api.sent_messages[-1]["keyboard"])
+
+
+def test_tags_toggle_then_done_applies_fields(stub_dictionary):
+    fake_api = FakeVkApiMethod()
+    user_id = 4001
+    storage = FakeStateStorage()
+    storage.save(
+        user_id,
+        {
+            "command": "/edit",
+            "state": "selecting_tags",
+            "data": {"selected_book_id": "1"},
+        },
+    )
+    ctx = make_context(
+        fake_api,
+        user_id,
+        payload={"command": "/edit", "action": "toggle", "tag": "fantasy"},
+        storage=storage,
+    )
+    eh.EditHandler().handle(ctx)
+
+    assert storage.get(user_id)["data"]["selected_tags"] == ["fantasy"]
+
+    done = make_context(
+        fake_api, user_id, payload={"command": "/edit", "action": "done"}, storage=storage
+    )
+    eh.EditHandler().handle(done)
+
+    message = fake_api.sent_messages[-1]["message"]
+    assert "Книга обновлена: 'Book1' от Author1." in message
+    assert "Теги: fantasy" in message
+    assert storage.get(user_id) == {}
+
+
+def test_tags_done_empty_clears_tags(stub_dictionary):
+    fake_api = FakeVkApiMethod()
+    user_id = 4002
+    storage = FakeStateStorage()
+    storage.save(
+        user_id,
+        {
+            "command": "/edit",
+            "state": "selecting_tags",
+            "data": {"selected_book_id": "1", "selected_tags": []},
+        },
+    )
+    ctx = make_context(
+        fake_api, user_id, payload={"command": "/edit", "action": "done"}, storage=storage
+    )
+
+    eh.EditHandler().handle(ctx)
+
+    message = fake_api.sent_messages[-1]["message"]
+    assert "Теги: нет" in message
+    assert storage.get(user_id) == {}
+
+
+def test_tags_step_typed_done_confirms(stub_dictionary):
+    fake_api = FakeVkApiMethod()
+    user_id = 4003
+    storage = FakeStateStorage()
+    storage.save(
+        user_id,
+        {
+            "command": "/edit",
+            "state": "selecting_tags",
+            "data": {"selected_book_id": "1", "selected_tags": ["fantasy"]},
+        },
+    )
+    ctx = make_context(fake_api, user_id, "готово", storage=storage)
+
+    eh.EditHandler().handle(ctx)
+
+    assert "Теги: fantasy" in fake_api.sent_messages[-1]["message"]
+    assert storage.get(user_id) == {}
+
+
+def test_tags_step_invalid_typed_input_stays(stub_dictionary):
+    fake_api = FakeVkApiMethod()
+    user_id = 4004
+    storage = FakeStateStorage()
+    storage.save(
+        user_id,
+        {
+            "command": "/edit",
+            "state": "selecting_tags",
+            "data": {"selected_book_id": "1", "selected_tags": []},
+        },
+    )
+    ctx = make_context(fake_api, user_id, " , ", storage=storage)
+
+    eh.EditHandler().handle(ctx)
+
+    assert "Не удалось обработать сообщение" in fake_api.sent_messages[-1]["message"]
+    assert storage.get(user_id)["state"] == "selecting_tags"

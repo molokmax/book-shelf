@@ -36,6 +36,10 @@ This file provides guidance to Open Code when working with code in this reposito
 - **data/** – Runtime data storage.
 - **tests/** – Pytest test suite covering handlers, services, and parsers.
 
+## Git Conventions
+
+- Branch naming: `<type>/<issue-number>/<slug>`, where `<type>` is `feature` for features, `fix` for bug fixes, `chore` for maintenance, and `<slug>` is a short lowercase summary of the issue with hyphens. Examples: `feature/73/shorten-main-keyboard`, `fix/51/slow-queries`, `chore/ci-updates`.
+
 ## Important Files
 
 - `README.md` – High‑level project description and feature list.

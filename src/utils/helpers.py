@@ -24,6 +24,26 @@ def format_invalid_input(hint: str) -> str:
     return f"⚠️ Не удалось обработать сообщение. {hint}"
 
 
+def normalize_tag_name(value: str) -> str:
+    """Приводит имя тега к каноническому виду: trim и схлопывание пробелов."""
+    return " ".join(str(value).split())
+
+
+def format_tags_line(tags: list[str]) -> str:
+    """Строка итоговых тегов книги для финальных сообщений."""
+    return ", ".join(tags) if tags else "нет"
+
+
+def unique_tag_names(values: list[str]) -> list[str]:
+    """Нормализует имена тегов и снимает дубликаты без учёта регистра."""
+    result: dict[str, str] = {}
+    for value in values:
+        name = normalize_tag_name(value)
+        if name:
+            result.setdefault(name.casefold(), name)
+    return list(result.values())
+
+
 def format_book_info(index, book) -> str:
     """Форматирует информацию о книге для отображения."""
     status = getattr(book, "status", "unknown")
@@ -60,7 +80,7 @@ def format_book_details(
         f"{status_emoji} {book.title}",
         f"Автор: {book.author}",
         f"Ссылка: {book.link or '—'}",
-        f"Тэги: {', '.join(book.tags) if book.tags else '—'}",
+        f"Теги: {', '.join(book.tags) if book.tags else '—'}",
         f"Статус: {get_status_name(book.status.value)}",
         f"Прогресс: {book.current_page}/{book.pages} ({progress_percent}%)",
         f"Дата добавления: {book.created_at.strftime('%Y-%m-%d')}",

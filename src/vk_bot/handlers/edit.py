@@ -11,7 +11,8 @@ from vk_api.utils import get_random_id
 
 from core.services import BookService
 from utils import helpers
-from utils.helpers import get_status_name
+from utils.helpers import format_tags_line, get_status_name
+from vk_bot.flows.tag_editing import TagEditingFlow
 from vk_bot.keyboards import (
     cancel_keyboard,
     filter_keyboard,
@@ -34,13 +35,17 @@ class EditHandler(AbstractCommandHandler):
     * selecting_tag_filter → выбор тега для фильтрации
     * selecting_book → выбор книги по номеру
     * selecting_action → выбор действия над книгой
-    * editing_title, editing_author, editing_pages, editing_link, editing_tags
+    * editing_title, editing_author, editing_pages, editing_link
       → последовательное редактирование полей книги
+    * selecting_tags → шаг выбора тегов (TagEditingFlow)
     * selecting_status → смена статуса книги
     """
 
     priority = 10
     commands = ["/edit", "edit"]
+
+    def __init__(self) -> None:
+        self._tag_flow = TagEditingFlow("/edit", self._finish_editing)
 
     def handle(self, context: BotContext) -> Any:
         if not context.is_active():
@@ -70,8 +75,8 @@ class EditHandler(AbstractCommandHandler):
             self._handle_editing_pages(context)
         elif state == "editing_link":
             self._handle_editing_link(context)
-        elif state == "editing_tags":
-            self._handle_editing_tags(context)
+        elif state == "selecting_tags":
+            self._handle_selecting_tags(context)
         elif state == "selecting_status":
             self._handle_selecting_status(context)
 
@@ -479,7 +484,6 @@ class EditHandler(AbstractCommandHandler):
             new_link = text.strip()
 
         state_info["data"]["new_link"] = new_link
-        state_info["state"] = "editing_tags"
         context.set_state(state_info)
         book_id = state_info["data"]["selected_book_id"]
         book = BookService().get_book_by_id(book_id)
@@ -492,57 +496,53 @@ class EditHandler(AbstractCommandHandler):
             )
             return
 
-        tags_text = ", ".join(book.tags) if book.tags else "Нет тэгов"
-        api.messages.send(
-            user_id=user_id,
-            message=(
-                f"Текущие тэги: {tags_text}.\n" "Введи новые через запятую или нажми 'Дальше'."
-            ),
-            keyboard=self._create_edit_keyboard().get_keyboard(),
-            random_id=get_random_id(),
-        )
+        # Дальше переиспользуемый шаг выбора тегов с текущими тегами книги
+        self._tag_flow.start(context, state_info, preselected=book.tags)
 
-    def _handle_editing_tags(self, context) -> None:
+    def _handle_selecting_tags(self, context) -> None:
+        """Шаг выбора тегов делегируется TagEditingFlow."""
+        self._tag_flow.handle(context)
+
+    def _finish_editing(self, context, tags: list[str]) -> None:
+        """Завершение шага тегов в /edit: применяет накопленные поля и теги."""
         api = context.api
         user_id = context.user_id
-        text = context.text
         state_info = context.get_state()
+        data = state_info["data"]
 
-        if text.lower() == "дальше":
-            new_tags = None
-        else:
-            new_tags = [t.strip() for t in text.split(",") if t.strip()]
-
-        book_id = state_info["data"]["selected_book_id"]
+        book_id = data["selected_book_id"]
         book_service = BookService()
         book = book_service.get_book_by_id(book_id)
         if not book:
             api.messages.send(
                 user_id=user_id,
                 message="⚠️ Книга не найдена.",
-                keyboard=cancel_keyboard().get_keyboard(),
+                keyboard=main_keyboard().get_keyboard(),
                 random_id=get_random_id(),
             )
+            context.delete_state()
             return
 
-        if state_info["data"].get("new_title") is not None:
-            book.title = state_info["data"]["new_title"]
-        if state_info["data"].get("new_author") is not None:
-            book.author = state_info["data"]["new_author"]
-        if state_info["data"].get("new_pages") is not None:
-            book.pages = state_info["data"]["new_pages"]
-        if state_info["data"].get("new_link") is not None:
-            book.link = state_info["data"]["new_link"]
-        if new_tags is not None:
-            book.tags = new_tags
+        if data.get("new_title") is not None:
+            book.title = data["new_title"]
+        if data.get("new_author") is not None:
+            book.author = data["new_author"]
+        if data.get("new_pages") is not None:
+            book.pages = data["new_pages"]
+        if data.get("new_link") is not None:
+            book.link = data["new_link"]
+        book.tags = tags
         book_service.book_repo.update_book(book)
+        context.delete_state()
         api.messages.send(
             user_id=user_id,
-            message=f"✅ Книга обновлена: '{book.title}' от {book.author}.",
+            message=(
+                f"✅ Книга обновлена: '{book.title}' от {book.author}.\n"
+                f"Теги: {format_tags_line(tags)}"
+            ),
             keyboard=main_keyboard().get_keyboard(),
             random_id=get_random_id(),
         )
-        context.delete_state()
 
     def _handle_selecting_status(self, context) -> None:
         api = context.api
