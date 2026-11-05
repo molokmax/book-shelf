@@ -4,6 +4,7 @@ import uuid
 from datetime import datetime
 from typing import Iterable
 
+from core.models import GENERAL_PHRASE_CATEGORY
 from utils import logger
 from utils.helpers import normalize_tag_name
 
@@ -124,4 +125,52 @@ def migrate_books_tags(conn: sqlite3.Connection):
     except sqlite3.OperationalError:
         # Колонку удалить не удалось (старый SQLite), она остаётся мёртвой
         pass
+    conn.commit()
+
+
+def add_user_settings_motivation_column(conn: sqlite3.Connection):
+    """Добавляет настройку мотивации в user_settings, включена по умолчанию.
+
+    CREATE TABLE IF NOT EXISTS не изменяет уже существующую таблицу, поэтому
+    колонка добавляется миграцией для баз, созданных до этого change.
+    """
+    columns = {row[1] for row in conn.execute("PRAGMA table_info(user_settings)").fetchall()}
+    if "motivation_enabled" not in columns:
+        conn.execute(
+            "ALTER TABLE user_settings " "ADD COLUMN motivation_enabled INTEGER NOT NULL DEFAULT 1"
+        )
+    conn.commit()
+
+
+# Начальный открытый список мотивационных фраз; хранится с эмодзи в тексте.
+MOTIVATIONAL_SEED_PHRASES: tuple[str, ...] = (
+    "💪 Отличный прогресс!",
+    "📚 Каждая страница это шаг вперёд.",
+    "✨ Ты читаешь регулярно, и это здорово!",
+    "🔥 Прогресс налицо!",
+    "🌱 Маленькие шаги складываются в прочитанные книги.",
+    "🧠 Прочитанное остаётся с тобой.",
+    "🏆 Ты на верном пути!",
+    "😊 Есть чем гордиться!",
+    "🚀 Скорость не главное, главное постоянство.",
+    "📖 Чтение это инвестиция в себя.",
+    "⭐ Отличная привычка, продолжай!",
+    "💫 Знания из книги уже работают на тебя.",
+    "🌟 Так держать!",
+    "🎯 Регулярность важнее объёма.",
+    "❤️ Хорошая книга в хороших руках.",
+)
+
+
+def seed_motivational_phrases(conn: sqlite3.Connection):
+    """Наполняет список мотивационных фраз начальным набором.
+
+    Идемпотентна: INSERT OR IGNORE по UNIQUE(text), повторный запуск при
+    каждом старте не создаёт дублей и не трогает правки прошлых миграций.
+    """
+    for text in MOTIVATIONAL_SEED_PHRASES:
+        conn.execute(
+            "INSERT OR IGNORE INTO motivational_phrases (id, text, category) " "VALUES (?, ?, ?)",
+            (str(uuid.uuid4()), text, GENERAL_PHRASE_CATEGORY),
+        )
     conn.commit()

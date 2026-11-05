@@ -11,12 +11,14 @@ from core.models import (
     Book,
     Goal,
     GoalStatus,
+    MotivationContext,
     ReadingStatus,
     User,
 )
 from core.repository import (
     BookRepository,
     GoalRepository,
+    MotivationPhraseRepository,
     ReadStatsRepository,
     TagRepository,
     UserRepository,
@@ -355,6 +357,31 @@ class UserSettingsService:
         if days not in READING_SPEED_PERIODS:
             raise ValueError("Период должен быть одним из: 7, 14, 30 дней")
         self.settings_repo.set_reading_speed_period(user_id, days)
+
+    def is_motivation_enabled(self, user_id: str) -> bool:
+        """Включена ли мотивация у пользователя (по умолчанию включена)."""
+        return self.settings_repo.get_motivation_enabled(user_id)
+
+    def set_motivation_enabled(self, user_id: str, enabled: bool) -> None:
+        """Сохраняет настройку мотивации пользователя."""
+        self.settings_repo.set_motivation_enabled(user_id, enabled)
+
+
+class MotivationService:
+    """Сервис подбора фразы для отклика на обновление прогресса."""
+
+    def __init__(self, db_path: str | None = None) -> None:
+        """Инициализация сервиса."""
+        db_path = db_path or get_default_db_path()
+        self.phrase_repo = MotivationPhraseRepository(get_db(db_path))
+
+    def pick_phrase(self, context: MotivationContext) -> str | None:
+        """Подбирает мотивационную фразу под контекст обновления.
+
+        В v1 стратегия случайная и контекст игнорируется: сценарный выбор
+        категорий (тренд, цель, завершение) заменит стратегию позже.
+        """
+        return self.phrase_repo.get_random_phrase()
 
 
 def get_default_db_path() -> str:

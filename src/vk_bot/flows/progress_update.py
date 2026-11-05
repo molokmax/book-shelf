@@ -5,12 +5,19 @@ from datetime import datetime, timedelta
 from vk_api.keyboard import VkKeyboard
 from vk_api.utils import get_random_id
 
+from core.models import MotivationContext, ReadingStatus
 from core.progress_validation import (
     Suspicion,
     SuspicionReason,
     classify_progress_update,
 )
-from core.services import BookService, GoalService, ReadingStatsService, UserSettingsService
+from core.services import (
+    BookService,
+    GoalService,
+    MotivationService,
+    ReadingStatsService,
+    UserSettingsService,
+)
 from utils import helpers, logger
 from vk_bot.context import BotContext
 from vk_bot.keyboards import cancel_keyboard, main_keyboard
@@ -139,11 +146,20 @@ class ProgressUpdateFlow:
         updated_book = service.update_book_progress(book_id, new_page)
         pages_delta = max(0, updated_book.current_page - previous_page)
         self._finish_progress_update(
-            context, updated_book, unchanged=False, pages_delta=pages_delta
+            context,
+            updated_book,
+            unchanged=False,
+            previous_page=previous_page,
+            pages_delta=pages_delta,
         )
 
     def _finish_progress_update(
-        self, context: BotContext, book, unchanged: bool, pages_delta: int = 0
+        self,
+        context: BotContext,
+        book,
+        unchanged: bool,
+        previous_page: int | None = None,
+        pages_delta: int = 0,
     ) -> None:
         progress_stats = self._build_progress_stats(book)
         if unchanged:
@@ -153,35 +169,78 @@ class ProgressUpdateFlow:
             header = f"✅ Прогресс чтения книги '{book.title}' обновлён."
 
         parts = [header, progress_stats]
-        goal_line = self._format_goal_progress(book, pages_delta)
+        goal_line, goal_completed = self._format_goal_progress(book, pages_delta)
         if goal_line:
             parts.append(goal_line)
+
+        phrase = self._pick_motivation_phrase(
+            book, unchanged, previous_page, pages_delta, goal_completed
+        )
+        if phrase:
+            parts.append(phrase)
 
         self._send(context, "\n\n".join(parts), main_keyboard())
         context.delete_state()
 
-    def _format_goal_progress(self, book, pages_delta: int) -> str | None:
-        """Строка о дневной цели; None, если цели нет или нет владельца книги."""
+    def _pick_motivation_phrase(
+        self,
+        book,
+        unchanged: bool,
+        previous_page: int | None,
+        pages_delta: int,
+        goal_completed: bool,
+    ) -> str | None:
+        """Мотивационная фраза для подтверждения прогресса, None если не показываем.
+
+        Не показываем: прогресс не изменился, сегодня поздравление о цели
+        (п. design: фраза не дублирует 🎉 блок), настройка отключена, сбой сервиса.
+        """
+        if unchanged or goal_completed or not getattr(book, "user_id", None):
+            return None
+
+        try:
+            if not UserSettingsService().is_motivation_enabled(book.user_id):
+                return None
+            motivation_context = MotivationContext(
+                previous_page=previous_page if previous_page is not None else book.current_page,
+                new_page=book.current_page,
+                pages_delta=pages_delta,
+                finished=book.status == ReadingStatus.READ,
+                goal_completed=goal_completed,
+            )
+            return MotivationService().pick_phrase(motivation_context)
+        except Exception as e:
+            log.error(f"Failed to pick motivational phrase for book {book.id}: {e}")
+            return None
+
+    def _format_goal_progress(self, book, pages_delta: int) -> tuple[str | None, bool]:
+        """Строка о дневной цели и признак её выполнения этой строкой; None нет цели.
+
+        goal_completed True только для поздравления о выполнении (🎉); обычная
+        строка «Цель на день: ...» не считается выполнением.
+        """
         user_id = getattr(book, "user_id", None)
         if not user_id:
-            return None
+            return None, False
 
         try:
             service = GoalService()
             goal = service.get_goal(user_id)
             if not goal:
-                return None
+                return None, False
             pages_today = service.today_pages(user_id)
         except Exception as e:
             log.error(f"Failed to build daily goal progress for book {book.id}: {e}")
-            return None
+            return None, False
 
         if pages_delta > 0 and pages_today - pages_delta < goal.target <= pages_today:
+            goal_completed = True
             return (
                 "🎉 Цель на день выполнена! "
-                f"Сегодня прочитано {pages_today} из {goal.target} страниц."
+                f"Сегодня прочитано {pages_today} из {goal.target} страниц.",
+                goal_completed,
             )
-        return f"Цель на день: {pages_today}/{goal.target} стр."
+        return f"Цель на день: {pages_today}/{goal.target} стр.", False
 
     @staticmethod
     def _avg_pages_per_day(book) -> float:

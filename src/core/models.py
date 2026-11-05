@@ -24,6 +24,10 @@ READING_SPEED_PERIODS = (7, 14, 30)
 # Период по умолчанию при отсутствии сохранённых настроек пользователя.
 DEFAULT_READING_SPEED_PERIOD = 30
 
+# Категории мотивационных фраз (сценарный подбор появится позже, v1 — random).
+GENERAL_PHRASE_CATEGORY = "general"
+PHRASE_CATEGORIES = (GENERAL_PHRASE_CATEGORY, "trend_up", "trend_down", "goal_reached")
+
 
 @dataclass
 class Book:
@@ -149,3 +153,28 @@ class GoalStatus:
     percent: int
     completed: bool
     remaining: int
+
+
+@dataclass
+class MotivationPhrase:
+    """Мотивационная фраза в отклике на обновление прогресса."""
+
+    id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    text: str = ""
+    category: str = GENERAL_PHRASE_CATEGORY
+    created_at: datetime = field(default_factory=datetime.now)
+
+
+@dataclass
+class MotivationContext:
+    """Контекст обновления прогресса для подбора мотивационной фразы.
+
+    В v1 подбор случайный и контекст игнорируется; поля остаются швом
+    под будущий сценарный выбор (тренд, цель, завершение книги).
+    """
+
+    previous_page: int = 0
+    new_page: int = 0
+    pages_delta: int = 0
+    finished: bool = False
+    goal_completed: bool = False

@@ -10,8 +10,10 @@ from typing import List, Optional
 from core.migrations import (
     add_link_column,
     add_read_stats_user_id,
+    add_user_settings_motivation_column,
     migrate_books_tags,
     resolve_or_create_tags,
+    seed_motivational_phrases,
 )
 from core.models import Book, User
 
@@ -56,6 +58,8 @@ class Database:
         add_link_column(self.conn)
         add_read_stats_user_id(self.conn)
         migrate_books_tags(self.conn)
+        add_user_settings_motivation_column(self.conn)
+        seed_motivational_phrases(self.conn)
 
     def _create_tables(self) -> None:
         """Создаёт таблицы в базе данных."""
@@ -168,9 +172,23 @@ class Database:
             user_id TEXT PRIMARY KEY,
             reading_speed_period_days INTEGER NOT NULL
                 CHECK (reading_speed_period_days IN (7, 14, 30)),
+            motivation_enabled INTEGER NOT NULL DEFAULT 1,
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL,
             FOREIGN KEY (user_id) REFERENCES users (id)
+        )
+        """
+        )
+
+        # Мотивационные фразы (глобальный открытый список, наполняется миграциями)
+        cursor.execute(
+            """
+        CREATE TABLE IF NOT EXISTS motivational_phrases (
+            id TEXT PRIMARY KEY,
+            text TEXT NOT NULL UNIQUE,
+            category TEXT NOT NULL DEFAULT 'general'
+                CHECK (category IN ('general', 'trend_up', 'trend_down', 'goal_reached')),
+            created_at TEXT NOT NULL DEFAULT (datetime('now'))
         )
         """
         )

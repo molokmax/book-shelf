@@ -5,6 +5,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from core.models import ReadingStatus
 from vk_bot.flows import progress_update as puf
 
 
@@ -53,12 +54,21 @@ class FakeVkApiMethod:
 
 
 class ProgressBook:
-    def __init__(self, book_id="1", title="Book1", current_page=55, pages=319, user_id=None):
+    def __init__(
+        self,
+        book_id="1",
+        title="Book1",
+        current_page=55,
+        pages=319,
+        user_id=None,
+        status=None,
+    ):
         self.id = book_id
         self.title = title
         self.current_page = current_page
         self.pages = pages
         self.user_id = user_id
+        self.status = status or ReadingStatus.READING
 
 
 def make_progress_book_service(current_page=55, pages=319, updates=None, user_id=None):
@@ -118,7 +128,7 @@ def make_stats_stub(weekly=20, monthly=55, avg=2.89, predicted=date(2027, 1, 7))
     return StubReadingStatsService
 
 
-def make_settings_stub(period=30):
+def make_settings_stub(period=30, motivation=True):
     class StubUserSettingsService:
         def __init__(self, *args, **kwargs):
             pass
@@ -126,13 +136,44 @@ def make_settings_stub(period=30):
         def get_reading_speed_period(self, user_id):
             return period
 
+        def is_motivation_enabled(self, user_id):
+            return motivation
+
     return StubUserSettingsService
+
+
+def make_motivation_stub(phrase=None):
+    class StubMotivationService:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def pick_phrase(self, context):
+            return phrase
+
+    return StubMotivationService
+
+
+def make_motivation_failure_stub():
+    class StubMotivationService:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def pick_phrase(self, context):
+            raise RuntimeError("boom")
+
+    return StubMotivationService
 
 
 @pytest.fixture(autouse=True)
 def patch_settings_service(monkeypatch):
     """Не трогаем реальную БД настроек из флоу обновления прогресса."""
     monkeypatch.setattr(puf, "UserSettingsService", make_settings_stub())
+
+
+@pytest.fixture(autouse=True)
+def patch_motivation_service(monkeypatch):
+    """Не трогаем реальную БД фраз: вручную фраза из потока тестов не приходит."""
+    monkeypatch.setattr(puf, "MotivationService", make_motivation_stub())
 
 
 def save_progress_state(storage, user_id, state="waiting_for_progress_input", **data):
@@ -571,3 +612,147 @@ def test_unchanged_progress_does_not_congratulate(monkeypatch):
     msg = fake_api.sent_messages[-1]["message"]
     assert "Цель на день: 50/50 стр." in msg
     assert "🎉" not in msg
+
+
+# ── Мотивационная фраза после обновления прогресса ────────────────────────────
+
+
+def test_progress_update_appends_motivation_phrase(monkeypatch):
+    fake_api = FakeVkApiMethod()
+    user_id = 4000
+    storage = FakeStateStorage()
+    save_progress_state(storage, user_id)
+    monkeypatch.setattr(puf, "BookService", make_progress_book_service(user_id="user-1"))
+    monkeypatch.setattr(puf, "ReadingStatsService", make_stats_stub())
+    monkeypatch.setattr(
+        puf, "MotivationService", make_motivation_stub(phrase="💪 Отличный прогресс!")
+    )
+
+    ctx = make_context(fake_api, user_id, "65", storage=storage)
+    puf.ProgressUpdateFlow().handle(ctx)
+
+    msg = fake_api.sent_messages[-1]["message"]
+    blocks = msg.split("\n\n")
+    # Фраза добавляется отдельным последним блоком сообщения
+    assert blocks[-1] == "💪 Отличный прогресс!"
+    assert "обновлён" in blocks[0]
+
+
+def test_progress_update_without_motivation_shows_no_phrase(monkeypatch):
+    fake_api = FakeVkApiMethod()
+    user_id = 4001
+    storage = FakeStateStorage()
+    save_progress_state(storage, user_id)
+    monkeypatch.setattr(puf, "BookService", make_progress_book_service(user_id="user-1"))
+    monkeypatch.setattr(puf, "ReadingStatsService", make_stats_stub())
+    monkeypatch.setattr(puf, "UserSettingsService", make_settings_stub(motivation=False))
+    monkeypatch.setattr(
+        puf, "MotivationService", make_motivation_stub(phrase="💪 Отличный прогресс!")
+    )
+
+    ctx = make_context(fake_api, user_id, "65", storage=storage)
+    puf.ProgressUpdateFlow().handle(ctx)
+
+    msg = fake_api.sent_messages[-1]["message"]
+    assert "обновлён" in msg
+    assert "💪 Отличный прогресс!" not in msg
+
+
+def test_unchanged_progress_shows_no_motivation_phrase(monkeypatch):
+    fake_api = FakeVkApiMethod()
+    user_id = 4002
+    storage = FakeStateStorage()
+    save_progress_state(storage, user_id)
+    monkeypatch.setattr(puf, "BookService", make_progress_book_service(user_id="user-1"))
+    monkeypatch.setattr(puf, "ReadingStatsService", make_stats_stub())
+    monkeypatch.setattr(
+        puf, "MotivationService", make_motivation_stub(phrase="💪 Отличный прогресс!")
+    )
+
+    ctx = make_context(fake_api, user_id, "55", storage=storage)
+    puf.ProgressUpdateFlow().handle(ctx)
+
+    msg = fake_api.sent_messages[-1]["message"]
+    assert "ℹ️ Прогресс не изменился" in msg
+    assert "💪 Отличный прогресс!" not in msg
+
+
+def test_goal_completion_suppresses_motivation_phrase(monkeypatch):
+    """Поздравление о цели само выполняет мотивационную роль: фраза не добавляется."""
+    fake_api = FakeVkApiMethod()
+    user_id = 4003
+    storage = FakeStateStorage()
+    save_progress_state(storage, user_id)
+    monkeypatch.setattr(puf, "BookService", make_progress_book_service(user_id="user-1"))
+    monkeypatch.setattr(puf, "ReadingStatsService", make_stats_stub())
+    monkeypatch.setattr(puf, "GoalService", make_goal_stub(target=50, pages_today=52))
+    monkeypatch.setattr(
+        puf, "MotivationService", make_motivation_stub(phrase="💪 Отличный прогресс!")
+    )
+
+    ctx = make_context(fake_api, user_id, "60", storage=storage)
+    puf.ProgressUpdateFlow().handle(ctx)
+
+    msg = fake_api.sent_messages[-1]["message"]
+    assert "🎉 Цель на день выполнена!" in msg
+    assert "💪 Отличный прогресс!" not in msg
+
+
+def test_goal_progress_line_does_not_suppress_phrase(monkeypatch):
+    """Обычная строка «Цель на день» не отключает фразу."""
+    fake_api = FakeVkApiMethod()
+    user_id = 4004
+    storage = FakeStateStorage()
+    save_progress_state(storage, user_id)
+    monkeypatch.setattr(puf, "BookService", make_progress_book_service(user_id="user-1"))
+    monkeypatch.setattr(puf, "ReadingStatsService", make_stats_stub())
+    monkeypatch.setattr(puf, "GoalService", make_goal_stub(target=50, pages_today=35))
+    monkeypatch.setattr(
+        puf, "MotivationService", make_motivation_stub(phrase="💪 Отличный прогресс!")
+    )
+
+    ctx = make_context(fake_api, user_id, "60", storage=storage)
+    puf.ProgressUpdateFlow().handle(ctx)
+
+    msg = fake_api.sent_messages[-1]["message"]
+    assert "Цель на день: 35/50 стр." in msg
+    assert "💪 Отличный прогресс!" in msg
+
+
+def test_motivation_failure_does_not_break_confirmation(monkeypatch):
+    fake_api = FakeVkApiMethod()
+    user_id = 4005
+    storage = FakeStateStorage()
+    save_progress_state(storage, user_id)
+    monkeypatch.setattr(puf, "BookService", make_progress_book_service(user_id="user-1"))
+    monkeypatch.setattr(puf, "ReadingStatsService", make_stats_stub())
+    monkeypatch.setattr(puf, "MotivationService", make_motivation_failure_stub())
+
+    ctx = make_context(fake_api, user_id, "65", storage=storage)
+    puf.ProgressUpdateFlow().handle(ctx)
+
+    msg = fake_api.sent_messages[-1]["message"]
+    assert "обновлён" in msg
+    assert "Прогресс: 65/319 (20%)" in msg
+    assert not storage.is_active(user_id)
+
+
+def test_finished_book_still_gets_phrase(monkeypatch):
+    """Дочитывание книги до 100% подбодрить фразой из универсального списка."""
+    fake_api = FakeVkApiMethod()
+    user_id = 4006
+    storage = FakeStateStorage()
+    save_progress_state(storage, user_id)
+    monkeypatch.setattr(
+        puf, "BookService", make_progress_book_service(current_page=300, user_id="user-1")
+    )
+    monkeypatch.setattr(puf, "ReadingStatsService", make_stats_stub())
+    monkeypatch.setattr(puf, "GoalService", make_goal_stub(target=None))
+    monkeypatch.setattr(puf, "MotivationService", make_motivation_stub(phrase="🌟 Так держать!"))
+
+    ctx = make_context(fake_api, user_id, "319", storage=storage)
+    puf.ProgressUpdateFlow().handle(ctx)
+
+    msg = fake_api.sent_messages[-1]["message"]
+    assert "Прогресс: 319/319 (100%)" in msg
+    assert "🌟 Так держать!" in msg
