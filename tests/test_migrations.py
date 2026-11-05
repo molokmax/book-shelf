@@ -238,3 +238,89 @@ def test_new_database_schema_has_tag_tables(tmp_path):
     assert "tags" not in book_columns
     assert {"id", "user_id", "name", "created_at"} <= tags_columns
     assert {"book_id", "tag_id"} <= book_tags_columns
+
+
+# ── Мотивационные фразы: сид и колонка мотивации в user_settings ─────────────
+
+
+def fetch_motivational_phrases(db: Database):
+    with db.get_cursor() as cur:
+        cur.execute("SELECT text, category FROM motivational_phrases ORDER BY text")
+        return cur.fetchall()
+
+
+def test_seed_motivational_phrases(tmp_path):
+    db = Database(str(tmp_path / "new.db"))
+
+    phrases = fetch_motivational_phrases(db)
+    db.close()
+
+    assert len(phrases) == 15
+    assert all(category == "general" for _, category in phrases)
+
+
+def test_seed_motivational_phrases_idempotent(tmp_path):
+    path = tmp_path / "seed.db"
+
+    first = Database(path)
+    before = fetch_motivational_phrases(first)
+    first.close()
+
+    second = Database(path)
+    after = fetch_motivational_phrases(second)
+    second.close()
+
+    assert before == after
+    assert len(after) == 15
+
+
+def create_pre_motivation_db(path):
+    """База до change: user_settings без колонки motivation_enabled."""
+    conn = sqlite3.connect(str(path))
+    conn.execute(
+        "CREATE TABLE user_settings ("
+        "user_id TEXT PRIMARY KEY, "
+        "reading_speed_period_days INTEGER NOT NULL, "
+        "created_at TEXT NOT NULL, updated_at TEXT NOT NULL)"
+    )
+    conn.execute(
+        "INSERT INTO user_settings "
+        "(user_id, reading_speed_period_days, created_at, updated_at) "
+        "VALUES ('user-1', 14, '2026-01-01T00:00:00', '2026-01-02T00:00:00')"
+    )
+    conn.commit()
+    conn.close()
+
+
+def test_motivation_column_added_to_existing_settings(tmp_path):
+    db_path = tmp_path / "old.db"
+    create_pre_motivation_db(db_path)
+
+    db = Database(db_path)
+
+    with db.get_cursor() as cur:
+        cur.execute("PRAGMA table_info(user_settings)")
+        columns = {row[1] for row in cur.fetchall()}
+        cur.execute(
+            "SELECT user_id, reading_speed_period_days, motivation_enabled FROM user_settings"
+        )
+        rows = cur.fetchall()
+    db.close()
+
+    assert "motivation_enabled" in columns
+    assert rows == [("user-1", 14, 1)]
+
+
+def test_motivation_column_migration_is_idempotent(tmp_path):
+    db_path = tmp_path / "old.db"
+    create_pre_motivation_db(db_path)
+
+    Database(db_path).close()
+    second = Database(db_path)
+
+    with second.get_cursor() as cur:
+        cur.execute("SELECT COUNT(*) FROM user_settings")
+        assert cur.fetchone()[0] == 1
+        cur.execute("SELECT motivation_enabled FROM user_settings WHERE user_id = 'user-1'")
+        assert cur.fetchone()[0] == 1
+    second.close()

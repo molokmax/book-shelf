@@ -282,6 +282,68 @@ class UserSettingsRepository:
                     (user_id, days, now, now),
                 )
 
+    def get_motivation_enabled(self, user_id: str) -> bool:
+        """Включена ли мотивация у пользователя.
+
+        Отсутствие строки означает включённую мотивацию (значение по умолчанию).
+        """
+        with self.db.get_cursor() as cursor:
+            cursor.execute(
+                "SELECT motivation_enabled FROM user_settings WHERE user_id = ?",
+                (user_id,),
+            )
+            row = cursor.fetchone()
+            if not row:
+                return True
+            return bool(int(row[0]))
+
+    def set_motivation_enabled(self, user_id: str, enabled: bool) -> None:
+        """Создаёт или обновляет настройку мотивации пользователя."""
+        now = datetime.now().isoformat()
+        with self.db.get_cursor() as cursor:
+            cursor.execute(
+                "SELECT created_at FROM user_settings WHERE user_id = ?",
+                (user_id,),
+            )
+            row = cursor.fetchone()
+            if row:
+                cursor.execute(
+                    "UPDATE user_settings SET motivation_enabled = ?, updated_at = ? "
+                    "WHERE user_id = ?",
+                    (int(enabled), now, user_id),
+                )
+            else:
+                cursor.execute(
+                    "INSERT INTO user_settings "
+                    "(user_id, reading_speed_period_days, motivation_enabled, "
+                    "created_at, updated_at) "
+                    "VALUES (?, ?, ?, ?, ?)",
+                    (
+                        user_id,
+                        DEFAULT_READING_SPEED_PERIOD,
+                        int(enabled),
+                        now,
+                        now,
+                    ),
+                )
+
+
+class MotivationPhraseRepository:
+    """Репозиторий мотивационных фраз (глобальный открытый список)."""
+
+    def __init__(self, db: Database | None = None, db_path: str = "data/database.db") -> None:
+        self.db = db if db is not None else Database(db_path)
+
+    def get_random_phrase(self) -> Optional[str]:
+        """Возвращает текст случайной фразы списка, None если список пуст.
+
+        Категория при выборе не учитывается: сценарный подбор появится позже.
+        """
+        with self.db.get_cursor() as cursor:
+            cursor.execute("SELECT text FROM motivational_phrases ORDER BY RANDOM() LIMIT 1")
+            row = cursor.fetchone()
+            return row[0] if row else None
+
 
 class UserStateRepository:
     """Хранилище состояния пользователя в таблице user_state."""
