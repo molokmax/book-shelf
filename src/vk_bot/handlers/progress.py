@@ -3,7 +3,6 @@
 from typing import Any
 
 from vk_api.keyboard import VkKeyboard
-from vk_api.utils import get_random_id
 
 from core.models import ReadingStatus
 from core.services import BookService
@@ -95,7 +94,7 @@ class ProgressHandler(AbstractCommandHandler):
         lines = ["📚 Введи номер книги для обновления прогресса.\nКниги в статусе «Читаю»:\n\n"]
         for i, book in enumerate(books, 1):
             lines.append(helpers.format_book_info(i, book) + "\n")
-        self._send(context, "".join(lines), self._create_reading_keyboard())
+        context.send_message("".join(lines), keyboard=self._create_reading_keyboard())
 
     def _handle_selecting_reading_book(self, context: BotContext) -> None:
         state_info = context.get_state()
@@ -108,25 +107,23 @@ class ProgressHandler(AbstractCommandHandler):
         try:
             selection = int(text)
         except ValueError:
-            self._send(
-                context,
+            context.send_message(
                 helpers.format_invalid_input("Введи корректный номер книги."),
-                self._create_reading_keyboard(),
+                keyboard=self._create_reading_keyboard(),
             )
             return
 
         books_ids = state_info["data"].get("books", [])
         if selection < 1 or selection > len(books_ids):
-            self._send(
-                context,
+            context.send_message(
                 helpers.format_invalid_input("Номер книги вне диапазона."),
-                self._create_reading_keyboard(),
+                keyboard=self._create_reading_keyboard(),
             )
             return
 
         book = BookService().get_book_by_id(books_ids[selection - 1])
         if not book:
-            self._send(context, "⚠️ Книга не найдена.", self._create_reading_keyboard())
+            context.send_message("⚠️ Книга не найдена.", keyboard=self._create_reading_keyboard())
             return
 
         self._on_book_selected(context, book)
@@ -144,12 +141,3 @@ class ProgressHandler(AbstractCommandHandler):
         kb.add_button("Другие")
         kb.add_button("Отмена", payload={"command": "/cancel"})
         return kb
-
-    @staticmethod
-    def _send(context: BotContext, message: str, keyboard: VkKeyboard) -> None:
-        context.api.messages.send(
-            user_id=context.user_id,
-            message=message,
-            keyboard=keyboard.get_keyboard(),
-            random_id=get_random_id(),
-        )

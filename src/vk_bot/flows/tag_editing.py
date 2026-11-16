@@ -7,8 +7,6 @@
 
 from typing import Callable
 
-from vk_api.utils import get_random_id
-
 from core.services import TagService
 from utils import helpers
 from vk_bot.context import BotContext
@@ -151,12 +149,7 @@ class TagEditingFlow:
             f"\nВыбрано: {selection_text}"
         )
         keyboard = tag_editing_keyboard(tags, selected, data["tag_page"], self._owner_command)
-        context.api.messages.send(
-            user_id=context.user_id,
-            message=message,
-            keyboard=keyboard.get_keyboard(),
-            random_id=get_random_id(),
-        )
+        context.send_message(message, keyboard=keyboard)
 
     def _get_user_id(self, context: BotContext, state_info: dict) -> str:
         user_id = state_info.get("data", {}).get("user_id")

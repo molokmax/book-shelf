@@ -1,7 +1,12 @@
 import json
 from typing import Any, Dict, Optional
 
+from vk_api.keyboard import VkKeyboard
+from vk_api.utils import get_random_id
+
 from core.storage import ActiveStateStorage
+
+from . import message_chain
 
 
 class BotContext:
@@ -66,6 +71,7 @@ class BotContext:
 
     def set_state(self, state: Dict[str, Any]) -> None:
         if self._storage is not None:
+            self._carry_last_message_id(state)
             self._storage.save(self.user_id, state)
 
     def delete_state(self) -> None:
@@ -82,3 +88,50 @@ class BotContext:
         if self._storage is None:
             return None
         return self._storage.get_command(self.user_id)
+
+    def send_message(
+        self,
+        message: str,
+        keyboard: Optional[VkKeyboard] = None,
+        attachment: Optional[str] = None,
+    ) -> None:
+        """Отправляет сообщение и ведёт цепочку промежуточных сообщений.
+
+        Перед отправкой удаляет предыдущее промежуточное сообщение сценария
+        (issue #44). Id нового сообщения запоминается в data стейта, только
+        пока сценарий активен: финальные сообщения отправляются до
+        delete_state(), и их id стирается вместе со стейтом, поэтому они
+        остаются в истории навсегда.
+        """
+        message_chain.delete_intermediate_message(self._api, self._storage, self.user_id)
+
+        kwargs: Dict[str, Any] = {
+            "user_id": self.user_id,
+            "message": message,
+            "random_id": get_random_id(),
+        }
+        if keyboard is not None:
+            kwargs["keyboard"] = keyboard.get_keyboard()
+        if attachment is not None:
+            kwargs["attachment"] = attachment
+
+        response = self._api.messages.send(**kwargs)
+        message_chain.remember_message_id(
+            self._storage, self.user_id, message_chain.extract_message_id(response)
+        )
+
+    def _carry_last_message_id(self, state: Dict[str, Any]) -> None:
+        """Сохраняет актуальный id промежуточного сообщения при перезаписи стейта.
+
+        Хендлеры мутируют локальную копию state_info, прочитанную до отправки,
+        и могут записать устаревший last_message_id. Берём значение из
+        хранилища: его обновляет send_message сразу после отправки.
+        """
+        message_id = message_chain.current_message_id(self._storage, self.user_id)
+        if message_id is None:
+            return
+        data = state.get("data")
+        if isinstance(data, dict):
+            data[message_chain.LAST_MESSAGE_KEY] = message_id
+        else:
+            state["data"] = {message_chain.LAST_MESSAGE_KEY: message_id}

@@ -1,50 +1,8 @@
-import json
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
-
-class FakeStateStorage:
-    def __init__(self):
-        self._data = {}
-
-    def get(self, user_id):
-        return self._data.get(user_id, {})
-
-    def save(self, user_id, state):
-        self._data[user_id] = state
-
-    def delete(self, user_id):
-        self._data.pop(user_id, None)
-
-    def is_active(self, user_id):
-        return bool(self._data.get(user_id))
-
-    def get_command(self, user_id):
-        state = self._data.get(user_id)
-        return state.get("command") if state else None
-
-
-# Fake VkApiMethod like in other tests
-class FakeVkApiMethod:
-    def __init__(self):
-        self.sent_messages = []
-        self.messages = self
-
-    def send(self, **kwargs):
-        self.sent_messages.append(kwargs)
-
-
-def make_context(api, user_id, text="", payload=None, storage=None):
-    vk = MagicMock()
-    vk.get_api.return_value = api
-    upload = MagicMock()
-    event = MagicMock()
-    event.user_id = user_id
-    event.peer_id = user_id
-    event.text = text
-    event.payload = json.dumps(payload) if payload else None
-    from vk_bot.context import BotContext
-
-    return BotContext(vk=vk, upload=upload, event=event, storage=storage or FakeStateStorage())
+from conftest import FakeStateStorage
+from conftest import FakeVkApi as FakeVkApiMethod
+from conftest import make_context
 
 
 # Fake book objects
