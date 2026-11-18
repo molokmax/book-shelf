@@ -18,8 +18,10 @@ This file provides guidance to Open Code when working with code in this reposito
 - **src/vk_bot/** – Vk bot layer:
   - `bot.py` contains `VkBookShelfBot`, which uses `vk_api`, loads configuration, and runs handlers.
   - `command_router.py` – `CommandRouter` — central command router with priority‑based handler dispatching.
-  - `handlers/base.py` – `AbstractCommandHandler` base class with `can_handle`, `priority`, and `commands`.
-  - `handlers/` – directory with command handlers. Each file is a single handler (`add.py`, `edit.py`, `list.py`, etc.) with a class inheriting `AbstractCommandHandler`.
+  - `handlers/base.py` – `AbstractCommandHandler` base class with `can_handle`, `priority`, `commands`; `handle()` is a template method that rejects commands while another scenario is active.
+  - `handlers/scenario.py` – `ScenarioHandler` base class for multi-step commands: state registry, `start`/`begin`/`goto`/`finish`, `step_<state>` and `render_<state>` conventions.
+  - `states.py` – `StrEnum` names of scenario steps (shared sub-scenario steps and per-command steps).
+  - `handlers/` – directory with command handlers. Each file is a single handler (`add.py`, `edit.py`, `list.py`, etc.) with a class inheriting `AbstractCommandHandler` or `ScenarioHandler`.
   - `core/repository.py` – `UserStateRepository` for persisting user state in SQLite (`user_state` table).
   - `keyboards.py` – Shared keyboard layouts used by the several commands. Specific keyboards should be in command handler file.
 - **src/core/** – Core application logic, independent of Telegram:
@@ -43,7 +45,6 @@ This file provides guidance to Open Code when working with code in this reposito
 ## Important Files
 
 - `README.md` – High‑level project description and feature list.
-- `docs/project_structure.md` – Detailed directory overview (mirrored above).
 - `requirements.txt` – Python dependencies, including `pydantic`, `pytest`, `flake8`, etc.
 - `pyproject.toml` – Shared config for black, isort, pytest.
 - `.flake8` – Flake8 config (line-length и правила согласованы с black).
@@ -53,7 +54,8 @@ This file provides guidance to Open Code when working with code in this reposito
 - Write code comments in Russian
 - Use relative imports when referencing modules within the same package
 - Always place imports at the top of the file, never inline
-- A handler must not intercept messages while another command's scenario is active. The router makes two passes: first by the typed command, then (if nothing matched and a user state is active) by the state's command. So at the top of `handle()` return `None` when `context.is_active()` and `state_info.get("command") != "<this handler's command>"` — the message then reaches the active scenario's handler. Exception: system commands like "Отмена" (`CancelHandler`, priority 100) intentionally intercept any scenario.
+- Multi-step commands inherit `ScenarioHandler`, not `AbstractCommandHandler`. Declare the step enum (`states`), `initial_state`, `scenario_command`, and a `step_<state>(context, state_info)` method per step; add `render_<state>(context, state_info)` to send the prompt. A step returns the next state name, or `None` to stay in the current step. `__init_subclass__` fails on import if a `step_*` method is missing. Use `begin()` to start a scenario, `goto()` to move to a state, `finish()` to send the final message and delete the state (in that order), and `reset_unknown_state()` is called automatically for unknown steps.
+- Do not implement the foreign-scenario guard by hand: `AbstractCommandHandler.handle()` is a template method. Any non-system handler gets a refusal message when `state["command"]` belongs to another handler. Mark global commands with `is_system = True` (only `/start` and `/cancel`) and set `scenario_command` to the canonical command written into `state["command"]`. Re-entering the handler's own command (payload command without `action`, or text starting with `/`) restarts the scenario. The router keeps two passes: by the typed command, then by the state's command for free-text steps.
 - After completing changes, run: `isort .`, `black .`, `flake8 src/`, and `pytest`
 
 ## Development Tips

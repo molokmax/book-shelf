@@ -12,7 +12,7 @@ class HelpHandler(AbstractCommandHandler):
     priority = 10
     commands = ["/help", "help"]
 
-    def handle(self, context: BotContext) -> Any:
+    def _handle(self, context: BotContext) -> Any:
         help_text = (
             "📚 Book Shelf - Персональный трекер чтения\n\n"
             "💬 Доступные команды\n"

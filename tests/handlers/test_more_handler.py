@@ -4,6 +4,7 @@ import json
 from unittest.mock import MagicMock
 
 from vk_bot.command_router import CommandRouter
+from vk_bot.handlers.base import FOREIGN_SCENARIO_MESSAGE
 from vk_bot.handlers.cancel import CancelHandler
 from vk_bot.handlers.more import MoreHandler
 from vk_bot.keyboards import more_keyboard
@@ -120,7 +121,7 @@ def test_back_returns_to_main_menu():
 
 
 def test_more_guard_other_scenario():
-    """«Ещё» при чужом активном сценарии не перехватывается."""
+    """«Ещё» при чужом активном сценарии блокируется."""
     fake_api = FakeVkApiMethod()
     storage = FakeStateStorage()
     storage.save(3, {"command": "/add", "state": "waiting_for_title", "data": {}})
@@ -128,12 +129,13 @@ def test_more_guard_other_scenario():
     ctx = make_context(fake_api, 3, "Ещё", payload={"command": "/more"}, storage=storage)
     result = MoreHandler().handle(ctx)
 
-    assert result is None
-    assert fake_api.sent_messages == []
+    assert result is True
+    assert fake_api.sent_messages[-1]["message"] == FOREIGN_SCENARIO_MESSAGE
+    assert storage.get(3)["state"] == "waiting_for_title"
 
 
 def test_back_guard_other_scenario():
-    """«Назад» при чужом активном сценарии не перехватывается."""
+    """«Назад» при чужом активном сценарии блокируется."""
     fake_api = FakeVkApiMethod()
     storage = FakeStateStorage()
     storage.save(4, {"command": "/edit", "state": "choose_filter", "data": {}})
@@ -141,8 +143,9 @@ def test_back_guard_other_scenario():
     ctx = make_context(fake_api, 4, "Назад", payload={"command": "/back"}, storage=storage)
     result = MoreHandler().handle(ctx)
 
-    assert result is None
-    assert fake_api.sent_messages == []
+    assert result is True
+    assert fake_api.sent_messages[-1]["message"] == FOREIGN_SCENARIO_MESSAGE
+    assert storage.get(4)["state"] == "choose_filter"
 
 
 def test_cancel_intercepts_submenu():

@@ -26,16 +26,18 @@ def make_context(command="/add"):
 class HandlerA(AbstractCommandHandler):
     priority = 10
     commands = ["/add", "add"]
+    scenario_command = "/add"
 
-    def handle(self, context):
+    def _handle(self, context):
         return "HandlerA handled"
 
 
 class HandlerB(AbstractCommandHandler):
     priority = 20
     commands = ["/add", "add"]
+    scenario_command = "/add"
 
-    def handle(self, context):
+    def _handle(self, context):
         return "HandlerB handled"
 
 
@@ -43,7 +45,7 @@ class HandlerC(AbstractCommandHandler):
     priority = 5
     commands = ["/list"]
 
-    def handle(self, context):
+    def _handle(self, context):
         return "HandlerC handled"
 
 
@@ -51,7 +53,7 @@ class HandlerNeverMatches(AbstractCommandHandler):
     priority = 0
     commands = []
 
-    def handle(self, context):
+    def _handle(self, context):
         return "Should not be called"
 
 
@@ -92,7 +94,7 @@ def test_route_continues_on_error():
         priority = 20
         commands = ["/broken"]
 
-        def handle(self, context):
+        def _handle(self, context):
             raise RuntimeError("Something went wrong")
 
     router.register_handler(BrokenHandler())
@@ -201,8 +203,9 @@ def test_route_high_priority_intercepts_before_state_check():
     class CancelLikeHandler(AbstractCommandHandler):
         priority = 100
         commands = ["отмена"]
+        is_system = True
 
-        def handle(self, context):
+        def _handle(self, context):
             return "CancelLikeHandler handled"
 
     router.register_handler(CancelLikeHandler())

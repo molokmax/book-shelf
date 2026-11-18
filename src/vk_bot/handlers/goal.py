@@ -6,14 +6,14 @@ from vk_api.keyboard import VkKeyboard
 
 from core.services import GoalService
 from utils import helpers
-from vk_bot.keyboards import cancel_keyboard, main_keyboard
+from vk_bot.context import BotContext
+from vk_bot.handlers.scenario import ScenarioHandler
+from vk_bot.keyboards import cancel_keyboard
+from vk_bot.states import GoalState
 from vk_bot.user_helpers import get_or_create_user
 
-from ..context import BotContext
-from .base import AbstractCommandHandler
 
-
-class GoalHandler(AbstractCommandHandler):
+class GoalHandler(ScenarioHandler):
     """Handler for the `/goal` command.
 
     Управляет состояниями:
@@ -23,59 +23,82 @@ class GoalHandler(AbstractCommandHandler):
 
     priority = 10
     commands = ["/goal", "goal", "цель"]
+    scenario_command = "/goal"
+    initial_state = GoalState.MENU
+    states = GoalState
 
-    def handle(self, context: BotContext) -> Any:
-        state_info = context.get_state()
+    # ── Жизненный цикл ──────────────────────────────────────────────
 
-        # Не перехватываем управление у активного сценария другой команды.
-        if context.is_active() and state_info.get("command") != "/goal":
-            return None
-
-        if not context.is_active():
-            self._handle_entry(context)
-            return True
-
-        state = state_info.get("state")
-        if state == "menu":
-            self._handle_menu(context, state_info)
-        elif state == "waiting_for_goal_input":
-            self._handle_input(context, state_info)
-
-        return True
-
-    def _handle_entry(self, context: BotContext) -> None:
+    def start(self, context: BotContext) -> None:
         user = get_or_create_user(context.api, context.user_id)
-        context.set_state(
-            {
-                "command": "/goal",
-                "state": "menu",
-                "data": {"user_id": user.id},
-            }
-        )
+        self.begin(context, GoalState.MENU, {"user_id": user.id})
+
+    def render_menu(self, context: BotContext, state_info: dict) -> None:
         context.send_message(
             "Цель на день\n\nВыбери действие:",
             keyboard=self._create_menu_keyboard(),
         )
 
-    def _handle_menu(self, context: BotContext, state_info: dict) -> None:
+    def render_waiting_for_goal_input(self, context: BotContext, state_info: dict) -> None:
+        context.send_message(
+            "Введи количество страниц в день (целое число).\n\n0 — отключить цель.",
+            keyboard=cancel_keyboard(),
+        )
+
+    # ── Шаги ────────────────────────────────────────────────────────
+
+    def step_menu(self, context: BotContext, state_info: dict) -> Any:
         choice = context.text.strip().lower()
         if choice == "просмотр":
             self._show_status(context, state_info)
-        elif choice == "установить":
-            self._start_set(context, state_info)
-        elif choice == "отключить":
+            return None
+        if choice == "установить":
+            return GoalState.WAITING_FOR_GOAL_INPUT
+        if choice == "отключить":
             self._disable(context, state_info)
-        else:
+            return None
+
+        context.send_message(
+            helpers.format_invalid_input("Выбери действие из клавиатуры."),
+            keyboard=self._create_menu_keyboard(),
+        )
+        return None
+
+    def step_waiting_for_goal_input(self, context: BotContext, state_info: dict) -> Any:
+        try:
+            value = int(context.text.strip())
+        except ValueError:
             context.send_message(
-                helpers.format_invalid_input("Выбери действие из клавиатуры."),
-                keyboard=self._create_menu_keyboard(),
+                helpers.format_invalid_input("Введи целое число, например 20."),
+                keyboard=cancel_keyboard(),
             )
+            return None
+
+        if value < 0:
+            context.send_message(
+                helpers.format_invalid_input("Цель не может быть отрицательной."),
+                keyboard=cancel_keyboard(),
+            )
+            return None
+
+        service = GoalService()
+        user_id = self._user_id(context, state_info)
+        if value == 0:
+            service.disable_goal(user_id)
+            self.finish(context, "Цель отключена.")
+            return None
+
+        service.set_daily_goal(user_id, value)
+        self.finish(context, f"Цель на день установлена: {value} стр.")
+        return None
+
+    # ── Действия меню ───────────────────────────────────────────────
 
     def _show_status(self, context: BotContext, state_info: dict) -> None:
         service = GoalService()
         status = service.get_goal_status(self._user_id(context, state_info))
         if status is None:
-            self._finish(
+            self.finish(
                 context,
                 "Цель на день не установлена.\n\n"
                 "Нажми «Установить», чтобы задать количество страниц в день.",
@@ -90,49 +113,14 @@ class GoalHandler(AbstractCommandHandler):
             lines.append("Цель выполнена.")
         else:
             lines.append(f"Осталось: {status.remaining} стр.")
-        self._finish(context, "\n".join(lines))
-
-    def _start_set(self, context: BotContext, state_info: dict) -> None:
-        state_info["state"] = "waiting_for_goal_input"
-        context.set_state(state_info)
-        context.send_message(
-            "Введи количество страниц в день (целое число).\n\n0 — отключить цель.",
-            keyboard=cancel_keyboard(),
-        )
-
-    def _handle_input(self, context: BotContext, state_info: dict) -> None:
-        try:
-            value = int(context.text.strip())
-        except ValueError:
-            context.send_message(
-                helpers.format_invalid_input("Введи целое число, например 20."),
-                keyboard=cancel_keyboard(),
-            )
-            return
-
-        if value < 0:
-            context.send_message(
-                helpers.format_invalid_input("Цель не может быть отрицательной."),
-                keyboard=cancel_keyboard(),
-            )
-            return
-
-        service = GoalService()
-        user_id = self._user_id(context, state_info)
-        if value == 0:
-            service.disable_goal(user_id)
-            self._finish(context, "Цель отключена.")
-            return
-
-        service.set_daily_goal(user_id, value)
-        self._finish(context, f"Цель на день установлена: {value} стр.")
+        self.finish(context, "\n".join(lines))
 
     def _disable(self, context: BotContext, state_info: dict) -> None:
         service = GoalService()
         if not service.disable_goal(self._user_id(context, state_info)):
-            self._finish(context, "Цель не установлена.")
+            self.finish(context, "Цель не установлена.")
             return
-        self._finish(context, "Цель отключена.")
+        self.finish(context, "Цель отключена.")
 
     @staticmethod
     def _user_id(context: BotContext, state_info: dict) -> str:
@@ -143,11 +131,6 @@ class GoalHandler(AbstractCommandHandler):
             state_info.setdefault("data", {})["user_id"] = user_id
             context.set_state(state_info)
         return user_id
-
-    def _finish(self, context: BotContext, message: str) -> None:
-        # Финал: отправляем до delete_state, чтобы удалить висящий промпт.
-        context.send_message(message, keyboard=main_keyboard())
-        context.delete_state()
 
     @staticmethod
     def _create_menu_keyboard() -> VkKeyboard:

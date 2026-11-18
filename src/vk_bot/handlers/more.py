@@ -17,16 +17,13 @@ class MoreHandler(AbstractCommandHandler):
     Работает без состояния в ``user_state``: это навигация по клавиатуре,
     а не сценарий с диалогом. Маршрутизация по payload: кнопка «Ещё» несёт
     ``{"command": "/more"}``, кнопка «Назад» несёт ``{"command": "/back"}``.
+    При активном чужом сценарии базовый класс отвечает отказом.
     """
 
     priority = 10
     commands = ["/more", "/back"]
 
-    def handle(self, context: BotContext) -> Any:
-        # Не перехватываем управление у активного сценария другой команды.
-        if context.is_active() and context.command_state not in self.commands:
-            return None
-
+    def _handle(self, context: BotContext) -> Any:
         if context.command == "/back":
             self._show_main_menu(context)
         else:
@@ -37,7 +34,6 @@ class MoreHandler(AbstractCommandHandler):
     # Экраны
     # ---------------------------------------------------------------------
     def _show_more(self, context: BotContext) -> None:
-        """Экран «Ещё» со списком остальных команд."""
         message = (
             "Ещё\n\n"
             "/edit - Редактировать книгу\n"
@@ -49,7 +45,6 @@ class MoreHandler(AbstractCommandHandler):
         self._send(context, message, more_keyboard())
 
     def _show_main_menu(self, context: BotContext) -> None:
-        """Возврат в главное меню."""
         self._send(context, "Главное меню", main_keyboard())
 
     @staticmethod

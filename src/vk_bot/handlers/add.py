@@ -1,8 +1,7 @@
 """Add command handler.
 
 Содержит всю логику обработки команды /add: входную точку,
-стейт-машину с диспетчеризацией по state, переиспользуемый шаг выбора
-тегов и фабрики клавиатур.
+шаги сценария, переиспользуемый шаг выбора тегов и фабрики клавиатур.
 """
 
 from typing import Any
@@ -13,105 +12,108 @@ from core.services import BookService
 from utils import helpers
 from utils.helpers import format_tags_line
 from utils.litres_parser import LitresParserError, is_litres_url, parse_litres_book
+from vk_bot.context import BotContext
 from vk_bot.flows.tag_editing import TagEditingFlow
-from vk_bot.keyboards import cancel_keyboard, main_keyboard
+from vk_bot.handlers.scenario import ScenarioHandler
+from vk_bot.keyboards import cancel_keyboard
+from vk_bot.states import AddState
 from vk_bot.user_helpers import get_or_create_user
 
-from ..context import BotContext
-from .base import AbstractCommandHandler
 
-
-class AddHandler(AbstractCommandHandler):
+class AddHandler(ScenarioHandler):
     """Handler for the `/add` command."""
 
     priority = 10
     commands = ["/add", "add"]
+    scenario_command = "/add"
+    initial_state = AddState.CHOOSE_METHOD
+    states = AddState
 
     def __init__(self) -> None:
         self._tag_flow = TagEditingFlow("/add", self._finish_with_book)
 
-    _STATE_DISPATCH = {}
+    # ── Жизненный цикл ──────────────────────────────────────────────
 
-    def handle(self, context: BotContext) -> Any:
-        if context.is_active():
-            self._handle_step(context)
-        else:
-            self._handle_start(context)
-        return True
+    def start(self, context: BotContext) -> None:
+        self.begin(context, AddState.CHOOSE_METHOD, {})
 
-    # ── Входная точка ──────────────────────────────────────────────
-
-    def _handle_start(self, context: BotContext) -> None:
-        context.set_state({"command": "/add", "state": "choose_method", "data": {}})
+    def render_choose_method(self, context: BotContext, state_info: dict) -> None:
         context.send_message(
             "➕ Добавление новой книги. Выбери способ добавления:",
             keyboard=self.create_add_method_keyboard(),
         )
 
-    # ── Диспетчер шагов ─────────────────────────────────────────────
+    def render_waiting_for_title(self, context: BotContext, state_info: dict) -> None:
+        context.send_message(
+            "Отлично! Теперь введи название книги:",
+            keyboard=cancel_keyboard(),
+        )
 
-    def _handle_step(self, context: BotContext) -> None:
-        if not context.is_active():
-            return
-
-        state_info = context.get_state()
-        state = state_info.get("state")
-
-        handler = self._STATE_DISPATCH.get(state)
-        if handler is not None:
-            handler(self, context, state_info)
-        else:
-            # Финал: отправляем до delete_state, чтобы удалить висящий промпт.
-            context.send_message(
-                "Добавление книги сброшено. Повтори команду /add.",
-                keyboard=main_keyboard(),
-            )
-            context.delete_state()
-
-    # ── Обработчики состояний ──────────────────────────────────────
-
-    def _handle_choose_method(self, context: BotContext, state_info: dict) -> None:
-        text = context.text.strip()
-
-        if text == "Ручное":
-            state_info["state"] = "waiting_for_title"
-            context.set_state(state_info)
-            context.send_message(
-                "Отлично! Теперь введи название книги:",
-                keyboard=cancel_keyboard(),
-            )
-        elif text == "Из LitRes":
-            state_info["state"] = "waiting_for_litres_url"
-            context.set_state(state_info)
-            context.send_message(
-                "Введи ссылку на книгу с https://litres.ru:",
-                keyboard=cancel_keyboard(),
-            )
-        else:
-            context.send_message(
-                "Пожалуйста, выбери: Ручное или Из LitRes.",
-                keyboard=self.create_add_method_keyboard(),
-            )
-
-    def _handle_waiting_for_title(self, context: BotContext, state_info: dict) -> None:
-        state_info["data"]["title"] = context.text.strip()
-        state_info["state"] = "waiting_for_author"
-        context.set_state(state_info)
+    def render_waiting_for_author(self, context: BotContext, state_info: dict) -> None:
         context.send_message(
             "Отлично! Теперь введи автора книги:",
             keyboard=cancel_keyboard(),
         )
 
-    def _handle_waiting_for_author(self, context: BotContext, state_info: dict) -> None:
-        state_info["data"]["author"] = context.text.strip()
-        state_info["state"] = "waiting_for_pages"
-        context.set_state(state_info)
+    def render_waiting_for_pages(self, context: BotContext, state_info: dict) -> None:
         context.send_message(
             "Отлично! Теперь введи количество страниц в книге:",
             keyboard=cancel_keyboard(),
         )
 
-    def _handle_waiting_for_pages(self, context: BotContext, state_info: dict) -> None:
+    def render_waiting_for_link(self, context: BotContext, state_info: dict) -> None:
+        context.send_message(
+            (
+                "Отлично! Теперь можешь указать ссылку на книгу. "
+                "Нажми Дальше чтобы оставить пустым."
+            ),
+            keyboard=self.create_link_keyboard(),
+        )
+
+    def render_waiting_for_litres_url(self, context: BotContext, state_info: dict) -> None:
+        context.send_message(
+            "Введи ссылку на книгу с https://litres.ru:",
+            keyboard=cancel_keyboard(),
+        )
+
+    def render_waiting_for_litres_confirm(self, context: BotContext, state_info: dict) -> None:
+        data = state_info["data"]
+        context.send_message(
+            (
+                f"✅ Найдены данные книги:\n"
+                f"\nНазвание: {data.get('title', '—')}\n"
+                f"Автор: {data.get('author', '—')}\n"
+                f"Страниц: {data.get('pages', '—')}\n"
+                "\nПродолжить добавление?"
+            ),
+            keyboard=self.create_confirm_litres_keyboard(),
+        )
+
+    # ── Шаги ────────────────────────────────────────────────────────
+
+    def step_choose_method(self, context: BotContext, state_info: dict) -> Any:
+        text = context.text.strip()
+
+        if text == "Ручное":
+            return AddState.WAITING_FOR_TITLE
+        if text == "Из LitRes":
+            return AddState.WAITING_FOR_LITRES_URL
+
+        context.send_message(
+            "Пожалуйста, выбери: Ручное или Из LitRes.",
+            keyboard=self.create_add_method_keyboard(),
+        )
+        return None
+
+    def step_waiting_for_title(self, context: BotContext, state_info: dict) -> Any:
+        state_info["data"]["title"] = context.text.strip()
+        return AddState.WAITING_FOR_AUTHOR
+
+    def step_waiting_for_author(self, context: BotContext, state_info: dict) -> Any:
+        state_info["data"]["author"] = context.text.strip()
+        return AddState.WAITING_FOR_PAGES
+
+    def step_waiting_for_pages(self, context: BotContext, state_info: dict) -> Any:
         text = context.text.strip()
 
         try:
@@ -123,20 +125,12 @@ class AddHandler(AbstractCommandHandler):
                 "⚠️ Введи положительное целое число страниц.",
                 keyboard=cancel_keyboard(),
             )
-            return
+            return None
 
         state_info["data"]["pages"] = pages
-        state_info["state"] = "waiting_for_link"
-        context.set_state(state_info)
-        context.send_message(
-            (
-                "Отлично! Теперь можешь указать ссылку на книгу. "
-                "Нажми Дальше чтобы оставить пустым."
-            ),
-            keyboard=self.create_link_keyboard(),
-        )
+        return AddState.WAITING_FOR_LINK
 
-    def _handle_waiting_for_link(self, context: BotContext, state_info: dict) -> None:
+    def step_waiting_for_link(self, context: BotContext, state_info: dict) -> Any:
         text = context.text.strip()
 
         if not text or text.lower() == "дальше":
@@ -147,15 +141,61 @@ class AddHandler(AbstractCommandHandler):
                     "⚠️ Введи корректный URL или нажми 'Дальше'.",
                     keyboard=self.create_link_keyboard(),
                 )
-                return
+                return None
             state_info["data"]["link"] = text
 
         # Дальше переиспользуемый шаг выбора тегов
         self._tag_flow.start(context, state_info, preselected=[])
+        return None
 
-    def _handle_selecting_tags(self, context: BotContext, state_info: dict) -> None:
+    def step_selecting_tags(self, context: BotContext, state_info: dict) -> Any:
         """Шаг выбора тегов делегируется TagEditingFlow."""
         self._tag_flow.handle(context)
+        return None
+
+    def step_waiting_for_litres_url(self, context: BotContext, state_info: dict) -> Any:
+        url = context.text.strip()
+        data = state_info["data"]
+
+        if not is_litres_url(url):
+            context.send_message(
+                "⚠️ Введи корректную ссылку на LitRes.",
+                keyboard=cancel_keyboard(),
+            )
+            return None
+
+        try:
+            book_data = parse_litres_book(url)
+            if (
+                not book_data.get("title")
+                or not book_data.get("author")
+                or not book_data.get("pages")
+            ):
+                raise LitresParserError("Недостаточно данных о книге")
+
+            data.update(
+                {
+                    "title": book_data["title"],
+                    "author": book_data["author"],
+                    "pages": book_data["pages"],
+                    "link": url,
+                }
+            )
+            return AddState.WAITING_FOR_LITRES_CONFIRM
+        except LitresParserError as e:
+            context.send_message(
+                f"❌ Не удалось получить информацию о книге: {e}",
+                keyboard=cancel_keyboard(),
+            )
+            return None
+
+    def step_waiting_for_litres_confirm(self, context: BotContext, state_info: dict) -> Any:
+        if context.text.strip() == "Продолжить":
+            # Дальше переиспользуемый шаг выбора тегов
+            self._tag_flow.start(context, state_info, preselected=[])
+        return None
+
+    # ── Финал ───────────────────────────────────────────────────────
 
     def _finish_with_book(self, context: BotContext, tags: list[str]) -> None:
         """Завершение шага тегов в /add: создаёт книгу с итоговой выборкой."""
@@ -179,62 +219,7 @@ class AddHandler(AbstractCommandHandler):
             "/add - Добавить ещё одну книгу\n"
             "/list - Показать список книг"
         )
-        # Финал: отправляем до delete_state, чтобы удалить висящий промпт.
-        context.send_message(message_text, keyboard=self.create_book_added_keyboard())
-        context.delete_state()
-
-    def _handle_waiting_for_litres_url(self, context: BotContext, state_info: dict) -> None:
-        text = context.text.strip()
-        data = state_info["data"]
-
-        url = text.strip()
-        if not is_litres_url(url):
-            context.send_message(
-                "⚠️ Введи корректную ссылку на LitRes.",
-                keyboard=cancel_keyboard(),
-            )
-            return
-
-        try:
-            book_data = parse_litres_book(url)
-            if (
-                not book_data.get("title")
-                or not book_data.get("author")
-                or not book_data.get("pages")
-            ):
-                raise LitresParserError("Недостаточно данных о книге")
-
-            data.update(
-                {
-                    "title": book_data["title"],
-                    "author": book_data["author"],
-                    "pages": book_data["pages"],
-                }
-            )
-            data["link"] = url
-            state_info["state"] = "waiting_for_litres_confirm"
-            context.set_state(state_info)
-            context.send_message(
-                (
-                    f"✅ Найдены данные книги:\n"
-                    f"\nНазвание: {book_data.get('title', '—')}\n"
-                    f"Автор: {book_data.get('author', '—')}\n"
-                    f"Страниц: {book_data.get('pages', '—')}\n"
-                    "\nПродолжить добавление?"
-                ),
-                keyboard=self.create_confirm_litres_keyboard(),
-            )
-        except LitresParserError as e:
-            context.send_message(
-                f"❌ Не удалось получить информацию о книге: {e}",
-                keyboard=cancel_keyboard(),
-            )
-
-    def _handle_waiting_for_litres_confirm(self, context: BotContext, state_info: dict) -> None:
-        text = context.text.strip()
-        if text == "Продолжить":
-            # Дальше переиспользуемый шаг выбора тегов
-            self._tag_flow.start(context, state_info, preselected=[])
+        self.finish(context, message_text, keyboard=self.create_book_added_keyboard())
 
     # ── Фабрики клавиатур ──────────────────────────────────────────
 
@@ -266,15 +251,3 @@ class AddHandler(AbstractCommandHandler):
         kb.add_button("Продолжить")
         kb.add_button("Отмена", payload={"command": "/cancel"})
         return kb
-
-
-AddHandler._STATE_DISPATCH = {
-    "choose_method": AddHandler._handle_choose_method,
-    "waiting_for_title": AddHandler._handle_waiting_for_title,
-    "waiting_for_author": AddHandler._handle_waiting_for_author,
-    "waiting_for_pages": AddHandler._handle_waiting_for_pages,
-    "waiting_for_link": AddHandler._handle_waiting_for_link,
-    "selecting_tags": AddHandler._handle_selecting_tags,
-    "waiting_for_litres_url": AddHandler._handle_waiting_for_litres_url,
-    "waiting_for_litres_confirm": AddHandler._handle_waiting_for_litres_confirm,
-}

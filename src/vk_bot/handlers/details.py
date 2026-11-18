@@ -10,20 +10,14 @@ from typing import Any
 from core.services import BookService, ReadingStatsService, UserSettingsService
 from utils import helpers
 from utils.helpers import format_book_details
-from vk_bot.keyboards import (
-    cancel_keyboard,
-    filter_keyboard,
-    main_keyboard,
-    status_keyboard,
-    tags_keyboard,
-)
+from vk_bot.context import BotContext
+from vk_bot.handlers.scenario import ScenarioHandler
+from vk_bot.keyboards import cancel_keyboard, filter_keyboard, status_keyboard, tags_keyboard
+from vk_bot.states import DetailsState
 from vk_bot.user_helpers import get_or_create_user
 
-from ..context import BotContext
-from .base import AbstractCommandHandler
 
-
-class DetailsHandler(AbstractCommandHandler):
+class DetailsHandler(ScenarioHandler):
     """Handler for the `/details` command.
 
     Управляет состояниями:
@@ -35,166 +29,101 @@ class DetailsHandler(AbstractCommandHandler):
 
     priority = 10
     commands = ["/details", "details"]
+    scenario_command = "/details"
+    initial_state = DetailsState.CHOOSE_FILTER
+    states = DetailsState
 
-    def handle(self, context: BotContext) -> Any:
-        if not context.is_active():
-            self._handle_entry(context)
-            return True
+    # ── Жизненный цикл ──────────────────────────────────────────────
 
-        state_info = context.get_state()
-        if not state_info or state_info.get("command") != "/details":
-            return True
+    def start(self, context: BotContext) -> None:
+        user = get_or_create_user(context.api, context.user_id)
+        self.begin(context, DetailsState.CHOOSE_FILTER, {"user_id": user.id})
 
-        state = state_info.get("state")
-        if state == "choose_filter":
-            self._handle_choose_filter(context)
-        elif state == "selecting_status_filter":
-            self._handle_selecting_status_filter(context)
-        elif state == "selecting_tag_filter":
-            self._handle_selecting_tag_filter(context)
-        elif state == "selecting_book":
-            self._handle_selecting_book(context)
-
-        return True
-
-    def _handle_entry(self, context) -> None:
-        api = context.api
-        user_id = context.user_id
-        user = get_or_create_user(api, user_id)
-        context.set_state(
-            {
-                "command": "/details",
-                "state": "choose_filter",
-                "data": {"user_id": user.id},
-            }
-        )
+    def render_choose_filter(self, context: BotContext, state_info: dict) -> None:
         context.send_message(
             "Какие книги интересуют?",
             keyboard=filter_keyboard(),
         )
 
-    def _handle_choose_filter(self, context) -> None:
-        api = context.api
-        user_id = context.user_id
-        text = context.text
-        state_info = context.get_state()
-        user = get_or_create_user(api, user_id)
+    def render_selecting_status_filter(self, context: BotContext, state_info: dict) -> None:
+        context.send_message(
+            "Выбери статус книги:",
+            keyboard=status_keyboard(),
+        )
 
-        choice = text.strip().lower()
+    def render_selecting_tag_filter(self, context: BotContext, state_info: dict) -> None:
+        tags = BookService().get_all_tags(self._user_id(context, state_info))
+        context.send_message(
+            "Выбери тег:",
+            keyboard=tags_keyboard(tags),
+        )
+
+    def render_selecting_book(self, context: BotContext, state_info: dict) -> None:
+        data = state_info["data"]
+        context.send_message(
+            data["list_header"] + "".join(data["book_lines"]),
+            keyboard=cancel_keyboard(),
+        )
+
+    # ── Шаги ────────────────────────────────────────────────────────
+
+    def step_choose_filter(self, context: BotContext, state_info: dict) -> Any:
+        choice = context.text.strip().lower()
         if choice == "по статусу":
-            state_info["state"] = "selecting_status_filter"
-            context.set_state(state_info)
-            context.send_message(
-                "Выбери статус книги:",
-                keyboard=status_keyboard(),
-            )
-            return
-
+            return DetailsState.SELECTING_STATUS_FILTER
         if choice == "по тегам":
-            book_service = BookService()
-            tags = book_service.get_all_tags(user.id)
-            state_info["state"] = "selecting_tag_filter"
-            context.set_state(state_info)
-            context.send_message(
-                "Выбери тег:",
-                keyboard=tags_keyboard(tags),
-            )
-            return
-
+            return DetailsState.SELECTING_TAG_FILTER
         if choice == "все":
-            book_service = BookService()
-            books = book_service.get_all_books(user.id)
-            books = helpers.sort_books_by_status(books)
+            books = helpers.sort_books_by_status(
+                BookService().get_all_books(self._user_id(context, state_info))
+            )
             if not books:
                 # Финал (пустой результат): отправляем до delete_state.
-                context.send_message(
-                    "В библиотеке нет книг. Добавь книгу через /add",
-                    keyboard=main_keyboard(),
-                )
-                context.delete_state()
-                return
-            state_info["state"] = "selecting_book"
-            state_info["data"]["books"] = [book.id for book in books]
-            context.set_state(state_info)
-            lines = ["📚 Введи номер книги.\nТвоя библиотека:\n\n"]
-            for i, book in enumerate(books, 1):
-                lines.append(helpers.format_book_info(i, book) + "\n")
-            context.send_message(
-                "".join(lines),
-                keyboard=cancel_keyboard(),
-            )
-            return
+                self.finish(context, "В библиотеке нет книг. Добавь книгу через /add")
+                return None
+            self._store_books(state_info, books, "📚 Введи номер книги.\nТвоя библиотека:\n\n")
+            return DetailsState.SELECTING_BOOK
 
         context.send_message(
             "⚠️ Выбери: По статусу, По тегам или Все",
             keyboard=filter_keyboard(),
         )
+        return None
 
-    def _handle_selecting_status_filter(self, context) -> None:
-        api = context.api
-        user_id = context.user_id
-        payload = context.payload
-        state_info = context.get_state()
-        user = get_or_create_user(api, user_id)
-
-        status = payload.get("status", "")
-        book_service = BookService()
-        books = book_service.filter_books(user.id, status=status)
-        books = helpers.sort_books_by_status(books)
+    def step_selecting_status_filter(self, context: BotContext, state_info: dict) -> Any:
+        status = context.payload.get("status", "")
+        books = helpers.sort_books_by_status(
+            BookService().filter_books(self._user_id(context, state_info), status=status)
+        )
         if not books:
             # Финал (пустой результат): отправляем до delete_state.
-            context.send_message(
-                "Книг с выбранным статусом нет.",
-                keyboard=main_keyboard(),
-            )
-            context.delete_state()
-            return
-
-        state_info["state"] = "selecting_book"
-        state_info["data"]["books"] = [book.id for book in books]
-        context.set_state(state_info)
-        lines = ["📚 Введи номер книги.\nКниги с выбранным статусом:\n\n"]
-        for i, book in enumerate(books, 1):
-            lines.append(helpers.format_book_info(i, book) + "\n")
-        context.send_message(
-            "".join(lines),
-            keyboard=cancel_keyboard(),
+            self.finish(context, "Книг с выбранным статусом нет.")
+            return None
+        self._store_books(
+            state_info,
+            books,
+            "📚 Введи номер книги.\nКниги с выбранным статусом:\n\n",
         )
+        return DetailsState.SELECTING_BOOK
 
-    def _handle_selecting_tag_filter(self, context) -> None:
-        api = context.api
-        user_id = context.user_id
-        text = context.text
-        state_info = context.get_state()
-        user = get_or_create_user(api, user_id)
-
-        selected_tag = text.strip()
-        book_service = BookService()
-        books = book_service.filter_books(user.id, tags=[selected_tag])
-        books = helpers.sort_books_by_status(books)
+    def step_selecting_tag_filter(self, context: BotContext, state_info: dict) -> Any:
+        selected_tag = context.text.strip()
+        books = helpers.sort_books_by_status(
+            BookService().filter_books(self._user_id(context, state_info), tags=[selected_tag])
+        )
         if not books:
             # Финал (пустой результат): отправляем до delete_state.
-            context.send_message(
-                "Книг с выбранным тегом нет.",
-                keyboard=main_keyboard(),
-            )
-            context.delete_state()
-            return
-
-        state_info["state"] = "selecting_book"
-        state_info["data"]["books"] = [book.id for book in books]
-        context.set_state(state_info)
-        lines = ["📚 Введи номер книги.\nКниги с выбранным тегом:\n\n"]
-        for i, book in enumerate(books, 1):
-            lines.append(helpers.format_book_info(i, book) + "\n")
-        context.send_message(
-            "".join(lines),
-            keyboard=cancel_keyboard(),
+            self.finish(context, "Книг с выбранным тегом нет.")
+            return None
+        self._store_books(
+            state_info,
+            books,
+            "📚 Введи номер книги.\nКниги с выбранным тегом:\n\n",
         )
+        return DetailsState.SELECTING_BOOK
 
-    def _handle_selecting_book(self, context) -> None:
+    def step_selecting_book(self, context: BotContext, state_info: dict) -> Any:
         text = context.text
-        state_info = context.get_state()
 
         try:
             selection = int(text.strip())
@@ -203,7 +132,7 @@ class DetailsHandler(AbstractCommandHandler):
                 "⚠️ Введи корректный номер книги.",
                 keyboard=cancel_keyboard(),
             )
-            return
+            return None
 
         books_ids = state_info["data"]["books"]
         if selection < 1 or selection > len(books_ids):
@@ -211,7 +140,7 @@ class DetailsHandler(AbstractCommandHandler):
                 "⚠️ Номер книги вне диапазона.",
                 keyboard=cancel_keyboard(),
             )
-            return
+            return None
 
         book_id = books_ids[selection - 1]
         book = BookService().get_book_by_id(book_id)
@@ -220,7 +149,7 @@ class DetailsHandler(AbstractCommandHandler):
                 "⚠️ Книга не найдена.",
                 keyboard=cancel_keyboard(),
             )
-            return
+            return None
 
         stats_service = ReadingStatsService()
         # Период берём по внутреннему идентификатору пользователя из состояния.
@@ -245,5 +174,27 @@ class DetailsHandler(AbstractCommandHandler):
             predicted_date=pred_date,
             period_days=period_days,
         )
-        context.send_message(details, keyboard=main_keyboard())
-        context.delete_state()
+        self.finish(context, details)
+        return None
+
+    # ── Данные ──────────────────────────────────────────────────────
+
+    @staticmethod
+    def _store_books(state_info: dict, books: list, header: str) -> None:
+        """Запоминает книги для шага выбора, чтобы не читать их повторно."""
+        data = state_info["data"]
+        data["books"] = [book.id for book in books]
+        data["list_header"] = header
+        data["book_lines"] = [
+            helpers.format_book_info(i, book) + "\n" for i, book in enumerate(books, 1)
+        ]
+
+    @staticmethod
+    def _user_id(context: BotContext, state_info: dict) -> str:
+        user_id = state_info.get("data", {}).get("user_id")
+        if not user_id:
+            user = get_or_create_user(context.api, context.user_id)
+            user_id = user.id
+            state_info.setdefault("data", {})["user_id"] = user_id
+            context.set_state(state_info)
+        return user_id

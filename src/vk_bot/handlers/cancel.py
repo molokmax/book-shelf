@@ -7,11 +7,13 @@ from .base import AbstractCommandHandler
 
 
 class CancelHandler(AbstractCommandHandler):
+    """Системная команда отмены: работает в любом сценарии."""
 
     priority = 100
     commands = ["/cancel", "cancel", "отмена"]
+    is_system = True
 
-    def handle(self, context: BotContext) -> Any:
+    def _handle(self, context: BotContext) -> Any:
         # Финальное сообщение отправляем до delete_state: send_message удалит
         # последний промпт, а id финала стёрется вместе со стейтом и не будет
         # удалён следующими сообщениями.

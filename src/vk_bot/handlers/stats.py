@@ -22,7 +22,7 @@ class StatsHandler(AbstractCommandHandler):
     priority = 10
     commands = ["/stats", "stats"]
 
-    def handle(self, context: BotContext) -> Any:
+    def _handle(self, context: BotContext) -> Any:
         api = context.api
         user_id = context.user_id
         user = get_or_create_user(api, user_id)
