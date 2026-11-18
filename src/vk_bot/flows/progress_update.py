@@ -20,6 +20,7 @@ from core.services import (
 from utils import helpers, logger
 from vk_bot.context import BotContext
 from vk_bot.keyboards import cancel_keyboard, main_keyboard
+from vk_bot.states import ProgressState
 
 log = logger.setup_logger(__name__)
 
@@ -33,7 +34,7 @@ class ProgressUpdateFlow:
 
     def start(self, context: BotContext, state_info: dict, book) -> None:
         """Запрашивает текущую страницу для книги."""
-        state_info["state"] = "waiting_for_progress_input"
+        state_info["state"] = ProgressState.WAITING_FOR_PROGRESS_INPUT
         state_info.setdefault("data", {})["progress_book_pages"] = book.pages
         state_info["data"].pop("pending_progress_page", None)
         context.set_state(state_info)
@@ -52,9 +53,9 @@ class ProgressUpdateFlow:
         """Обрабатывает текущее состояние обновления прогресса."""
         state_info = context.get_state()
         state = state_info.get("state")
-        if state == "waiting_for_progress_input":
+        if state == ProgressState.WAITING_FOR_PROGRESS_INPUT:
             self._handle_input(context, state_info)
-        elif state == "waiting_for_progress_confirm":
+        elif state == ProgressState.WAITING_FOR_PROGRESS_CONFIRM:
             self._handle_confirm(context, state_info)
 
     def _handle_input(self, context: BotContext, state_info: dict) -> None:
@@ -117,7 +118,7 @@ class ProgressUpdateFlow:
             self._apply_progress(context, state_info, new_page)
             return
 
-        state_info["state"] = "waiting_for_progress_confirm"
+        state_info["state"] = ProgressState.WAITING_FOR_PROGRESS_CONFIRM
         state_info["data"]["pending_progress_page"] = new_page
         context.set_state(state_info)
         context.send_message(

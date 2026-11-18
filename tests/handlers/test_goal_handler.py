@@ -9,6 +9,7 @@ from conftest import FakeVkApi as FakeVkApiMethod
 from conftest import make_context
 
 from vk_bot.handlers import goal as gh
+from vk_bot.handlers.base import FOREIGN_SCENARIO_MESSAGE
 
 
 class FakeUser:
@@ -246,6 +247,6 @@ def test_handler_declines_other_active_state():
     ctx = make_context(fake_api, 12, "/goal", storage=storage)
     result = gh.GoalHandler().handle(ctx)
 
-    assert result is None
-    assert fake_api.sent_messages == []
+    assert result is True
+    assert fake_api.sent_messages[-1]["message"] == FOREIGN_SCENARIO_MESSAGE
     assert storage.get(12)["state"] == "waiting_for_title"

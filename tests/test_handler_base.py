@@ -2,7 +2,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from vk_bot.handlers.base import AbstractCommandHandler
+from vk_bot.handlers.base import FOREIGN_SCENARIO_MESSAGE, AbstractCommandHandler
 
 
 class FakeStateStorage:
@@ -92,7 +92,7 @@ def test_add_handler_handle_returns_true():
     handler = AddHandler()
     fake_context = make_fake_context()
 
-    with patch.object(handler, "_handle_start") as mock_start:
+    with patch.object(handler, "start") as mock_start:
         result = handler.handle(fake_context)
         assert result is True
         mock_start.assert_called_once_with(fake_context)
@@ -104,7 +104,7 @@ def test_edit_handler_handle_returns_true():
     handler = EditHandler()
     fake_context = make_fake_context()
 
-    with patch.object(handler, "_handle_entry") as mock_entry:
+    with patch.object(handler, "start") as mock_entry:
         result = handler.handle(fake_context)
         assert result is True
         mock_entry.assert_called_once_with(fake_context)
@@ -116,7 +116,7 @@ def test_list_handler_handle_returns_true():
     handler = ListHandler()
     fake_context = make_fake_context()
 
-    with patch.object(handler, "_handle_entry") as mock_entry:
+    with patch.object(handler, "start") as mock_entry:
         result = handler.handle(fake_context)
         assert result is True
         mock_entry.assert_called_once_with(fake_context)
@@ -128,7 +128,95 @@ def test_details_handler_handle_returns_true():
     handler = DetailsHandler()
     fake_context = make_fake_context()
 
-    with patch.object(handler, "_handle_entry") as mock_entry:
+    with patch.object(handler, "start") as mock_entry:
         result = handler.handle(fake_context)
         assert result is True
         mock_entry.assert_called_once_with(fake_context)
+
+
+# ── Гард чужого сценария ────────────────────────────────────────────
+
+
+class StubHandler(AbstractCommandHandler):
+    commands = ["/stub"]
+    scenario_command = "/stub"
+
+    def _handle(self, context):
+        return "handled"
+
+
+class SystemStubHandler(StubHandler):
+    commands = ["/system"]
+    scenario_command = "/system"
+    is_system = True
+
+
+class StatelessStubHandler(AbstractCommandHandler):
+    commands = ["/stateless"]
+
+    def _handle(self, context):
+        return "stateless handled"
+
+
+def make_state_context(command, state_command, text=None):
+    storage = FakeStateStorage()
+    if state_command is not None:
+        storage.save(
+            1,
+            {"command": state_command, "state": "waiting_for_title", "data": {"a": 1}},
+        )
+    context = make_fake_context(user_id=1, text=text or command, storage=storage)
+    return context, storage
+
+
+def test_foreign_scenario_rejects_command():
+    context, storage = make_state_context("/stub", "/add")
+
+    result = StubHandler().handle(context)
+
+    assert result is True
+    context.api.messages.send.assert_called_once()
+    assert context.api.messages.send.call_args.kwargs["message"] == FOREIGN_SCENARIO_MESSAGE
+    assert storage.get(1) == {
+        "command": "/add",
+        "state": "waiting_for_title",
+        "data": {"a": 1},
+    }
+
+
+def test_own_scenario_is_handled():
+    context, storage = make_state_context("/stub", "/stub")
+
+    result = StubHandler().handle(context)
+
+    assert result == "handled"
+    context.api.messages.send.assert_not_called()
+
+
+def test_stateless_command_is_blocked_by_foreign_scenario():
+    context, _ = make_state_context("/stateless", "/add")
+
+    result = StatelessStubHandler().handle(context)
+
+    assert result is True
+    context.api.messages.send.assert_called_once()
+    assert context.api.messages.send.call_args.kwargs["message"] == FOREIGN_SCENARIO_MESSAGE
+
+
+def test_system_command_ignores_foreign_scenario():
+    context, _ = make_state_context("/system", "/add")
+
+    result = SystemStubHandler().handle(context)
+
+    assert result == "handled"
+    context.api.messages.send.assert_not_called()
+
+
+def test_state_without_owner_is_not_blocked():
+    context, storage = make_state_context("/stub", None)
+    storage.save(1, {"command": "", "state": "menu", "data": {}})
+
+    result = StubHandler().handle(context)
+
+    assert result == "handled"
+    context.api.messages.send.assert_not_called()

@@ -16,6 +16,7 @@ from vk_bot.keyboards import (
     status_keyboard,
     tags_keyboard,
 )
+from vk_bot.states import SelectionState
 from vk_bot.user_helpers import get_or_create_user
 
 
@@ -36,7 +37,7 @@ class BookSelectionFlow:
         message: str = "Какие книги интересуют?",
     ) -> None:
         """Открывает диалог на шаге выбора фильтра."""
-        state_info["state"] = "choose_filter"
+        state_info["state"] = SelectionState.CHOOSE_FILTER
         state_info.setdefault("data", {}).setdefault("books", [])
         context.set_state(state_info)
         context.send_message(message, keyboard=filter_keyboard())
@@ -45,19 +46,19 @@ class BookSelectionFlow:
         """Обрабатывает текущее состояние диалога."""
         state_info = context.get_state()
         state = state_info.get("state")
-        if state == "choose_filter":
+        if state == SelectionState.CHOOSE_FILTER:
             self._handle_choose_filter(context, state_info)
-        elif state == "selecting_status_filter":
+        elif state == SelectionState.SELECTING_STATUS_FILTER:
             self._handle_selecting_status_filter(context, state_info)
-        elif state == "selecting_tag_filter":
+        elif state == SelectionState.SELECTING_TAG_FILTER:
             self._handle_selecting_tag_filter(context, state_info)
-        elif state == "selecting_book":
+        elif state == SelectionState.SELECTING_BOOK:
             self._handle_selecting_book(context, state_info)
 
     def _handle_choose_filter(self, context: BotContext, state_info: dict) -> None:
         choice = context.text.strip().lower()
         if choice == "по статусу":
-            state_info["state"] = "selecting_status_filter"
+            state_info["state"] = SelectionState.SELECTING_STATUS_FILTER
             context.set_state(state_info)
             context.send_message("Выбери статус книги:", keyboard=status_keyboard())
             return
@@ -65,7 +66,7 @@ class BookSelectionFlow:
         if choice == "по тегам":
             user_id = self._get_user_id(context, state_info)
             tags = BookService().get_all_tags(user_id)
-            state_info["state"] = "selecting_tag_filter"
+            state_info["state"] = SelectionState.SELECTING_TAG_FILTER
             context.set_state(state_info)
             context.send_message("Выбери тег:", keyboard=tags_keyboard(tags))
             return
@@ -159,7 +160,7 @@ class BookSelectionFlow:
         books: list[Book],
         header: str,
     ) -> None:
-        state_info["state"] = "selecting_book"
+        state_info["state"] = SelectionState.SELECTING_BOOK
         state_info["data"]["books"] = [book.id for book in books]
         context.set_state(state_info)
 

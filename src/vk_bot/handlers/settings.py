@@ -3,74 +3,60 @@
 from typing import Any
 
 from vk_api.keyboard import VkKeyboard, VkKeyboardColor
-from vk_api.utils import get_random_id
 
 from core.models import READING_SPEED_PERIODS
 from core.services import UserSettingsService
 from utils import helpers
-from vk_bot.keyboards import main_keyboard
+from vk_bot.context import BotContext
+from vk_bot.handlers.scenario import ScenarioHandler
+from vk_bot.states import SettingsState
 from vk_bot.user_helpers import get_or_create_user
 
-from ..context import BotContext
-from .base import AbstractCommandHandler
 
-
-class SettingsHandler(AbstractCommandHandler):
+class SettingsHandler(ScenarioHandler):
     """Handler for the `/settings` command.
 
-    Управляет состояниями:
+    Управляет состоянием:
     * menu: просмотр настроек, изменение периода скорости чтения и тоггл мотивации
     """
 
     priority = 10
     commands = ["/settings"]
+    scenario_command = "/settings"
+    initial_state = SettingsState.MENU
+    states = SettingsState
 
-    def handle(self, context: BotContext) -> Any:
-        state_info = context.get_state()
+    # ── Жизненный цикл ──────────────────────────────────────────────
 
-        # Не перехватываем управление у активного сценария другой команды.
-        if context.is_active() and state_info.get("command") != "/settings":
-            return None
-
-        if not context.is_active():
-            self._handle_entry(context)
-            return True
-
-        state = state_info.get("state")
-        if state == "menu":
-            self._handle_menu(context, state_info)
-        return True
-
-    def _handle_entry(self, context: BotContext) -> None:
-        """Открывает экран настроек с текущими значениями."""
+    def start(self, context: BotContext) -> None:
         user = get_or_create_user(context.api, context.user_id)
-        context.set_state(
-            {
-                "command": "/settings",
-                "state": "menu",
-                "data": {"user_id": user.id},
-            }
-        )
+        self.begin(context, SettingsState.MENU, {"user_id": user.id})
+
+    def render_menu(self, context: BotContext, state_info: dict) -> None:
+        """Открывает экран настроек с текущими значениями."""
+        user_id = self._user_id(context, state_info)
         service = UserSettingsService()
-        motivation_enabled = service.is_motivation_enabled(user.id)
+        motivation_enabled = service.is_motivation_enabled(user_id)
         message = self._format_settings_screen(
-            service.get_reading_speed_period(user.id), motivation_enabled
+            service.get_reading_speed_period(user_id), motivation_enabled
         )
         self._send(context, message, self._create_settings_keyboard(motivation_enabled))
 
-    def _handle_menu(self, context: BotContext, state_info: dict) -> None:
+    # ── Шаги ────────────────────────────────────────────────────────
+
+    def step_menu(self, context: BotContext, state_info: dict) -> Any:
         choice = context.text.strip().lower()
 
         if choice == "назад":
-            self._handle_back(context)
-            return
+            self.finish(context, "Возврат в главное меню")
+            return None
 
         user_id = self._user_id(context, state_info)
 
         # Метка кнопки-переключателя отражает текущее состояние, тап инвертирует.
         if choice in ("мотивация: вкл", "мотивация: выкл"):
             self._handle_motivation_toggle(context, user_id)
-            return
+            return None
 
         # Метки кнопок строятся из константы доступных периодов.
         periods = {f"{days} дней": days for days in READING_SPEED_PERIODS}
@@ -83,7 +69,7 @@ class SettingsHandler(AbstractCommandHandler):
                     UserSettingsService().is_motivation_enabled(user_id)
                 ),
             )
-            return
+            return None
 
         service = UserSettingsService()
         service.set_reading_speed_period(user_id, new_period)
@@ -92,6 +78,7 @@ class SettingsHandler(AbstractCommandHandler):
             f"Период скорости чтения: {new_period} дней",
             self._create_settings_keyboard(service.is_motivation_enabled(user_id)),
         )
+        return None
 
     def _handle_motivation_toggle(self, context: BotContext, user_id: str) -> None:
         """Инвертирует настройку мотивации и подтверждает новое состояние."""
@@ -105,10 +92,7 @@ class SettingsHandler(AbstractCommandHandler):
             self._create_settings_keyboard(not enabled),
         )
 
-    def _handle_back(self, context: BotContext) -> None:
-        """Выходит из настроек в главное меню."""
-        context.delete_state()
-        self._send(context, "Возврат в главное меню", main_keyboard())
+    # ── Отрисовка и данные ──────────────────────────────────────────
 
     @staticmethod
     def _format_settings_screen(period_days: int, motivation_enabled: bool) -> str:
@@ -154,9 +138,4 @@ class SettingsHandler(AbstractCommandHandler):
 
     @staticmethod
     def _send(context: BotContext, message: str, keyboard: VkKeyboard) -> None:
-        context.api.messages.send(
-            user_id=context.user_id,
-            message=message,
-            keyboard=keyboard.get_keyboard(),
-            random_id=get_random_id(),
-        )
+        context.send_message(message, keyboard=keyboard)

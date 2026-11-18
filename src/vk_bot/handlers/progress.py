@@ -6,16 +6,17 @@ from vk_api.keyboard import VkKeyboard
 
 from core.models import ReadingStatus
 from core.services import BookService
+from core.storage import ActiveStateStorage
 from utils import helpers
+from vk_bot.context import BotContext
 from vk_bot.flows.book_selection import BookSelectionFlow
 from vk_bot.flows.progress_update import ProgressUpdateFlow
+from vk_bot.handlers.scenario import ScenarioHandler
+from vk_bot.states import ProgressScenarioState
 from vk_bot.user_helpers import get_or_create_user
 
-from ..context import BotContext
-from .base import AbstractCommandHandler
 
-
-class ProgressHandler(AbstractCommandHandler):
+class ProgressHandler(ScenarioHandler):
     """Handler for the `/progress` command.
 
     Управляет состояниями:
@@ -28,49 +29,96 @@ class ProgressHandler(AbstractCommandHandler):
 
     priority = 10
     commands = ["/progress", "progress", "прогресс"]
+    scenario_command = "/progress"
+    initial_state = ProgressScenarioState.SELECTING_READING_BOOK
+    states = ProgressScenarioState
 
     def __init__(self) -> None:
         self._progress = ProgressUpdateFlow()
         self._selection = BookSelectionFlow(on_selected=self._on_book_selected)
 
-    def handle(self, context: BotContext) -> Any:
-        state_info = context.get_state()
+    # ── Жизненный цикл ──────────────────────────────────────────────
 
-        # Не перехватываем управление у активного сценария другой команды.
-        if context.is_active() and state_info.get("command") != "/progress":
+    def start(self, context: BotContext) -> None:
+        user = get_or_create_user(context.api, context.user_id)
+        state_info = ActiveStateStorage.new_state(
+            self.scenario_command,
+            str(ProgressScenarioState.SELECTING_READING_BOOK),
+            {"user_id": user.id},
+        )
+        self._show_reading_books(context, state_info)
+
+    def render_selecting_reading_book(self, context: BotContext, state_info: dict) -> None:
+        data = state_info["data"]
+        context.send_message(
+            data["list_header"] + "".join(data["book_lines"]),
+            keyboard=self._create_reading_keyboard(),
+        )
+
+    # ── Шаги ────────────────────────────────────────────────────────
+
+    def step_selecting_reading_book(self, context: BotContext, state_info: dict) -> Any:
+        text = context.text.strip()
+
+        if text.lower() == "другие":
+            self._selection.start(context, state_info, "Какие книги интересуют?")
             return None
 
-        if not context.is_active():
-            self._handle_entry(context)
-            return True
+        try:
+            selection = int(text)
+        except ValueError:
+            context.send_message(
+                helpers.format_invalid_input("Введи корректный номер книги."),
+                keyboard=self._create_reading_keyboard(),
+            )
+            return None
 
-        state = state_info.get("state")
-        if state == "selecting_reading_book":
-            self._handle_selecting_reading_book(context)
-        elif state in (
-            "choose_filter",
-            "selecting_status_filter",
-            "selecting_tag_filter",
-            "selecting_book",
-        ):
-            self._selection.handle(context)
-        elif state in ("waiting_for_progress_input", "waiting_for_progress_confirm"):
-            self._progress.handle(context)
+        books_ids = state_info["data"].get("books", [])
+        if selection < 1 or selection > len(books_ids):
+            context.send_message(
+                helpers.format_invalid_input("Номер книги вне диапазона."),
+                keyboard=self._create_reading_keyboard(),
+            )
+            return None
 
-        return True
+        book = BookService().get_book_by_id(books_ids[selection - 1])
+        if not book:
+            context.send_message(
+                "⚠️ Книга не найдена.",
+                keyboard=self._create_reading_keyboard(),
+            )
+            return None
 
-    def _handle_entry(self, context: BotContext) -> None:
-        user = get_or_create_user(context.api, context.user_id)
-        state_info = {
-            "command": "/progress",
-            "state": "selecting_reading_book",
-            "data": {"user_id": user.id},
-        }
-        context.set_state(state_info)
-        self._show_reading_books(context)
+        self._on_book_selected(context, book)
+        return None
 
-    def _show_reading_books(self, context: BotContext) -> None:
-        state_info = context.get_state()
+    def step_choose_filter(self, context: BotContext, state_info: dict) -> Any:
+        self._selection.handle(context)
+        return None
+
+    def step_selecting_status_filter(self, context: BotContext, state_info: dict) -> Any:
+        self._selection.handle(context)
+        return None
+
+    def step_selecting_tag_filter(self, context: BotContext, state_info: dict) -> Any:
+        self._selection.handle(context)
+        return None
+
+    def step_selecting_book(self, context: BotContext, state_info: dict) -> Any:
+        self._selection.handle(context)
+        return None
+
+    def step_waiting_for_progress_input(self, context: BotContext, state_info: dict) -> Any:
+        self._progress.handle(context)
+        return None
+
+    def step_waiting_for_progress_confirm(self, context: BotContext, state_info: dict) -> Any:
+        self._progress.handle(context)
+        return None
+
+    # ── Данные ──────────────────────────────────────────────────────
+
+    def _show_reading_books(self, context: BotContext, state_info: dict) -> None:
         user_id = state_info["data"].get("user_id")
         if not user_id:
             user = get_or_create_user(context.api, context.user_id)
@@ -87,51 +135,18 @@ class ProgressHandler(AbstractCommandHandler):
             return
 
         books.sort(key=lambda book: book.updated_at, reverse=True)
-        state_info["state"] = "selecting_reading_book"
         state_info["data"]["books"] = [book.id for book in books]
-        context.set_state(state_info)
-
-        lines = ["📚 Введи номер книги для обновления прогресса.\nКниги в статусе «Читаю»:\n\n"]
-        for i, book in enumerate(books, 1):
-            lines.append(helpers.format_book_info(i, book) + "\n")
-        context.send_message("".join(lines), keyboard=self._create_reading_keyboard())
-
-    def _handle_selecting_reading_book(self, context: BotContext) -> None:
-        state_info = context.get_state()
-        text = context.text.strip()
-
-        if text.lower() == "другие":
-            self._selection.start(context, state_info, "Какие книги интересуют?")
-            return
-
-        try:
-            selection = int(text)
-        except ValueError:
-            context.send_message(
-                helpers.format_invalid_input("Введи корректный номер книги."),
-                keyboard=self._create_reading_keyboard(),
-            )
-            return
-
-        books_ids = state_info["data"].get("books", [])
-        if selection < 1 or selection > len(books_ids):
-            context.send_message(
-                helpers.format_invalid_input("Номер книги вне диапазона."),
-                keyboard=self._create_reading_keyboard(),
-            )
-            return
-
-        book = BookService().get_book_by_id(books_ids[selection - 1])
-        if not book:
-            context.send_message("⚠️ Книга не найдена.", keyboard=self._create_reading_keyboard())
-            return
-
-        self._on_book_selected(context, book)
+        state_info["data"][
+            "list_header"
+        ] = "📚 Введи номер книги для обновления прогресса.\nКниги в статусе «Читаю»:\n\n"
+        state_info["data"]["book_lines"] = [
+            helpers.format_book_info(i, book) + "\n" for i, book in enumerate(books, 1)
+        ]
+        self.goto(context, ProgressScenarioState.SELECTING_READING_BOOK, state_info)
 
     def _on_book_selected(self, context: BotContext, book) -> None:
         state_info = context.get_state()
         state_info["data"]["selected_book_id"] = book.id
-        context.set_state(state_info)
         self._progress.start(context, state_info, book)
 
     @staticmethod

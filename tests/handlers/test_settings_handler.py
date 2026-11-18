@@ -8,6 +8,7 @@ import pytest
 
 from vk_bot.command_router import CommandRouter
 from vk_bot.handlers import settings as sh
+from vk_bot.handlers.base import FOREIGN_SCENARIO_MESSAGE
 from vk_bot.handlers.cancel import CancelHandler
 
 
@@ -241,8 +242,9 @@ def test_guard_other_scenario(monkeypatch):
     ctx = make_context(fake_api, 7, "/settings", storage=storage)
     result = sh.SettingsHandler().handle(ctx)
 
-    assert result is None
-    assert fake_api.sent_messages == []
+    assert result is True
+    assert fake_api.sent_messages[-1]["message"] == FOREIGN_SCENARIO_MESSAGE
+    assert storage.get(7)["state"] == "selecting_book"
 
 
 def test_cancel_intercepts_settings_scenario(monkeypatch):

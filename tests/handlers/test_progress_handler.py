@@ -11,7 +11,7 @@ from core.models import ReadingStatus
 from vk_bot.command_router import CommandRouter
 from vk_bot.flows import book_selection as bsf
 from vk_bot.handlers import progress as ph
-from vk_bot.handlers.base import AbstractCommandHandler
+from vk_bot.handlers.base import FOREIGN_SCENARIO_MESSAGE, AbstractCommandHandler
 
 
 class FakeUser:
@@ -367,7 +367,7 @@ def test_invalid_filter_choice_uses_standard_message():
     assert storage.get(user_id)["state"] == "choose_filter"
 
 
-def test_repeated_progress_command_is_invalid_input():
+def test_repeated_progress_command_restarts_scenario(monkeypatch):
     fake_api = FakeVkApiMethod()
     user_id = 11
     storage = FakeStateStorage()
@@ -379,14 +379,14 @@ def test_repeated_progress_command_is_invalid_input():
             "data": {"selected_book_id": "1", "progress_book_pages": 319},
         },
     )
+    monkeypatch.setattr(ph, "BookService", lambda: StubBookService(reading_books=[make_book()]))
 
     ctx = make_context(fake_api, user_id, "/progress", storage=storage)
     ph.ProgressHandler().handle(ctx)
 
     last_msg = fake_api.sent_messages[-1]
-    assert last_msg["message"].startswith("⚠️ Не удалось обработать сообщение.")
-    assert "Введи число" in last_msg["message"]
-    assert storage.get(user_id)["state"] == "waiting_for_progress_input"
+    assert "Введи номер книги для обновления прогресса" in last_msg["message"]
+    assert storage.get(user_id)["state"] == "selecting_reading_book"
 
 
 def test_progress_handler_declines_other_active_state():
@@ -401,34 +401,38 @@ def test_progress_handler_declines_other_active_state():
     ctx = make_context(fake_api, user_id, "/progress", storage=storage)
     result = ph.ProgressHandler().handle(ctx)
 
-    assert result is None
-    assert fake_api.sent_messages == []
+    assert result is True
+    assert fake_api.sent_messages[-1]["message"] == FOREIGN_SCENARIO_MESSAGE
     assert storage.get(user_id)["state"] == "waiting_for_title"
 
 
-def test_router_falls_back_to_active_handler(monkeypatch):
+def test_router_blocks_foreign_command_before_state_fallback(monkeypatch):
     class ActiveHandler(AbstractCommandHandler):
         priority = 10
         commands = ["/add"]
+        scenario_command = "/add"
 
         def __init__(self):
             self.called = False
 
-        def handle(self, context):
+        def _handle(self, context):
             self.called = True
             return "active handled"
 
     monkeypatch.setattr("vk_bot.command_router.load_config", lambda: types.SimpleNamespace())
     active_handler = ActiveHandler()
+    fake_api = FakeVkApiMethod()
     router = CommandRouter()
     router.register_handler(ph.ProgressHandler())
     router.register_handler(active_handler)
 
     storage = FakeStateStorage()
     storage.save(1, {"command": "/add", "state": "waiting_for_title", "data": {}})
-    ctx = make_context(FakeVkApiMethod(), 1, "/progress", storage=storage)
+    ctx = make_context(fake_api, 1, "/progress", storage=storage)
 
     result = router.route(ctx)
 
-    assert result == "active handled"
-    assert active_handler.called is True
+    assert result is True
+    assert active_handler.called is False
+    assert fake_api.sent_messages[-1]["message"] == FOREIGN_SCENARIO_MESSAGE
+    assert storage.get(1)["state"] == "waiting_for_title"

@@ -11,6 +11,7 @@ from core.services import TagService
 from utils import helpers
 from vk_bot.context import BotContext
 from vk_bot.keyboards import tag_editing_keyboard, tag_total_pages
+from vk_bot.states import TagState
 from vk_bot.user_helpers import get_or_create_user
 
 DONE_TEXT = "готово"
@@ -39,14 +40,14 @@ class TagEditingFlow:
         data["selected_tags"] = sorted(preselected or [], key=str.casefold)
         data["tag_page"] = 0
         self._get_user_id(context, state_info)
-        state_info["state"] = "selecting_tags"
+        state_info["state"] = TagState.SELECTING_TAGS
         context.set_state(state_info)
         self._render(context, state_info)
 
     def handle(self, context: BotContext) -> None:
         """Обрабатывает действия пользователя на шаге выбора тегов."""
         state_info = context.get_state()
-        if state_info.get("state") != "selecting_tags":
+        if state_info.get("state") != TagState.SELECTING_TAGS:
             return
 
         action = context.payload.get("action")
