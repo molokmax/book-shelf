@@ -42,7 +42,7 @@ class GoalHandler(ScenarioHandler):
     def render_waiting_for_goal_input(self, context: BotContext, state_info: dict) -> None:
         context.send_message(
             "Введи количество страниц в день (целое число).\n\n0 — отключить цель.",
-            keyboard=cancel_keyboard(),
+            keyboard=cancel_keyboard(self._back_command(state_info)),
         )
 
     # ── Шаги ────────────────────────────────────────────────────────
@@ -70,14 +70,14 @@ class GoalHandler(ScenarioHandler):
         except ValueError:
             context.send_message(
                 helpers.format_invalid_input("Введи целое число, например 20."),
-                keyboard=cancel_keyboard(),
+                keyboard=cancel_keyboard(self._back_command(state_info)),
             )
             return None
 
         if value < 0:
             context.send_message(
                 helpers.format_invalid_input("Цель не может быть отрицательной."),
-                keyboard=cancel_keyboard(),
+                keyboard=cancel_keyboard(self._back_command(state_info)),
             )
             return None
 

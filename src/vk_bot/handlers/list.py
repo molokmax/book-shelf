@@ -27,20 +27,20 @@ class ListHandler(ScenarioHandler):
     def render_choose_filter(self, context: BotContext, state_info: dict) -> None:
         context.send_message(
             "Какие книги интересуют?",
-            keyboard=filter_keyboard(),
+            keyboard=filter_keyboard(self._back_command(state_info)),
         )
 
     def render_choose_status(self, context: BotContext, state_info: dict) -> None:
         context.send_message(
             "Выбери статус книги:",
-            keyboard=status_keyboard(),
+            keyboard=status_keyboard(self._back_command(state_info)),
         )
 
     def render_choose_tag(self, context: BotContext, state_info: dict) -> None:
         tags = BookService().get_all_tags(self._user_id(context, state_info))
         context.send_message(
             "Выбери тег:",
-            keyboard=tags_keyboard(tags),
+            keyboard=tags_keyboard(tags, self._back_command(state_info)),
         )
 
     # ── Шаги ────────────────────────────────────────────────────────
@@ -66,7 +66,7 @@ class ListHandler(ScenarioHandler):
 
         context.send_message(
             "Выбери: По статусу, По тегам, Все или Отмена.",
-            keyboard=filter_keyboard(),
+            keyboard=filter_keyboard(self._back_command(state_info)),
         )
         return None
 

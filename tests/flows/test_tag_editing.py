@@ -210,8 +210,8 @@ def test_pagination_navigates_pages(api, stub_dictionary):
     labels = keyboard_labels(api.sent_messages[-1]["keyboard"])
     assert "tag-16" in labels
     assert "tag-15" not in labels
-    assert "← Назад" in labels
-    assert "Ещё →" not in labels
+    assert "← Страница" in labels
+    assert "Страница →" not in labels
     assert storage.get(8)["data"]["tag_page"] == 1
 
     back = make_context(8, api, payload={"command": "/add", "action": "prev_page"}, storage=storage)
@@ -219,7 +219,7 @@ def test_pagination_navigates_pages(api, stub_dictionary):
 
     labels = keyboard_labels(api.sent_messages[-1]["keyboard"])
     assert "tag-15" in labels
-    assert "Ещё →" in labels
+    assert "Страница →" in labels
     assert storage.get(8)["data"]["tag_page"] == 0
 
 

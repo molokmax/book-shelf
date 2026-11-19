@@ -12,6 +12,7 @@ from vk_bot.context import BotContext
 from vk_bot.flows.book_selection import BookSelectionFlow
 from vk_bot.flows.progress_update import ProgressUpdateFlow
 from vk_bot.handlers.scenario import ScenarioHandler
+from vk_bot.keyboards import add_back_button
 from vk_bot.states import ProgressScenarioState
 from vk_bot.user_helpers import get_or_create_user
 
@@ -35,7 +36,9 @@ class ProgressHandler(ScenarioHandler):
 
     def __init__(self) -> None:
         self._progress = ProgressUpdateFlow()
-        self._selection = BookSelectionFlow(on_selected=self._on_book_selected)
+        self._selection = BookSelectionFlow(
+            self.scenario_command, on_selected=self._on_book_selected
+        )
 
     # ── Жизненный цикл ──────────────────────────────────────────────
 
@@ -52,8 +55,27 @@ class ProgressHandler(ScenarioHandler):
         data = state_info["data"]
         context.send_message(
             data["list_header"] + "".join(data["book_lines"]),
-            keyboard=self._create_reading_keyboard(),
+            keyboard=self._create_reading_keyboard(self._back_command(state_info)),
         )
+
+    # Перерисовка flow-owned шагов после «Назад» делегируется соответствующему flow
+    def render_choose_filter(self, context: BotContext, state_info: dict) -> None:
+        self._selection.render_current(context, state_info)
+
+    def render_selecting_status_filter(self, context: BotContext, state_info: dict) -> None:
+        self._selection.render_current(context, state_info)
+
+    def render_selecting_tag_filter(self, context: BotContext, state_info: dict) -> None:
+        self._selection.render_current(context, state_info)
+
+    def render_selecting_book(self, context: BotContext, state_info: dict) -> None:
+        self._selection.render_current(context, state_info)
+
+    def render_waiting_for_progress_input(self, context: BotContext, state_info: dict) -> None:
+        self._progress.render_current(context, state_info)
+
+    def render_waiting_for_progress_confirm(self, context: BotContext, state_info: dict) -> None:
+        self._progress.render_current(context, state_info)
 
     # ── Шаги ────────────────────────────────────────────────────────
 
@@ -127,6 +149,9 @@ class ProgressHandler(ScenarioHandler):
 
         books = BookService().filter_books(user_id, status=ReadingStatus.READING.value)
         if not books:
+            # Reading-список не показывался: выбор фильтра — корневой шаг,
+            # поэтому прежний шаг убираем, чтобы не плодить фиктивную историю
+            state_info.pop("state", None)
             self._selection.start(
                 context,
                 state_info,
@@ -150,9 +175,10 @@ class ProgressHandler(ScenarioHandler):
         self._progress.start(context, state_info, book)
 
     @staticmethod
-    def _create_reading_keyboard() -> VkKeyboard:
+    def _create_reading_keyboard(back_command: str | None = None) -> VkKeyboard:
         """Клавиатура выбора книги из статуса «Читаю»."""
         kb = VkKeyboard()
         kb.add_button("Другие")
         kb.add_button("Отмена", payload={"command": "/cancel"})
+        add_back_button(kb, back_command)
         return kb

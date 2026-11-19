@@ -15,6 +15,7 @@ from typing import Any, ClassVar, Dict, Optional, Type
 from core.storage import ActiveStateStorage
 from vk_bot.context import BotContext
 from vk_bot.keyboards import main_keyboard
+from vk_bot.navigation import available_back_command, pop_previous, record_transition
 
 from .base import AbstractCommandHandler
 
@@ -42,6 +43,10 @@ class ScenarioHandler(AbstractCommandHandler):
     # ── Основной цикл ───────────────────────────────────────────────
 
     def _handle(self, context: BotContext) -> Any:
+        if self._is_back(context):
+            self._handle_back(context)
+            return True
+
         state_info = context.get_state()
 
         if not context.is_active():
@@ -66,6 +71,36 @@ class ScenarioHandler(AbstractCommandHandler):
         if next_state is not None:
             self.goto(context, next_state, state_info)
         return True
+
+    def _back_command(self, state_info: Dict[str, Any]) -> Optional[str]:
+        """Команда для кнопки «Назад» или ``None`` на первом шаге."""
+        return available_back_command(state_info, self.scenario_command)
+
+    def _is_back(self, context: BotContext) -> bool:
+        """Кнопка «Назад» текущего сценария (issue #59)."""
+        payload = context.payload
+        return payload.get("command") == self.scenario_command and payload.get("action") == "back"
+
+    def _handle_back(self, context: BotContext) -> None:
+        """Возврат к предыдущему шагу: снимок состояния + повторный промпт.
+
+        Бизнес-обработчик шага не вызывается: никаких записей в БД и внешних
+        запросов, только восстановление состояния и перерисовка.
+        """
+        state_info = context.get_state()
+        if not context.is_active() or state_info.get("command") != self.scenario_command:
+            # Устаревшая кнопка: сценарий уже завершён, перезапускать не нужно
+            context.send_message("Сценарий уже завершён.", keyboard=main_keyboard())
+            return
+
+        if pop_previous(state_info) is None:
+            # Первый шаг: кнопка скрыта, нажатие устаревшей кнопки игнорируем
+            return
+
+        context.set_state(state_info)
+        render = getattr(self, f"render_{state_info['state']}", None)
+        if render is not None:
+            render(context, state_info)
 
     def _is_restart(self, context: BotContext) -> bool:
         """Повторный ввод своей команды перезапускает сценарий."""
@@ -94,9 +129,9 @@ class ScenarioHandler(AbstractCommandHandler):
         self.goto(context, state, state_info)
 
     def goto(self, context: BotContext, state: StrEnum, state_info: Dict[str, Any]) -> None:
-        """Сохраняет шаг и отправляет его промпт."""
+        """Сохраняет шаг (с записью в историю «Назад») и отправляет его промпт."""
+        record_transition(state_info, state)
         state_info["command"] = self.scenario_command
-        state_info["state"] = str(state)
         state_info.setdefault("data", {})
         context.set_state(state_info)
 

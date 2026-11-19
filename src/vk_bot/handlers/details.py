@@ -42,27 +42,27 @@ class DetailsHandler(ScenarioHandler):
     def render_choose_filter(self, context: BotContext, state_info: dict) -> None:
         context.send_message(
             "Какие книги интересуют?",
-            keyboard=filter_keyboard(),
+            keyboard=filter_keyboard(self._back_command(state_info)),
         )
 
     def render_selecting_status_filter(self, context: BotContext, state_info: dict) -> None:
         context.send_message(
             "Выбери статус книги:",
-            keyboard=status_keyboard(),
+            keyboard=status_keyboard(self._back_command(state_info)),
         )
 
     def render_selecting_tag_filter(self, context: BotContext, state_info: dict) -> None:
         tags = BookService().get_all_tags(self._user_id(context, state_info))
         context.send_message(
             "Выбери тег:",
-            keyboard=tags_keyboard(tags),
+            keyboard=tags_keyboard(tags, self._back_command(state_info)),
         )
 
     def render_selecting_book(self, context: BotContext, state_info: dict) -> None:
         data = state_info["data"]
         context.send_message(
             data["list_header"] + "".join(data["book_lines"]),
-            keyboard=cancel_keyboard(),
+            keyboard=cancel_keyboard(self._back_command(state_info)),
         )
 
     # ── Шаги ────────────────────────────────────────────────────────
@@ -86,7 +86,7 @@ class DetailsHandler(ScenarioHandler):
 
         context.send_message(
             "⚠️ Выбери: По статусу, По тегам или Все",
-            keyboard=filter_keyboard(),
+            keyboard=filter_keyboard(self._back_command(state_info)),
         )
         return None
 
@@ -130,7 +130,7 @@ class DetailsHandler(ScenarioHandler):
         except ValueError:
             context.send_message(
                 "⚠️ Введи корректный номер книги.",
-                keyboard=cancel_keyboard(),
+                keyboard=cancel_keyboard(self._back_command(state_info)),
             )
             return None
 
@@ -138,7 +138,7 @@ class DetailsHandler(ScenarioHandler):
         if selection < 1 or selection > len(books_ids):
             context.send_message(
                 "⚠️ Номер книги вне диапазона.",
-                keyboard=cancel_keyboard(),
+                keyboard=cancel_keyboard(self._back_command(state_info)),
             )
             return None
 
@@ -147,7 +147,7 @@ class DetailsHandler(ScenarioHandler):
         if not book:
             context.send_message(
                 "⚠️ Книга не найдена.",
-                keyboard=cancel_keyboard(),
+                keyboard=cancel_keyboard(self._back_command(state_info)),
             )
             return None
 

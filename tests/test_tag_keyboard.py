@@ -79,11 +79,11 @@ def test_pagination_second_page_and_buttons():
     second = tag_editing_keyboard(tags, [], 1, OWNER)
 
     assert labels(first)[:16] == make_tags(16)
-    assert "Ещё →" in labels(first)
-    assert "← Назад" not in labels(first)
+    assert "Страница →" in labels(first)
+    assert "← Страница" not in labels(first)
 
-    # на последней странице только «← Назад»
-    assert labels(second) == ["tag-16", "Готово", "Отмена", "← Назад"]
+    # на последней странице только «← Страница»
+    assert labels(second) == ["tag-16", "Готово", "Отмена", "← Страница"]
 
     # Границы клампятся
     clamped = tag_editing_keyboard(tags, [], 99, OWNER)
