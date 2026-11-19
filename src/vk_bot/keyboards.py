@@ -35,14 +35,25 @@ def more_keyboard() -> VkKeyboard:
     return kb
 
 
-def cancel_keyboard() -> VkKeyboard:
+def add_back_button(kb: VkKeyboard, back_command: str | None) -> None:
+    """Кнопка «Назад» к предыдущему шагу сценария (issue #59).
+
+    ``back_command`` — команда владельца сценария или ``None`` на первом
+    шаге, где кнопка не нужна. Добавляется в текущий ряд рядом с «Отмена».
+    """
+    if back_command:
+        kb.add_button("Назад", payload={"command": back_command, "action": "back"})
+
+
+def cancel_keyboard(back_command: str | None = None) -> VkKeyboard:
     """Клавиатура отмены операции."""
     kb = VkKeyboard()
     kb.add_button("Отмена", payload={"command": "/cancel"})
+    add_back_button(kb, back_command)
     return kb
 
 
-def filter_keyboard() -> VkKeyboard:
+def filter_keyboard(back_command: str | None = None) -> VkKeyboard:
     """Клавиатура выбора фильтра для списка книг."""
     kb = VkKeyboard()
     kb.add_button("По статусу")
@@ -50,10 +61,11 @@ def filter_keyboard() -> VkKeyboard:
     kb.add_line()
     kb.add_button("Все")
     kb.add_button("Отмена", payload={"command": "/cancel"})
+    add_back_button(kb, back_command)
     return kb
 
 
-def status_keyboard() -> VkKeyboard:
+def status_keyboard(back_command: str | None = None) -> VkKeyboard:
     """Клавиатура выбора статуса книги."""
     kb = VkKeyboard()
     for i, status in enumerate(ReadingStatus, 1):
@@ -62,10 +74,11 @@ def status_keyboard() -> VkKeyboard:
         if i % 2 == 0:
             kb.add_line()
     kb.add_button("Отмена", payload={"command": "/cancel"})
+    add_back_button(kb, back_command)
     return kb
 
 
-def tags_keyboard(available_tags: list[str]) -> VkKeyboard:
+def tags_keyboard(available_tags: list[str], back_command: str | None = None) -> VkKeyboard:
     """Клавиатура выбора тега(ов) из доступных тегов."""
     kb = VkKeyboard()
     for i, tag in enumerate(available_tags, 1):
@@ -73,6 +86,7 @@ def tags_keyboard(available_tags: list[str]) -> VkKeyboard:
         if i % 2 == 0:
             kb.add_line()
     kb.add_button("Отмена", payload={"command": "/cancel"})
+    add_back_button(kb, back_command)
     return kb
 
 
@@ -86,6 +100,7 @@ def tag_editing_keyboard(
     selected: list[str],
     page: int,
     owner_command: str,
+    back_command: str | None = None,
 ) -> VkKeyboard:
     """Клавиатура шага выбора тегов книги.
 
@@ -123,12 +138,14 @@ def tag_editing_keyboard(
         payload={"command": owner_command, "action": "done"},
     )
     kb.add_button("Отмена", color=VkKeyboardColor.NEGATIVE, payload={"command": "/cancel"})
+    add_back_button(kb, back_command)
 
     if total_pages > 1:
         kb.add_line()
         if page > 0:
-            kb.add_button("← Назад", payload={"command": owner_command, "action": "prev_page"})
+            # Подписи отличаются от кнопки «Назад» предыдущего шага сценария
+            kb.add_button("← Страница", payload={"command": owner_command, "action": "prev_page"})
         if page < total_pages - 1:
-            kb.add_button("Ещё →", payload={"command": owner_command, "action": "next_page"})
+            kb.add_button("Страница →", payload={"command": owner_command, "action": "next_page"})
 
     return kb

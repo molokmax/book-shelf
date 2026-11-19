@@ -11,6 +11,7 @@ from core.services import TagService
 from utils import helpers
 from vk_bot.context import BotContext
 from vk_bot.keyboards import tag_editing_keyboard, tag_total_pages
+from vk_bot.navigation import available_back_command, record_transition
 from vk_bot.states import TagState
 from vk_bot.user_helpers import get_or_create_user
 
@@ -36,13 +37,15 @@ class TagEditingFlow:
         preselected: list | None = None,
     ) -> None:
         """Открывает шаг выбора тегов внутри сценария владельца."""
+        # Снимок прежнего шага — до инициализации данных шага тегов,
+        # чтобы «Назад» отбрасывал выборку и пагинацию
+        record_transition(state_info, TagState.SELECTING_TAGS)
         data = state_info.setdefault("data", {})
         data["selected_tags"] = sorted(preselected or [], key=str.casefold)
         data["tag_page"] = 0
         self._get_user_id(context, state_info)
-        state_info["state"] = TagState.SELECTING_TAGS
         context.set_state(state_info)
-        self._render(context, state_info)
+        self.render(context, state_info)
 
     def handle(self, context: BotContext) -> None:
         """Обрабатывает действия пользователя на шаге выбора тегов."""
@@ -71,7 +74,7 @@ class TagEditingFlow:
 
         if tag is None or tag.casefold() not in dictionary:
             # Подменённый или устаревший payload: тега в справочнике нет
-            self._render(
+            self.render(
                 context,
                 state_info,
                 helpers.format_invalid_input("Выбери тег из клавиатуры."),
@@ -88,7 +91,7 @@ class TagEditingFlow:
 
         state_info["data"]["selected_tags"] = selected
         context.set_state(state_info)
-        self._render(context, state_info)
+        self.render(context, state_info)
 
     def _handle_text(self, context: BotContext, state_info: dict) -> None:
         user_id = self._get_user_id(context, state_info)
@@ -98,7 +101,7 @@ class TagEditingFlow:
             if helpers.normalize_tag_name(name)
         ]
         if not names:
-            self._render(
+            self.render(
                 context,
                 state_info,
                 helpers.format_invalid_input("Введи теги через запятую или нажми «Готово»."),
@@ -118,12 +121,12 @@ class TagEditingFlow:
 
         state_info["data"]["selected_tags"] = selected
         context.set_state(state_info)
-        self._render(context, state_info)
+        self.render(context, state_info)
 
     def _handle_page(self, context: BotContext, state_info: dict, action: str) -> None:
         step = 1 if action == "next_page" else -1
         state_info["data"]["tag_page"] = state_info["data"].get("tag_page", 0) + step
-        self._render(context, state_info)
+        self.render(context, state_info)
 
     def _handle_done(self, context: BotContext, state_info: dict) -> None:
         selected = sorted(state_info["data"].get("selected_tags", []), key=str.casefold)
@@ -132,7 +135,8 @@ class TagEditingFlow:
 
     # ── Отрисовка и состояние ───────────────────────────────────────
 
-    def _render(self, context: BotContext, state_info: dict, header: str | None = None) -> None:
+    def render(self, context: BotContext, state_info: dict, header: str | None = None) -> None:
+        """Перерисовывает шаг выбора тегов, в том числе после «Назад»."""
         user_id = self._get_user_id(context, state_info)
         tags = TagService().get_user_tags(user_id)
 
@@ -149,7 +153,13 @@ class TagEditingFlow:
             "или введи новые через запятую. «Готово» завершает выбор.\n"
             f"\nВыбрано: {selection_text}"
         )
-        keyboard = tag_editing_keyboard(tags, selected, data["tag_page"], self._owner_command)
+        keyboard = tag_editing_keyboard(
+            tags,
+            selected,
+            data["tag_page"],
+            self._owner_command,
+            back_command=available_back_command(state_info, self._owner_command),
+        )
         context.send_message(message, keyboard=keyboard)
 
     def _get_user_id(self, context: BotContext, state_info: dict) -> str:

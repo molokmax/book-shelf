@@ -15,6 +15,7 @@ from vk_bot.context import BotContext
 from vk_bot.flows.tag_editing import TagEditingFlow
 from vk_bot.handlers.scenario import ScenarioHandler
 from vk_bot.keyboards import (
+    add_back_button,
     cancel_keyboard,
     filter_keyboard,
     status_keyboard,
@@ -57,34 +58,34 @@ class EditHandler(ScenarioHandler):
     def render_choose_filter(self, context: BotContext, state_info: dict) -> None:
         context.send_message(
             "Какие книги интересуют?",
-            keyboard=filter_keyboard(),
+            keyboard=filter_keyboard(self._back_command(state_info)),
         )
 
     def render_selecting_status_filter(self, context: BotContext, state_info: dict) -> None:
         context.send_message(
             "Выбери статус книги:",
-            keyboard=status_keyboard(),
+            keyboard=status_keyboard(self._back_command(state_info)),
         )
 
     def render_selecting_tag_filter(self, context: BotContext, state_info: dict) -> None:
         tags = BookService().get_all_tags(self._user_id(context, state_info))
         context.send_message(
             "Выбери тег:",
-            keyboard=tags_keyboard(tags),
+            keyboard=tags_keyboard(tags, self._back_command(state_info)),
         )
 
     def render_selecting_book(self, context: BotContext, state_info: dict) -> None:
         data = state_info["data"]
         context.send_message(
             data["list_header"] + "".join(data["book_lines"]),
-            keyboard=cancel_keyboard(),
+            keyboard=cancel_keyboard(self._back_command(state_info)),
         )
 
     def render_selecting_action(self, context: BotContext, state_info: dict) -> None:
         title = state_info["data"].get("selected_book_title", "")
         context.send_message(
             f"Выбрана книга '{title}'. Что нужно сделать?",
-            keyboard=self._create_book_keyboard(),
+            keyboard=self._create_book_keyboard(self._back_command(state_info)),
         )
 
     def render_editing_title(self, context: BotContext, state_info: dict) -> None:
@@ -97,7 +98,7 @@ class EditHandler(ScenarioHandler):
                 f"Текущее название: '{book.title}'.\n"
                 "Введи новое или нажми 'Дальше' чтобы оставить."
             ),
-            keyboard=self._create_edit_keyboard(),
+            keyboard=self._create_edit_keyboard(self._back_command(state_info)),
         )
 
     def render_editing_author(self, context: BotContext, state_info: dict) -> None:
@@ -110,7 +111,7 @@ class EditHandler(ScenarioHandler):
                 f"Текущий автор: '{book.author}'.\n"
                 "Введи нового или нажми 'Дальше' чтобы оставить."
             ),
-            keyboard=self._create_edit_keyboard(),
+            keyboard=self._create_edit_keyboard(self._back_command(state_info)),
         )
 
     def render_editing_pages(self, context: BotContext, state_info: dict) -> None:
@@ -123,7 +124,7 @@ class EditHandler(ScenarioHandler):
                 f"Текущее количество страниц: {book.pages}.\n"
                 "Введи новое или нажми 'Дальше' чтобы оставить."
             ),
-            keyboard=self._create_edit_keyboard(),
+            keyboard=self._create_edit_keyboard(self._back_command(state_info)),
         )
 
     def render_editing_link(self, context: BotContext, state_info: dict) -> None:
@@ -136,15 +137,19 @@ class EditHandler(ScenarioHandler):
                 f"Текущая ссылка: {book.link or 'Отсутствует'}.\n"
                 "Введи новую или нажми 'Дальше' чтобы оставить."
             ),
-            keyboard=self._create_edit_keyboard(),
+            keyboard=self._create_edit_keyboard(self._back_command(state_info)),
         )
 
     def render_selecting_status(self, context: BotContext, state_info: dict) -> None:
         title = state_info["data"].get("selected_book_title", "")
         context.send_message(
             f"📖 Выбрана книга '{title}'. Выбери новый статус:",
-            keyboard=self._create_status_keyboard(),
+            keyboard=self._create_status_keyboard(self._back_command(state_info)),
         )
+
+    def render_selecting_tags(self, context: BotContext, state_info: dict) -> None:
+        """Перерисовка шага тегов после «Назад» делегируется TagEditingFlow."""
+        self._tag_flow.render(context, state_info)
 
     # ── Шаги выбора книги ───────────────────────────────────────────
 
@@ -170,7 +175,7 @@ class EditHandler(ScenarioHandler):
 
         context.send_message(
             "⚠️ Выбери: По статусу, По тегам или Все.",
-            keyboard=filter_keyboard(),
+            keyboard=filter_keyboard(self._back_command(state_info)),
         )
         return None
 
@@ -200,7 +205,7 @@ class EditHandler(ScenarioHandler):
         except ValueError:
             context.send_message(
                 "⚠️ Введи корректный номер книги.",
-                keyboard=cancel_keyboard(),
+                keyboard=cancel_keyboard(self._back_command(state_info)),
             )
             return None
 
@@ -208,7 +213,7 @@ class EditHandler(ScenarioHandler):
         if selection < 1 or selection > len(books_ids):
             context.send_message(
                 "⚠️ Номер книги вне диапазона.",
-                keyboard=cancel_keyboard(),
+                keyboard=cancel_keyboard(self._back_command(state_info)),
             )
             return None
 
@@ -217,7 +222,7 @@ class EditHandler(ScenarioHandler):
         if not selected_book:
             context.send_message(
                 "⚠️ Книга не найдена.",
-                keyboard=cancel_keyboard(),
+                keyboard=cancel_keyboard(self._back_command(state_info)),
             )
             return None
 
@@ -261,7 +266,7 @@ class EditHandler(ScenarioHandler):
 
         context.send_message(
             "⚠️ Выбери действие",
-            keyboard=self._create_book_keyboard(),
+            keyboard=self._create_book_keyboard(self._back_command(state_info)),
         )
         return None
 
@@ -287,7 +292,7 @@ class EditHandler(ScenarioHandler):
             except ValueError:
                 context.send_message(
                     "⚠️ Введи целое число для количества страниц.",
-                    keyboard=self._create_edit_keyboard(),
+                    keyboard=self._create_edit_keyboard(self._back_command(state_info)),
                 )
                 return None
 
@@ -324,7 +329,7 @@ class EditHandler(ScenarioHandler):
         if not new_status:
             context.send_message(
                 "⚠️ Неизвестный статус. Выбери один из предложенных.",
-                keyboard=self._create_status_keyboard(),
+                keyboard=self._create_status_keyboard(self._back_command(state_info)),
             )
             return None
 
@@ -407,7 +412,7 @@ class EditHandler(ScenarioHandler):
     # ── Клавиатуры ──────────────────────────────────────────────────
 
     @staticmethod
-    def _create_book_keyboard() -> VkKeyboard:
+    def _create_book_keyboard(back_command: str | None = None) -> VkKeyboard:
         """Клавиатура действий над книгой."""
         kb = VkKeyboard()
         kb.add_button("Изменить")
@@ -415,10 +420,11 @@ class EditHandler(ScenarioHandler):
         kb.add_line()
         kb.add_button("Удалить")
         kb.add_button("Отмена", payload={"command": "/cancel"})
+        add_back_button(kb, back_command)
         return kb
 
     @staticmethod
-    def _create_status_keyboard() -> VkKeyboard:
+    def _create_status_keyboard(back_command: str | None = None) -> VkKeyboard:
         """Создаёт клавиатуру для выбора нового статуса книги без payload."""
         kb = VkKeyboard()
         kb.add_button("Хочу прочитать")
@@ -428,12 +434,14 @@ class EditHandler(ScenarioHandler):
         kb.add_button("Отложено")
         kb.add_line()
         kb.add_button("Отмена", payload={"command": "/cancel"})
+        add_back_button(kb, back_command)
         return kb
 
     @staticmethod
-    def _create_edit_keyboard() -> VkKeyboard:
+    def _create_edit_keyboard(back_command: str | None = None) -> VkKeyboard:
         """Keyboard with 'Дальше' and 'Отмена' for sequential editing."""
         kb = VkKeyboard()
         kb.add_button("Дальше")
         kb.add_button("Отмена", payload={"command": "/cancel"})
+        add_back_button(kb, back_command)
         return kb

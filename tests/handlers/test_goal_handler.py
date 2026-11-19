@@ -144,7 +144,7 @@ def test_set_action_requests_value(monkeypatch):
 
     msg = fake_api.sent_messages[-1]
     assert "Введи количество страниц в день" in msg["message"]
-    assert keyboard_labels(msg["keyboard"]) == ["Отмена"]
+    assert keyboard_labels(msg["keyboard"]) == ["Отмена", "Назад"]
     assert storage.get(5)["state"] == "waiting_for_goal_input"
 
 

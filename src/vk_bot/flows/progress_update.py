@@ -19,7 +19,8 @@ from core.services import (
 )
 from utils import helpers, logger
 from vk_bot.context import BotContext
-from vk_bot.keyboards import cancel_keyboard, main_keyboard
+from vk_bot.keyboards import add_back_button, cancel_keyboard, main_keyboard
+from vk_bot.navigation import available_back_command, record_transition
 from vk_bot.states import ProgressState
 
 log = logger.setup_logger(__name__)
@@ -34,11 +35,42 @@ class ProgressUpdateFlow:
 
     def start(self, context: BotContext, state_info: dict, book) -> None:
         """Запрашивает текущую страницу для книги."""
-        state_info["state"] = ProgressState.WAITING_FOR_PROGRESS_INPUT
+        record_transition(state_info, ProgressState.WAITING_FOR_PROGRESS_INPUT)
         state_info.setdefault("data", {})["progress_book_pages"] = book.pages
         state_info["data"].pop("pending_progress_page", None)
         context.set_state(state_info)
+        self._render_input(context, state_info, book)
 
+    def render_current(self, context: BotContext, state_info: dict) -> None:
+        """Перерисовывает текущий шаг обновления прогресса после «Назад»."""
+        book = BookService().get_book_by_id(state_info["data"].get("selected_book_id"))
+        if not book:
+            context.send_message(
+                "⚠️ Книга не найдена.",
+                keyboard=cancel_keyboard(self._back_command(state_info)),
+            )
+            return
+
+        state = state_info.get("state")
+        if state == ProgressState.WAITING_FOR_PROGRESS_INPUT:
+            self._render_input(context, state_info, book)
+        elif state == ProgressState.WAITING_FOR_PROGRESS_CONFIRM:
+            pending_page = state_info["data"].get("pending_progress_page")
+            reasons = classify_progress_update(
+                previous_page=book.current_page,
+                new_page=pending_page,
+                pages=book.pages,
+                avg_pages_per_day=self._avg_pages_per_day(book),
+            )
+            context.send_message(
+                self._format_progress_confirm_message(book, pending_page, reasons),
+                keyboard=self._create_progress_confirm_keyboard(self._back_command(state_info)),
+            )
+
+    def _back_command(self, state_info: dict) -> str | None:
+        return available_back_command(state_info, state_info.get("command") or "")
+
+    def _render_input(self, context: BotContext, state_info: dict, book) -> None:
         percent = helpers.get_progress_percent(book.current_page, book.pages)
         context.send_message(
             (
@@ -46,7 +78,7 @@ class ProgressUpdateFlow:
                 f"Прогресс: {book.current_page}/{book.pages} ({percent}%)\n\n"
                 f"Введи текущую страницу (от 0 до {book.pages})."
             ),
-            keyboard=cancel_keyboard(),
+            keyboard=cancel_keyboard(self._back_command(state_info)),
         )
 
     def handle(self, context: BotContext) -> None:
@@ -74,7 +106,7 @@ class ProgressUpdateFlow:
             if pending_page is None:
                 context.send_message(
                     "⚠️ Нечего подтверждать: значение прогресса потеряно.",
-                    keyboard=cancel_keyboard(),
+                    keyboard=cancel_keyboard(self._back_command(state_info)),
                 )
                 return
             self._apply_progress(context, state_info, pending_page)
@@ -84,7 +116,10 @@ class ProgressUpdateFlow:
             context.text, state_info["data"].get("progress_book_pages")
         )
         if error:
-            context.send_message(error, keyboard=self._create_progress_confirm_keyboard())
+            context.send_message(
+                error,
+                keyboard=self._create_progress_confirm_keyboard(self._back_command(state_info)),
+            )
             return
 
         self._submit_progress_value(context, state_info, value)
@@ -95,7 +130,7 @@ class ProgressUpdateFlow:
         if not book_id:
             context.send_message(
                 "⚠️ Идентификатор книги не найден.",
-                keyboard=cancel_keyboard(),
+                keyboard=cancel_keyboard(self._back_command(state_info)),
             )
             return
 
@@ -118,12 +153,12 @@ class ProgressUpdateFlow:
             self._apply_progress(context, state_info, new_page)
             return
 
-        state_info["state"] = ProgressState.WAITING_FOR_PROGRESS_CONFIRM
+        record_transition(state_info, ProgressState.WAITING_FOR_PROGRESS_CONFIRM)
         state_info["data"]["pending_progress_page"] = new_page
         context.set_state(state_info)
         context.send_message(
             self._format_progress_confirm_message(book, new_page, reasons),
-            keyboard=self._create_progress_confirm_keyboard(),
+            keyboard=self._create_progress_confirm_keyboard(self._back_command(state_info)),
         )
 
     def _apply_progress(self, context: BotContext, state_info: dict, new_page: int) -> None:
@@ -131,7 +166,7 @@ class ProgressUpdateFlow:
         if not book_id:
             context.send_message(
                 "⚠️ Идентификатор книги не найден.",
-                keyboard=cancel_keyboard(),
+                keyboard=cancel_keyboard(self._back_command(state_info)),
             )
             return
 
@@ -316,9 +351,10 @@ class ProgressUpdateFlow:
         return value, None
 
     @staticmethod
-    def _create_progress_confirm_keyboard() -> VkKeyboard:
+    def _create_progress_confirm_keyboard(back_command: str | None = None) -> VkKeyboard:
         """Клавиатура подтверждения подозрительного значения прогресса."""
         kb = VkKeyboard()
         kb.add_button("Продолжить")
         kb.add_button("Отмена", payload={"command": "/cancel"})
+        add_back_button(kb, back_command)
         return kb

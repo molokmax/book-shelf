@@ -15,7 +15,7 @@ from utils.litres_parser import LitresParserError, is_litres_url, parse_litres_b
 from vk_bot.context import BotContext
 from vk_bot.flows.tag_editing import TagEditingFlow
 from vk_bot.handlers.scenario import ScenarioHandler
-from vk_bot.keyboards import cancel_keyboard
+from vk_bot.keyboards import add_back_button, cancel_keyboard
 from vk_bot.states import AddState
 from vk_bot.user_helpers import get_or_create_user
 
@@ -46,19 +46,19 @@ class AddHandler(ScenarioHandler):
     def render_waiting_for_title(self, context: BotContext, state_info: dict) -> None:
         context.send_message(
             "Отлично! Теперь введи название книги:",
-            keyboard=cancel_keyboard(),
+            keyboard=cancel_keyboard(self._back_command(state_info)),
         )
 
     def render_waiting_for_author(self, context: BotContext, state_info: dict) -> None:
         context.send_message(
             "Отлично! Теперь введи автора книги:",
-            keyboard=cancel_keyboard(),
+            keyboard=cancel_keyboard(self._back_command(state_info)),
         )
 
     def render_waiting_for_pages(self, context: BotContext, state_info: dict) -> None:
         context.send_message(
             "Отлично! Теперь введи количество страниц в книге:",
-            keyboard=cancel_keyboard(),
+            keyboard=cancel_keyboard(self._back_command(state_info)),
         )
 
     def render_waiting_for_link(self, context: BotContext, state_info: dict) -> None:
@@ -67,13 +67,13 @@ class AddHandler(ScenarioHandler):
                 "Отлично! Теперь можешь указать ссылку на книгу. "
                 "Нажми Дальше чтобы оставить пустым."
             ),
-            keyboard=self.create_link_keyboard(),
+            keyboard=self.create_link_keyboard(self._back_command(state_info)),
         )
 
     def render_waiting_for_litres_url(self, context: BotContext, state_info: dict) -> None:
         context.send_message(
             "Введи ссылку на книгу с https://litres.ru:",
-            keyboard=cancel_keyboard(),
+            keyboard=cancel_keyboard(self._back_command(state_info)),
         )
 
     def render_waiting_for_litres_confirm(self, context: BotContext, state_info: dict) -> None:
@@ -86,8 +86,12 @@ class AddHandler(ScenarioHandler):
                 f"Страниц: {data.get('pages', '—')}\n"
                 "\nПродолжить добавление?"
             ),
-            keyboard=self.create_confirm_litres_keyboard(),
+            keyboard=self.create_confirm_litres_keyboard(self._back_command(state_info)),
         )
+
+    def render_selecting_tags(self, context: BotContext, state_info: dict) -> None:
+        """Перерисовка шага тегов после «Назад» делегируется TagEditingFlow."""
+        self._tag_flow.render(context, state_info)
 
     # ── Шаги ────────────────────────────────────────────────────────
 
@@ -123,7 +127,7 @@ class AddHandler(ScenarioHandler):
         except ValueError:
             context.send_message(
                 "⚠️ Введи положительное целое число страниц.",
-                keyboard=cancel_keyboard(),
+                keyboard=cancel_keyboard(self._back_command(state_info)),
             )
             return None
 
@@ -139,7 +143,7 @@ class AddHandler(ScenarioHandler):
             if not helpers.is_valid_url(text):
                 context.send_message(
                     "⚠️ Введи корректный URL или нажми 'Дальше'.",
-                    keyboard=self.create_link_keyboard(),
+                    keyboard=self.create_link_keyboard(self._back_command(state_info)),
                 )
                 return None
             state_info["data"]["link"] = text
@@ -160,7 +164,7 @@ class AddHandler(ScenarioHandler):
         if not is_litres_url(url):
             context.send_message(
                 "⚠️ Введи корректную ссылку на LitRes.",
-                keyboard=cancel_keyboard(),
+                keyboard=cancel_keyboard(self._back_command(state_info)),
             )
             return None
 
@@ -185,7 +189,7 @@ class AddHandler(ScenarioHandler):
         except LitresParserError as e:
             context.send_message(
                 f"❌ Не удалось получить информацию о книге: {e}",
-                keyboard=cancel_keyboard(),
+                keyboard=cancel_keyboard(self._back_command(state_info)),
             )
             return None
 
@@ -239,15 +243,17 @@ class AddHandler(ScenarioHandler):
         return kb
 
     @staticmethod
-    def create_link_keyboard() -> VkKeyboard:
+    def create_link_keyboard(back_command: str | None = None) -> VkKeyboard:
         kb = VkKeyboard()
         kb.add_button("Дальше")
         kb.add_button("Отмена", payload={"command": "/cancel"})
+        add_back_button(kb, back_command)
         return kb
 
     @staticmethod
-    def create_confirm_litres_keyboard() -> VkKeyboard:
+    def create_confirm_litres_keyboard(back_command: str | None = None) -> VkKeyboard:
         kb = VkKeyboard()
         kb.add_button("Продолжить")
         kb.add_button("Отмена", payload={"command": "/cancel"})
+        add_back_button(kb, back_command)
         return kb
