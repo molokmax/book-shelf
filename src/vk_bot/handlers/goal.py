@@ -4,6 +4,7 @@ from typing import Any
 
 from vk_api.keyboard import VkKeyboard
 
+from core.models import GoalStatus
 from core.services import GoalService
 from utils import helpers
 from vk_bot.context import BotContext
@@ -17,7 +18,7 @@ class GoalHandler(ScenarioHandler):
     """Handler for the `/goal` command.
 
     Управляет состояниями:
-    * menu: выбор действия (просмотр, установка, отключение)
+    * menu: текущие показатели и выбор действия (установка, отключение)
     * waiting_for_goal_input: ввод количества страниц в день
     """
 
@@ -34,8 +35,10 @@ class GoalHandler(ScenarioHandler):
         self.begin(context, GoalState.MENU, {"user_id": user.id})
 
     def render_menu(self, context: BotContext, state_info: dict) -> None:
+        service = GoalService()
+        status = service.get_goal_status(self._user_id(context, state_info))
         context.send_message(
-            "Цель на день\n\nВыбери действие:",
+            self._format_menu_text(status),
             keyboard=self._create_menu_keyboard(),
         )
 
@@ -49,9 +52,6 @@ class GoalHandler(ScenarioHandler):
 
     def step_menu(self, context: BotContext, state_info: dict) -> Any:
         choice = context.text.strip().lower()
-        if choice == "просмотр":
-            self._show_status(context, state_info)
-            return None
         if choice == "установить":
             return GoalState.WAITING_FOR_GOAL_INPUT
         if choice == "отключить":
@@ -92,18 +92,16 @@ class GoalHandler(ScenarioHandler):
         self.finish(context, f"Цель на день установлена: {value} стр.")
         return None
 
-    # ── Действия меню ───────────────────────────────────────────────
+    # ── Форматирование и действия меню ──────────────────────────────
 
-    def _show_status(self, context: BotContext, state_info: dict) -> None:
-        service = GoalService()
-        status = service.get_goal_status(self._user_id(context, state_info))
+    @staticmethod
+    def _format_menu_text(status: GoalStatus | None) -> str:
         if status is None:
-            self.finish(
-                context,
+            return (
+                "Цель на день\n\n"
                 "Цель на день не установлена.\n\n"
-                "Нажми «Установить», чтобы задать количество страниц в день.",
+                "Нажми «Установить», чтобы задать количество страниц в день."
             )
-            return
 
         lines = [
             f"Цель на день: {status.goal.target} стр.",
@@ -113,7 +111,8 @@ class GoalHandler(ScenarioHandler):
             lines.append("Цель выполнена.")
         else:
             lines.append(f"Осталось: {status.remaining} стр.")
-        self.finish(context, "\n".join(lines))
+        lines.extend(["", "Выбери действие:"])
+        return "\n".join(lines)
 
     def _disable(self, context: BotContext, state_info: dict) -> None:
         service = GoalService()
@@ -136,7 +135,6 @@ class GoalHandler(ScenarioHandler):
     def _create_menu_keyboard() -> VkKeyboard:
         """Клавиатура меню целей."""
         kb = VkKeyboard()
-        kb.add_button("Просмотр")
         kb.add_button("Установить")
         kb.add_line()
         kb.add_button("Отключить")
