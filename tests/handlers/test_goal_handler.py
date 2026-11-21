@@ -69,68 +69,63 @@ def patch_user(monkeypatch):
     monkeypatch.setattr(gh, "get_or_create_user", lambda api, user_id: FakeUser())
 
 
-def test_entry_opens_menu(monkeypatch):
+def test_entry_shows_goal_with_progress(monkeypatch):
     fake_api = FakeVkApiMethod()
     storage = FakeStateStorage()
-    monkeypatch.setattr(gh, "GoalService", lambda: GoalStub())
-
-    ctx = make_context(fake_api, 1, "/goal", storage=storage)
-    gh.GoalHandler().handle(ctx)
-
-    msg = fake_api.sent_messages[-1]
-    assert "Выбери действие" in msg["message"]
-    labels = keyboard_labels(msg["keyboard"])
-    assert "Просмотр" in labels
-    assert "Установить" in labels
-    assert "Отключить" in labels
-    assert "Отмена" in labels
-    assert storage.get(1)["state"] == "menu"
-
-
-def test_view_goal_with_progress(monkeypatch):
-    fake_api = FakeVkApiMethod()
-    storage = FakeStateStorage()
-    save_state(storage, 2)
     monkeypatch.setattr(gh, "GoalService", lambda: GoalStub(target=50, pages_today=35))
 
-    ctx = make_context(fake_api, 2, "Просмотр", storage=storage)
+    ctx = make_context(fake_api, 2, "/goal", storage=storage)
     gh.GoalHandler().handle(ctx)
 
-    msg = fake_api.sent_messages[-1]["message"]
-    assert "Цель на день: 50 стр." in msg
-    assert "Сегодня прочитано: 35 стр. (70%)" in msg
-    assert "Осталось: 15 стр." in msg
-    assert "Цель выполнена" not in msg
-    assert not storage.is_active(2)
+    assert len(fake_api.sent_messages) == 1
+    msg = fake_api.sent_messages[-1]
+    assert msg["message"] == (
+        "Цель на день: 50 стр.\n"
+        "Сегодня прочитано: 35 стр. (70%)\n"
+        "Осталось: 15 стр.\n\n"
+        "Выбери действие:"
+    )
+    assert keyboard_labels(msg["keyboard"]) == ["Установить", "Отключить", "Отмена"]
+    assert storage.get(2)["state"] == "menu"
 
 
-def test_view_completed_goal(monkeypatch):
+def test_entry_shows_completed_goal(monkeypatch):
     fake_api = FakeVkApiMethod()
     storage = FakeStateStorage()
-    save_state(storage, 3)
     monkeypatch.setattr(gh, "GoalService", lambda: GoalStub(target=50, pages_today=60))
 
-    ctx = make_context(fake_api, 3, "Просмотр", storage=storage)
+    ctx = make_context(fake_api, 3, "/goal", storage=storage)
     gh.GoalHandler().handle(ctx)
 
-    msg = fake_api.sent_messages[-1]["message"]
-    assert "Сегодня прочитано: 60 стр. (100%)" in msg
-    assert "Цель выполнена." in msg
-    assert "Осталось" not in msg
+    assert len(fake_api.sent_messages) == 1
+    msg = fake_api.sent_messages[-1]
+    assert msg["message"] == (
+        "Цель на день: 50 стр.\n"
+        "Сегодня прочитано: 60 стр. (100%)\n"
+        "Цель выполнена.\n\n"
+        "Выбери действие:"
+    )
+    assert keyboard_labels(msg["keyboard"]) == ["Установить", "Отключить", "Отмена"]
+    assert storage.get(3)["state"] == "menu"
 
 
-def test_view_without_goal(monkeypatch):
+def test_entry_without_goal_shows_hint(monkeypatch):
     fake_api = FakeVkApiMethod()
     storage = FakeStateStorage()
-    save_state(storage, 4)
     monkeypatch.setattr(gh, "GoalService", lambda: GoalStub())
 
-    ctx = make_context(fake_api, 4, "Просмотр", storage=storage)
+    ctx = make_context(fake_api, 4, "/goal", storage=storage)
     gh.GoalHandler().handle(ctx)
 
-    msg = fake_api.sent_messages[-1]["message"]
-    assert "Цель на день не установлена" in msg
-    assert not storage.is_active(4)
+    assert len(fake_api.sent_messages) == 1
+    msg = fake_api.sent_messages[-1]
+    assert msg["message"] == (
+        "Цель на день\n\n"
+        "Цель на день не установлена.\n\n"
+        "Нажми «Установить», чтобы задать количество страниц в день."
+    )
+    assert keyboard_labels(msg["keyboard"]) == ["Установить", "Отключить", "Отмена"]
+    assert storage.get(4)["state"] == "menu"
 
 
 def test_set_action_requests_value(monkeypatch):
@@ -224,18 +219,19 @@ def test_disable_without_goal(monkeypatch):
     assert not storage.is_active(10)
 
 
-def test_invalid_menu_choice_keeps_menu(monkeypatch):
+@pytest.mark.parametrize("value", ["непонятно", "Просмотр"])
+def test_invalid_menu_choice_keeps_menu(monkeypatch, value):
     fake_api = FakeVkApiMethod()
     storage = FakeStateStorage()
     save_state(storage, 11)
     monkeypatch.setattr(gh, "GoalService", lambda: GoalStub())
 
-    ctx = make_context(fake_api, 11, "непонятно", storage=storage)
+    ctx = make_context(fake_api, 11, value, storage=storage)
     gh.GoalHandler().handle(ctx)
 
-    msg = fake_api.sent_messages[-1]["message"]
-    assert msg.startswith("⚠️ Не удалось обработать сообщение.")
-    assert "Выбери действие из клавиатуры" in msg
+    msg = fake_api.sent_messages[-1]
+    assert msg["message"] == "⚠️ Не удалось обработать сообщение. Выбери действие из клавиатуры."
+    assert keyboard_labels(msg["keyboard"]) == ["Установить", "Отключить", "Отмена"]
     assert storage.get(11)["state"] == "menu"
 
 

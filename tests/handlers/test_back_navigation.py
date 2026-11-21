@@ -284,21 +284,42 @@ def test_goal_back_from_input_to_menu_without_saving(monkeypatch):
     fake_api = FakeVkApiMethod()
     storage = FakeStateStorage()
 
-    class ForbiddenGoalService:
+    class ReadableGoalService:
         def __init__(self):
-            raise AssertionError("«Назад» не должно обращаться к GoalService")
+            self.pages_today = 35
 
-    monkeypatch.setattr(gh, "GoalService", ForbiddenGoalService)
+        def get_goal_status(self, user_id):
+            return types.SimpleNamespace(
+                goal=types.SimpleNamespace(target=50),
+                pages_today=self.pages_today,
+                percent=round(self.pages_today / 50 * 100),
+                completed=False,
+                remaining=50 - self.pages_today,
+            )
+
+        def set_daily_goal(self, user_id, target):
+            raise AssertionError("«Назад» не должно устанавливать цель")
+
+        def disable_goal(self, user_id):
+            raise AssertionError("«Назад» не должно отключать цель")
+
+    service = ReadableGoalService()
+    monkeypatch.setattr(gh, "GoalService", lambda: service)
     handler = gh.GoalHandler()
 
     handler.handle(make_context(fake_api, 1, "/goal", storage=storage))
+    assert "Сегодня прочитано: 35 стр. (70%)" in fake_api.sent_messages[-1]["message"]
     handler.handle(make_context(fake_api, 1, "Установить", storage=storage))
     assert storage.get(1)["state"] == "waiting_for_goal_input"
 
+    service.pages_today = 40
     handler.handle(back_context(fake_api, storage, "/goal"))
 
     assert storage.get(1)["state"] == "menu"
-    assert "Выбери действие" in fake_api.sent_messages[-1]["message"]
+    message = fake_api.sent_messages[-1]["message"]
+    assert "Сегодня прочитано: 40 стр. (80%)" in message
+    assert "Осталось: 10 стр." in message
+    assert "Выбери действие" in message
 
 
 # ── /progress ───────────────────────────────────────────────────────
