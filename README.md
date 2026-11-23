@@ -121,4 +121,8 @@ docker run -d --name book-shelf --env-file .env \
   <DOCKERHUB_USERNAME>/book-shelf:latest
 ```
 
-[Dev Notes](./DevNotes.md)
+## Документация для разработчиков
+
+- [Dev Notes](./DevNotes.md)
+- [Участие в разработке](./CONTRIBUTING.md)
+- [Стандарты разработки](./CODING_STANDARDS.md)
