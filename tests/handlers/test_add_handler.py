@@ -54,6 +54,11 @@ def keyboard_labels(keyboard):
     return [button["action"]["label"] for row in data["buttons"] for button in row]
 
 
+def keyboard_buttons(keyboard):
+    data = keyboard if isinstance(keyboard, dict) else json.loads(keyboard)
+    return [button["action"] for row in data["buttons"] for button in row]
+
+
 @pytest.fixture
 def saved_books(monkeypatch):
     saved = []
@@ -135,6 +140,11 @@ def test_manual_flow_toggle_and_done_creates_book(stub_dictionary, saved_books):
     assert created["user_id"] == f"user-{user_id}"
     assert "Теги: fantasy" in fake_api.sent_messages[-1]["message"]
     assert storage.get(user_id) == {}
+    # Кнопка перехода в главное меню на клавиатуре после добавления книги
+    buttons = keyboard_buttons(fake_api.sent_messages[-1]["keyboard"])
+    main_menu = [b for b in buttons if b["label"] == "Главное меню"]
+    assert len(main_menu) == 1
+    assert json.loads(main_menu[0]["payload"]) == {"command": "/back"}
 
 
 def test_manual_flow_done_without_tags(stub_dictionary, saved_books):
