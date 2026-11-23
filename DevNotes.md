@@ -92,21 +92,7 @@ book-shelf/
 
 ## Разработка
 
-### Форматирование кода
-```bash
-black src/
-isort src/
-```
-
-### Линтинг
-```bash
-flake8 src/
-```
-
-### Тестирование
-```bash
-pytest tests/
-```
+Процесс работы с ветками и pull request описан в [CONTRIBUTING.md](./CONTRIBUTING.md). Требования к стилю и размещению кода, обработчикам команд, тестированию и обязательным проверкам приведены в [CODING_STANDARDS.md](./CODING_STANDARDS.md).
 
 ## Дополнительные настройки
 

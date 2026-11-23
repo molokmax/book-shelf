@@ -1,66 +1,51 @@
 # AGENTS.md
 
-This file provides guidance to Open Code when working with code in this repository.
+Этот файл содержит рекомендации для Open Code при работе с кодом в этом репозитории.
 
-## Common Development Commands
+Перед изменением кода, добавлением обработчиков, написанием тестов или изменением конфигурации прочитай и соблюдай [CODING_STANDARDS.md](./CODING_STANDARDS.md). В нём описаны стиль кода, границы модулей, соглашения для обработчиков и обязательные проверки.
 
-- **Install dependencies**: `pip install -r requirements.txt`
-- **Run the bot**: `python src/main.py` (ensure `BOT_TOKEN` environment variable is set, e.g., `export BOT_TOKEN=your_token` on *nix or `set BOT_TOKEN=your_token` on Windows)
-- **Run all tests**: `pytest`
-- **Run a single test file**: `pytest tests/test_book_add.py`
-- **Run a single test case**: `pytest tests/test_book_add.py::test_add_book_success`
-- **Lint the code**: `flake8 src/`
-- **Check coverage**: `coverage run -m pytest && coverage report`
+Перед созданием ветки или подготовкой pull request прочитай и соблюдай [CONTRIBUTING.md](./CONTRIBUTING.md). В нём описаны процесс внесения изменений и правила именования веток.
 
-## High‑Level Architecture
+## Основные команды разработки
 
-- **src/main.py** – Entry point that creates and runs `VkBookShelfBot`.
-- **src/vk_bot/** – Vk bot layer:
-  - `bot.py` contains `VkBookShelfBot`, which uses `vk_api`, loads configuration, and runs handlers.
-  - `command_router.py` – `CommandRouter` — central command router with priority‑based handler dispatching.
-  - `handlers/base.py` – `AbstractCommandHandler` base class with `can_handle`, `priority`, `commands`; `handle()` is a template method that rejects commands while another scenario is active.
-  - `handlers/scenario.py` – `ScenarioHandler` base class for multi-step commands: state registry, `start`/`begin`/`goto`/`finish`, `step_<state>` and `render_<state>` conventions.
-  - `states.py` – `StrEnum` names of scenario steps (shared sub-scenario steps and per-command steps).
-  - `handlers/` – directory with command handlers. Each file is a single handler (`add.py`, `edit.py`, `list.py`, etc.) with a class inheriting `AbstractCommandHandler` or `ScenarioHandler`.
-  - `core/repository.py` – `UserStateRepository` for persisting user state in SQLite (`user_state` table).
-  - `keyboards.py` – Shared keyboard layouts used by the several commands. Specific keyboards should be in command handler file.
-- **src/core/** – Core application logic, independent of Telegram:
-  - `models.py` – Pydantic data models for books and related entities.
-  - `database.py` – SQLite‑based persistence (stores data in `data/database.db`).
-  - `db.py` – Low‑level database operations.
-  - `repository.py` – Repository pattern exposing high‑level data access methods.
-  - `services.py` – Business‑logic services (e.g., adding a book, updating status).
-- **src/utils/** – Helper utilities:
-  - `config.py` – Loads configuration from environment variables (`BOT_TOKEN`, optional `DATA_DIR`, `DEBUG`).
-  - `logger.py` – Central logging configuration.
-  - `helpers.py` – Miscellaneous helper functions used across the codebase.
-  - `litres_parser.py` – HTML parser for extracting book data from LitRes.
-- **data/** – Runtime data storage.
-- **tests/** – Pytest test suite covering handlers, services, and parsers.
+- **Установить зависимости**: `pip install -r requirements.txt`
+- **Запустить бота**: `python src/main.py` (перед запуском установи переменную окружения `BOT_TOKEN`, например `export BOT_TOKEN=your_token` в *nix или `set BOT_TOKEN=your_token` в Windows)
 
-## Git Conventions
+## Общая архитектура
 
-- Branch naming: `<type>/<issue-number>/<slug>`, where `<type>` is `feature` for features, `fix` for bug fixes, `chore` for maintenance, and `<slug>` is a short lowercase summary of the issue with hyphens. Examples: `feature/73/shorten-main-keyboard`, `fix/51/slow-queries`, `chore/ci-updates`.
+- **src/main.py** — точка входа, которая создаёт и запускает `VkBookShelfBot`.
+- **src/vk_bot/** — слой VK-бота:
+  - `bot.py` содержит `VkBookShelfBot`, который использует `vk_api`, загружает конфигурацию и запускает обработчики.
+  - `command_router.py` — `CommandRouter`, центральный маршрутизатор команд с приоритетной диспетчеризацией обработчиков.
+  - `handlers/base.py` — базовый класс `AbstractCommandHandler` с `can_handle`, `priority` и `commands`; `handle()` — шаблонный метод, который отклоняет команды во время активного другого сценария.
+  - `handlers/scenario.py` — базовый класс `ScenarioHandler` для многошаговых команд: реестр состояний, `start`/`begin`/`goto`/`finish`, а также соглашения `step_<state>` и `render_<state>`.
+  - `states.py` — имена шагов сценариев на основе `StrEnum` (общие шаги подсценариев и шаги отдельных команд).
+  - `handlers/` — каталог с обработчиками команд. Каждый файл содержит один обработчик (`add.py`, `edit.py`, `list.py` и т. д.) с классом, унаследованным от `AbstractCommandHandler` или `ScenarioHandler`.
+  - `core/repository.py` — `UserStateRepository` для сохранения состояния пользователя в SQLite (таблица `user_state`).
+  - `keyboards.py` — общие раскладки клавиатур, используемые несколькими командами. Клавиатуры для конкретной команды должны находиться в файле её обработчика.
+- **src/core/** — основная логика приложения, независимая от VK:
+  - `models.py` — Pydantic-модели книг и связанных сущностей.
+  - `database.py` — хранение данных в SQLite (данные сохраняются в `data/database.db`).
+  - `db.py` — низкоуровневые операции с базой данных.
+  - `repository.py` — реализация паттерна «Репозиторий» с высокоуровневыми методами доступа к данным.
+  - `services.py` — сервисы бизнес-логики, например добавление книги или обновление статуса.
+- **src/utils/** — вспомогательные утилиты:
+  - `config.py` — загрузка конфигурации из переменных окружения (`BOT_TOKEN`, необязательные `DATA_DIR`, `DEBUG`).
+  - `logger.py` — центральная настройка логирования.
+  - `helpers.py` — различные вспомогательные функции, используемые в кодовой базе.
+  - `litres_parser.py` — HTML-парсер для извлечения данных о книгах из LitRes.
+- **data/** — хранение данных во время выполнения.
+- **tests/** — тестовый набор Pytest для обработчиков, сервисов и парсеров.
 
-## Important Files
+## Важные файлы
 
-- `README.md` – High‑level project description and feature list.
-- `requirements.txt` – Python dependencies, including `pydantic`, `pytest`, `flake8`, etc.
-- `pyproject.toml` – Shared config for black, isort, pytest.
-- `.flake8` – Flake8 config (line-length и правила согласованы с black).
+- `CONTRIBUTING.md` — процесс внесения изменений, именование веток и требования к pull request.
+- `CODING_STANDARDS.md` — стиль кода, границы модулей, соглашения для обработчиков, тестирование и обязательные проверки.
+- `README.md` — общее описание проекта и список возможностей.
+- `requirements.txt` — зависимости Python, включая `pydantic`, `pytest`, `flake8` и другие.
+- `pyproject.toml` — общая конфигурация Black, isort и pytest.
+- `.flake8` — конфигурация Flake8 (длина строки и правила согласованы с Black).
 
-## Implementation Tips
-- Address the user informally ("ты") in messages
-- Write code comments in Russian
-- Use relative imports when referencing modules within the same package
-- Always place imports at the top of the file, never inline
-- Multi-step commands inherit `ScenarioHandler`, not `AbstractCommandHandler`. Declare the step enum (`states`), `initial_state`, `scenario_command`, and a `step_<state>(context, state_info)` method per step; add `render_<state>(context, state_info)` to send the prompt. A step returns the next state name, or `None` to stay in the current step. `__init_subclass__` fails on import if a `step_*` method is missing. Use `begin()` to start a scenario, `goto()` to move to a state, `finish()` to send the final message and delete the state (in that order), and `reset_unknown_state()` is called automatically for unknown steps.
-- Do not implement the foreign-scenario guard by hand: `AbstractCommandHandler.handle()` is a template method. Any non-system handler gets a refusal message when `state["command"]` belongs to another handler. Mark global commands with `is_system = True` (only `/start` and `/cancel`) and set `scenario_command` to the canonical command written into `state["command"]`. Re-entering the handler's own command (payload command without `action`, or text starting with `/`) restarts the scenario. The router keeps two passes: by the typed command, then by the state's command for free-text steps.
-- After completing changes, run: `isort .`, `black .`, `flake8 src/`, and `pytest`
+## Общение
 
-## Development Tips
-
-- Keep configuration values in a `.env` file (ignored by git) and load them with `python-dotenv`.
-- When adding new functionality, place bot‑related code in `src/vk_bot/handlers/` and core logic in `src/core/` to maintain separation.
-- Run the test suite frequently (`pytest -x`) to catch regressions early.
-- Use the provided keyboards for consistent UI layout across new commands.
+- Обращайся к пользователю неформально («ты»).
