@@ -232,6 +232,8 @@ class AddHandler(ScenarioHandler):
         kb = VkKeyboard()
         kb.add_button("/add")
         kb.add_button("/list")
+        kb.add_line()
+        kb.add_button("Главное меню", payload={"command": "/back"})
         return kb
 
     @staticmethod
