@@ -1,7 +1,7 @@
 """Репозиторий для работы с данными."""
 
 import json
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 from core.database import Database
@@ -109,6 +109,23 @@ class ReadStatsRepository:
             )
             result = cursor.fetchone()[0]
             return int(result) if result is not None else 0
+
+    def fetch_daily_pages_by_user(
+        self, user_id: str, from_day: date, to_day: date
+    ) -> dict[date, int]:
+        """Дневные суммы страниц пользователя за интервал [from_day; to_day)."""
+        with self.db.get_cursor() as cursor:
+            cursor.execute(
+                "SELECT date(read_date), SUM(pages_read) FROM read_stats "
+                "WHERE user_id = ? AND read_date >= ? AND read_date < ? "
+                "GROUP BY date(read_date)",
+                (user_id, from_day.isoformat(), to_day.isoformat()),
+            )
+            return {
+                date.fromisoformat(day): int(pages)
+                for day, pages in cursor.fetchall()
+                if day is not None
+            }
 
     def fetch_reading_stats(self, book_id: str, from_date: datetime, to_date: datetime) -> int:
         """Return total pages read for a book between dates (inclusive)."""

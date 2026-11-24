@@ -287,6 +287,7 @@ def test_goal_back_from_input_to_menu_without_saving(monkeypatch):
     class ReadableGoalService:
         def __init__(self):
             self.pages_today = 35
+            self.streak = 2
 
         def get_goal_status(self, user_id):
             return types.SimpleNamespace(
@@ -295,6 +296,7 @@ def test_goal_back_from_input_to_menu_without_saving(monkeypatch):
                 percent=round(self.pages_today / 50 * 100),
                 completed=False,
                 remaining=50 - self.pages_today,
+                streak=self.streak,
             )
 
         def set_daily_goal(self, user_id, target):
@@ -313,12 +315,14 @@ def test_goal_back_from_input_to_menu_without_saving(monkeypatch):
     assert storage.get(1)["state"] == "waiting_for_goal_input"
 
     service.pages_today = 40
+    service.streak = 3
     handler.handle(back_context(fake_api, storage, "/goal"))
 
     assert storage.get(1)["state"] == "menu"
     message = fake_api.sent_messages[-1]["message"]
     assert "Сегодня прочитано: 40 стр. (80%)" in message
     assert "Осталось: 10 стр." in message
+    assert "🔥 Страйк: 3 дня" in message
     assert "Выбери действие" in message
 
 
