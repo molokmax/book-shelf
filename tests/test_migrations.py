@@ -57,6 +57,26 @@ def test_migration_is_idempotent(tmp_path):
     assert before == after == [("stat-1", "user-1"), ("stat-2", None)]
 
 
+def test_read_stats_user_date_index_added_to_old_db_and_idempotent(tmp_path):
+    db_path = tmp_path / "old.db"
+    create_pre_migration_db(db_path)
+
+    first = Database(str(db_path))
+    with first.get_cursor() as cur:
+        cur.execute("PRAGMA index_list(read_stats)")
+        first_indexes = [row[1] for row in cur.fetchall()]
+    first.close()
+
+    second = Database(str(db_path))
+    with second.get_cursor() as cur:
+        cur.execute("PRAGMA index_list(read_stats)")
+        second_indexes = [row[1] for row in cur.fetchall()]
+    second.close()
+
+    assert first_indexes.count("idx_read_stats_user_date") == 1
+    assert second_indexes.count("idx_read_stats_user_date") == 1
+
+
 def test_new_database_has_goals_and_user_id(tmp_path):
     db = Database(str(tmp_path / "new.db"))
 

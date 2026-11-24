@@ -49,7 +49,7 @@ def make_progress_book_service(current_page=55, pages=319, updates=None, user_id
     return StubProgressBookService
 
 
-def make_goal_stub(target=None, pages_today=0):
+def make_goal_stub(target=None, pages_today=0, streak=1):
     class StubGoalService:
         def __init__(self, *args, **kwargs):
             pass
@@ -59,6 +59,9 @@ def make_goal_stub(target=None, pages_today=0):
 
         def today_pages(self, user_id):
             return pages_today
+
+        def get_current_streak(self, user_id):
+            return streak if target is not None else None
 
     return StubGoalService
 
@@ -501,6 +504,7 @@ def test_progress_update_shows_goal_line(monkeypatch):
     msg = fake_api.sent_messages[-1]["message"]
     assert "Цель на день: 35/50 стр." in msg
     assert "🎉" not in msg
+    assert "Страйк" not in msg
 
 
 def test_progress_update_congratulates_on_goal_completion(monkeypatch):
@@ -510,14 +514,34 @@ def test_progress_update_congratulates_on_goal_completion(monkeypatch):
     save_progress_state(storage, user_id)
     monkeypatch.setattr(puf, "BookService", make_progress_book_service(user_id="user-1"))
     monkeypatch.setattr(puf, "ReadingStatsService", make_stats_stub())
-    monkeypatch.setattr(puf, "GoalService", make_goal_stub(target=50, pages_today=52))
+    monkeypatch.setattr(puf, "GoalService", make_goal_stub(target=50, pages_today=52, streak=3))
 
     ctx = make_context(fake_api, user_id, "60", storage=storage)
     puf.ProgressUpdateFlow().handle(ctx)
 
     msg = fake_api.sent_messages[-1]["message"]
-    assert "🎉 Цель на день выполнена! Сегодня прочитано 52 из 50 страниц." in msg
+    assert (
+        "🎉 Цель на день выполнена! Сегодня прочитано 52 из 50 страниц.\n" "🔥 Страйк: 3 дня"
+    ) in msg
     assert "Цель на день: 52/50 стр." not in msg
+
+
+def test_progress_update_starts_new_streak_after_gap(monkeypatch):
+    fake_api = FakeVkApiMethod()
+    user_id = 3005
+    storage = FakeStateStorage()
+    save_progress_state(storage, user_id)
+    monkeypatch.setattr(puf, "BookService", make_progress_book_service(user_id="user-1"))
+    monkeypatch.setattr(puf, "ReadingStatsService", make_stats_stub())
+    monkeypatch.setattr(puf, "GoalService", make_goal_stub(target=50, pages_today=52, streak=1))
+
+    ctx = make_context(fake_api, user_id, "60", storage=storage)
+    puf.ProgressUpdateFlow().handle(ctx)
+
+    msg = fake_api.sent_messages[-1]["message"]
+    assert (
+        "🎉 Цель на день выполнена! Сегодня прочитано 52 из 50 страниц.\n" "🔥 Страйк: 1 день"
+    ) in msg
 
 
 def test_progress_update_without_goal_has_no_goal_line(monkeypatch):
@@ -535,6 +559,7 @@ def test_progress_update_without_goal_has_no_goal_line(monkeypatch):
     msg = fake_api.sent_messages[-1]["message"]
     assert "Цель на день" not in msg
     assert "🎉" not in msg
+    assert "Страйк" not in msg
 
 
 def test_progress_update_does_not_repeat_congratulation(monkeypatch):
@@ -552,6 +577,7 @@ def test_progress_update_does_not_repeat_congratulation(monkeypatch):
     msg = fake_api.sent_messages[-1]["message"]
     assert "Цель на день: 60/50 стр." in msg
     assert "🎉" not in msg
+    assert "Страйк" not in msg
 
 
 def test_unchanged_progress_does_not_congratulate(monkeypatch):
@@ -569,6 +595,7 @@ def test_unchanged_progress_does_not_congratulate(monkeypatch):
     msg = fake_api.sent_messages[-1]["message"]
     assert "Цель на день: 50/50 стр." in msg
     assert "🎉" not in msg
+    assert "Страйк" not in msg
 
 
 # ── Мотивационная фраза после обновления прогресса ────────────────────────────
@@ -652,6 +679,7 @@ def test_goal_completion_suppresses_motivation_phrase(monkeypatch):
 
     msg = fake_api.sent_messages[-1]["message"]
     assert "🎉 Цель на день выполнена!" in msg
+    assert "🔥 Страйк: 1 день" in msg
     assert "💪 Отличный прогресс!" not in msg
 
 

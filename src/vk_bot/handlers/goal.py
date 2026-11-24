@@ -111,6 +111,7 @@ class GoalHandler(ScenarioHandler):
             lines.append("Цель выполнена.")
         else:
             lines.append(f"Осталось: {status.remaining} стр.")
+        lines.append(helpers.format_streak(status.streak))
         lines.extend(["", "Выбери действие:"])
         return "\n".join(lines)
 

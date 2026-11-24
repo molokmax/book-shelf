@@ -9,6 +9,7 @@ from typing import List, Optional
 
 from core.migrations import (
     add_link_column,
+    add_read_stats_user_date_index,
     add_read_stats_user_id,
     add_user_settings_motivation_column,
     migrate_books_tags,
@@ -57,6 +58,7 @@ class Database:
         # Миграции
         add_link_column(self.conn)
         add_read_stats_user_id(self.conn)
+        add_read_stats_user_date_index(self.conn)
         migrate_books_tags(self.conn)
         add_user_settings_motivation_column(self.conn)
         seed_motivational_phrases(self.conn)

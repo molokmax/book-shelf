@@ -3,7 +3,7 @@
 from datetime import date, datetime
 
 from core.models import ReadingStatus
-from utils.helpers import format_book_details, format_progress_stats
+from utils.helpers import format_book_details, format_progress_stats, format_streak
 
 
 class FakeBook:
@@ -23,6 +23,20 @@ class FakeDetailsBook:
         self.pages = pages
         self.created_at = datetime(2026, 1, 1)
         self.reading_start_date = None
+
+
+def test_format_streak_pluralizes_days():
+    cases = {
+        0: "🔥 Страйк: 0 дней",
+        1: "🔥 Страйк: 1 день",
+        2: "🔥 Страйк: 2 дня",
+        5: "🔥 Страйк: 5 дней",
+        11: "🔥 Страйк: 11 дней",
+        21: "🔥 Страйк: 21 день",
+    }
+
+    for days, expected in cases.items():
+        assert format_streak(days) == expected
 
 
 def test_format_progress_stats_full_block():

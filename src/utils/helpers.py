@@ -24,6 +24,19 @@ def format_invalid_input(hint: str) -> str:
     return f"⚠️ Не удалось обработать сообщение. {hint}"
 
 
+def format_streak(days: int) -> str:
+    """Форматирует текущий страйк с правильной формой слова «день»."""
+    if 11 <= days % 100 <= 14:
+        unit = "дней"
+    elif days % 10 == 1:
+        unit = "день"
+    elif 2 <= days % 10 <= 4:
+        unit = "дня"
+    else:
+        unit = "дней"
+    return f"🔥 Страйк: {days} {unit}"
+
+
 def normalize_tag_name(value: str) -> str:
     """Приводит имя тега к каноническому виду: trim и схлопывание пробелов."""
     return " ".join(str(value).split())

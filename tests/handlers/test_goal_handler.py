@@ -18,9 +18,10 @@ class FakeUser:
 
 
 class GoalStub:
-    def __init__(self, target=None, pages_today=0):
+    def __init__(self, target=None, pages_today=0, streak=0):
         self.target = target
         self.pages_today = pages_today
+        self.streak = streak
         self.saved = None
         self.disabled = False
         self._goal = types.SimpleNamespace(target=target) if target is not None else None
@@ -38,6 +39,7 @@ class GoalStub:
             percent=percent,
             completed=self.pages_today >= self.target,
             remaining=max(0, self.target - self.pages_today),
+            streak=self.streak,
         )
 
     def set_daily_goal(self, user_id, target):
@@ -82,7 +84,8 @@ def test_entry_shows_goal_with_progress(monkeypatch):
     assert msg["message"] == (
         "Цель на день: 50 стр.\n"
         "Сегодня прочитано: 35 стр. (70%)\n"
-        "Осталось: 15 стр.\n\n"
+        "Осталось: 15 стр.\n"
+        "🔥 Страйк: 0 дней\n\n"
         "Выбери действие:"
     )
     assert keyboard_labels(msg["keyboard"]) == ["Установить", "Отключить", "Отмена"]
@@ -92,7 +95,7 @@ def test_entry_shows_goal_with_progress(monkeypatch):
 def test_entry_shows_completed_goal(monkeypatch):
     fake_api = FakeVkApiMethod()
     storage = FakeStateStorage()
-    monkeypatch.setattr(gh, "GoalService", lambda: GoalStub(target=50, pages_today=60))
+    monkeypatch.setattr(gh, "GoalService", lambda: GoalStub(target=50, pages_today=60, streak=3))
 
     ctx = make_context(fake_api, 3, "/goal", storage=storage)
     gh.GoalHandler().handle(ctx)
@@ -102,7 +105,8 @@ def test_entry_shows_completed_goal(monkeypatch):
     assert msg["message"] == (
         "Цель на день: 50 стр.\n"
         "Сегодня прочитано: 60 стр. (100%)\n"
-        "Цель выполнена.\n\n"
+        "Цель выполнена.\n"
+        "🔥 Страйк: 3 дня\n\n"
         "Выбери действие:"
     )
     assert keyboard_labels(msg["keyboard"]) == ["Установить", "Отключить", "Отмена"]
@@ -125,6 +129,7 @@ def test_entry_without_goal_shows_hint(monkeypatch):
         "Нажми «Установить», чтобы задать количество страниц в день."
     )
     assert keyboard_labels(msg["keyboard"]) == ["Установить", "Отключить", "Отмена"]
+    assert "Страйк" not in msg["message"]
     assert storage.get(4)["state"] == "menu"
 
 

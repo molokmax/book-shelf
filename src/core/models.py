@@ -153,6 +153,7 @@ class GoalStatus:
     percent: int
     completed: bool
     remaining: int
+    streak: int
 
 
 @dataclass

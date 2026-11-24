@@ -259,16 +259,22 @@ class ProgressUpdateFlow:
             if not goal:
                 return None, False
             pages_today = service.today_pages(user_id)
+            goal_completed = (
+                pages_delta > 0 and pages_today - pages_delta < goal.target <= pages_today
+            )
+            streak = service.get_current_streak(user_id) if goal_completed else None
         except Exception as e:
             log.error(f"Failed to build daily goal progress for book {book.id}: {e}")
             return None, False
 
-        if pages_delta > 0 and pages_today - pages_delta < goal.target <= pages_today:
-            goal_completed = True
+        if goal_completed:
+            if streak is None:
+                return None, False
             return (
                 "🎉 Цель на день выполнена! "
-                f"Сегодня прочитано {pages_today} из {goal.target} страниц.",
-                goal_completed,
+                f"Сегодня прочитано {pages_today} из {goal.target} страниц.\n"
+                f"{helpers.format_streak(streak)}",
+                True,
             )
         return f"Цель на день: {pages_today}/{goal.target} стр.", False
 

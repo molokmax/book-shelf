@@ -37,6 +37,14 @@ def add_read_stats_user_id(conn: sqlite3.Connection):
     conn.commit()
 
 
+def add_read_stats_user_date_index(conn: sqlite3.Connection):
+    """Создаёт индекс для выборок статистики пользователя по датам."""
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_read_stats_user_date " "ON read_stats(user_id, read_date)"
+    )
+    conn.commit()
+
+
 def parse_stored_tags(value: str | None) -> list[str]:
     """Парсит старое значение колонки books.tags.
 

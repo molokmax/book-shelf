@@ -324,12 +324,45 @@ class GoalService:
         day_end = day_start + timedelta(days=1) - timedelta(microseconds=1)
         return self.read_stats_repo.fetch_pages_by_user(user_id, day_start, day_end)
 
-    def get_goal_status(self, user_id: str, kind: str = DAILY_PAGES_GOAL) -> Optional[GoalStatus]:
+    def get_current_streak(self, user_id: str, now: datetime | None = None) -> int | None:
+        """Возвращает текущий страйк пользователя или None без дневной цели."""
+        goal = self.get_goal(user_id)
+        if not goal:
+            return None
+        return self._calculate_streak(goal, now)
+
+    def _calculate_streak(self, goal: Goal, now: datetime | None = None) -> int:
+        """Вычисляет серию по дневным суммам истории загруженной цели."""
+        today = (now or datetime.now()).date()
+        created_day = goal.created_at.date()
+        daily_pages = self.read_stats_repo.fetch_daily_pages_by_user(
+            goal.user_id, created_day, today + timedelta(days=1)
+        )
+
+        current_day = today
+        if daily_pages.get(today, 0) < goal.target:
+            current_day -= timedelta(days=1)
+        if current_day < created_day or daily_pages.get(current_day, 0) < goal.target:
+            return 0
+
+        streak = 0
+        while current_day >= created_day and daily_pages.get(current_day, 0) >= goal.target:
+            streak += 1
+            current_day -= timedelta(days=1)
+        return streak
+
+    def get_goal_status(
+        self,
+        user_id: str,
+        kind: str = DAILY_PAGES_GOAL,
+        now: datetime | None = None,
+    ) -> Optional[GoalStatus]:
         """Возвращает состояние дневной цели или None, если цели нет."""
         goal = self.get_goal(user_id, kind)
         if not goal:
             return None
-        pages_today = self.today_pages(user_id)
+        pages_today = self.today_pages(user_id, now)
+        streak = self._calculate_streak(goal, now)
         percent = min(100, round(pages_today / goal.target * 100)) if goal.target > 0 else 0
         return GoalStatus(
             goal=goal,
@@ -337,6 +370,7 @@ class GoalService:
             percent=percent,
             completed=pages_today >= goal.target,
             remaining=max(0, goal.target - pages_today),
+            streak=streak,
         )
 
 
