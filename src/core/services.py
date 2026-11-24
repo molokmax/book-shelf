@@ -6,8 +6,12 @@ from typing import Callable, Dict, List, Optional
 
 from core.db import get_db
 from core.models import (
+    ACHIEVEMENT_DEFINITIONS,
     DAILY_PAGES_GOAL,
     READING_SPEED_PERIODS,
+    AchievementCheckResult,
+    AchievementMetric,
+    AchievementStatus,
     Book,
     Goal,
     GoalStatus,
@@ -16,6 +20,7 @@ from core.models import (
     User,
 )
 from core.repository import (
+    AchievementRepository,
     BookRepository,
     GoalRepository,
     MotivationPhraseRepository,
@@ -28,6 +33,50 @@ from utils import logger
 from utils.config import load_config
 
 log = logger.setup_logger(__name__)
+
+
+class AchievementService:
+    """Сервис вычисления и однократного получения достижений."""
+
+    def __init__(self, db_path: str | None = None) -> None:
+        db_path = db_path or get_default_db_path()
+        db = get_db(db_path)
+        self.book_repo = BookRepository(db)
+        self.read_stats_repo = ReadStatsRepository(db)
+        self.achievement_repo = AchievementRepository(db)
+
+    def check(self, user_id: str, now: datetime | None = None) -> AchievementCheckResult:
+        """Проверяет весь каталог и сохраняет новые награды пользователя."""
+        checked_at = now or datetime.now()
+        total_books, read_books = self.book_repo.count_books_by_user(user_id)
+        metrics = {
+            AchievementMetric.BOOKS: total_books,
+            AchievementMetric.READ_BOOKS: read_books,
+            AchievementMetric.PAGES: self.read_stats_repo.fetch_total_pages_by_user(user_id),
+        }
+        unlocked = self.achievement_repo.get_unlocked(user_id)
+        candidates = [
+            definition.key
+            for definition in ACHIEVEMENT_DEFINITIONS
+            if definition.key not in unlocked and metrics[definition.metric] >= definition.target
+        ]
+        inserted = self.achievement_repo.unlock(user_id, candidates, checked_at)
+        if candidates:
+            unlocked = self.achievement_repo.get_unlocked(user_id)
+
+        statuses = [
+            AchievementStatus(
+                definition=definition,
+                current=metrics[definition.metric],
+                unlocked_at=unlocked.get(definition.key),
+            )
+            for definition in ACHIEVEMENT_DEFINITIONS
+        ]
+        inserted_keys = set(inserted)
+        new_achievements = [
+            definition for definition in ACHIEVEMENT_DEFINITIONS if definition.key in inserted_keys
+        ]
+        return AchievementCheckResult(statuses=statuses, new_achievements=new_achievements)
 
 
 class BookService:

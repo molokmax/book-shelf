@@ -92,6 +92,26 @@ def test_new_database_has_goals_and_user_id(tmp_path):
     assert {"id", "user_id", "kind", "target", "created_at", "updated_at"} <= goals_columns
 
 
+def test_user_achievements_added_to_existing_db_and_idempotent(tmp_path):
+    db_path = tmp_path / "old.db"
+    create_pre_migration_db(db_path)
+
+    first = Database(str(db_path))
+    with first.get_cursor() as cur:
+        cur.execute("PRAGMA table_info(user_achievements)")
+        columns = {row[1] for row in cur.fetchall()}
+    first.close()
+
+    second = Database(str(db_path))
+    with second.get_cursor() as cur:
+        cur.execute("PRAGMA index_list(user_achievements)")
+        indexes = [row[1] for row in cur.fetchall()]
+    second.close()
+
+    assert columns == {"user_id", "achievement_key", "unlocked_at"}
+    assert len(indexes) == 1
+
+
 # ── Перенос тегов в tags/book_tags ────────────────────────────────────────────
 
 

@@ -82,6 +82,19 @@ class Database:
         """
         )
 
+        # Полученные пользователем достижения (каталог определений хранится в коде)
+        cursor.execute(
+            """
+        CREATE TABLE IF NOT EXISTS user_achievements (
+            user_id TEXT NOT NULL,
+            achievement_key TEXT NOT NULL,
+            unlocked_at TEXT NOT NULL,
+            PRIMARY KEY (user_id, achievement_key),
+            FOREIGN KEY (user_id) REFERENCES users (id)
+        )
+        """
+        )
+
         # Таблица книг
         cursor.execute(
             """

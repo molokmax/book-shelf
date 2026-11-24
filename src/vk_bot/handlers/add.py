@@ -8,8 +8,8 @@ from typing import Any
 
 from vk_api.keyboard import VkKeyboard
 
-from core.services import BookService
-from utils import helpers
+from core.services import AchievementService, BookService
+from utils import helpers, logger
 from utils.helpers import format_tags_line
 from utils.litres_parser import LitresParserError, is_litres_url, parse_litres_book
 from vk_bot.context import BotContext
@@ -18,6 +18,8 @@ from vk_bot.handlers.scenario import ScenarioHandler
 from vk_bot.keyboards import add_back_button, cancel_keyboard
 from vk_bot.states import AddState
 from vk_bot.user_helpers import get_or_create_user
+
+log = logger.setup_logger(__name__)
 
 
 class AddHandler(ScenarioHandler):
@@ -223,6 +225,14 @@ class AddHandler(ScenarioHandler):
             "/add - Добавить ещё одну книгу\n"
             "/list - Показать список книг"
         )
+        try:
+            result = AchievementService().check(user.id)
+            achievement_block = helpers.format_new_achievements(result.new_achievements)
+            if achievement_block:
+                message_text = f"{message_text}\n\n{achievement_block}"
+        except Exception as error:
+            log.error("Failed to check achievements after adding a book: %s", error)
+
         self.finish(context, message_text, keyboard=self.create_book_added_keyboard())
 
     # ── Фабрики клавиатур ──────────────────────────────────────────

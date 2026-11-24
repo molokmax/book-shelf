@@ -5,6 +5,7 @@ from conftest import FakeStateStorage
 from conftest import FakeVkApi as FakeVkApiMethod
 from conftest import make_context
 
+from vk_bot.handlers.achievements import AchievementsHandler
 from vk_bot.handlers.add import AddHandler
 from vk_bot.handlers.base import FOREIGN_SCENARIO_MESSAGE
 from vk_bot.handlers.details import DetailsHandler
@@ -20,6 +21,7 @@ from vk_bot.handlers.stats import StatsHandler
 
 FOREIGN_COMMANDS = [
     (HelpHandler(), "/add"),
+    (AchievementsHandler(), "/add"),
     (StatsHandler(), "/add"),
     (ExportHandler(), "/add"),
     (MoreHandler(), "/add"),

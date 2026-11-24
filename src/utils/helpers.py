@@ -4,6 +4,36 @@ import re
 from datetime import date
 from urllib.parse import urlparse
 
+from core.models import AchievementDefinition, AchievementStatus
+
+
+def format_new_achievements(achievements: list[AchievementDefinition]) -> str | None:
+    """Форматирует общий блок только что полученных достижений."""
+    if not achievements:
+        return None
+
+    if len(achievements) == 1:
+        return f"🏆 Новое достижение: «{achievements[0].title}»!"
+
+    lines = ["🏆 Новые достижения!"]
+    lines.extend(f"• {achievement.title}" for achievement in achievements)
+    return "\n".join(lines)
+
+
+def format_achievement_catalog(statuses: list[AchievementStatus]) -> str:
+    """Форматирует полный каталог с датами наград и текущим прогрессом."""
+    blocks = []
+    for status in statuses:
+        definition = status.definition
+        if status.unlocked_at:
+            result = f"Получено: {status.unlocked_at.strftime('%Y-%m-%d')}"
+            marker = "✅"
+        else:
+            result = f"Прогресс: {status.current}/{definition.target}"
+            marker = "🔒"
+        blocks.append(f"{marker} {definition.title}\n{definition.description}\n{result}")
+    return "\n\n".join(["🏆 Достижения", *blocks])
+
 
 def sanitize_text(text: str) -> str:
     """Очищает текст от нежелательных символов."""

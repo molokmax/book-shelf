@@ -10,6 +10,7 @@ from core.models import (
     DEFAULT_READING_SPEED_PERIOD,
     Book,
     Goal,
+    ReadingStatus,
     User,
 )
 from utils import logger
@@ -65,6 +66,18 @@ class BookRepository:
         """Обновляет книгу."""
         return self.db.add_or_update_book(book)
 
+    def count_books_by_user(self, user_id: str) -> tuple[int, int]:
+        """Возвращает общее число книг и число прочитанных книг пользователя."""
+        with self.db.get_cursor() as cursor:
+            cursor.execute(
+                "SELECT COUNT(*), "
+                "COALESCE(SUM(CASE WHEN status = ? THEN 1 ELSE 0 END), 0) "
+                "FROM books WHERE user_id = ?",
+                (ReadingStatus.READ.value, user_id),
+            )
+            total, read = cursor.fetchone()
+            return int(total), int(read)
+
     def delete_book(self, book_id: str) -> Book:
         """Удаляет книгу по ID."""
         book = self.db.delete_book(book_id)
@@ -106,6 +119,16 @@ class ReadStatsRepository:
                 "SELECT SUM(pages_read) FROM read_stats "
                 "WHERE user_id = ? AND read_date BETWEEN ? AND ?",
                 (user_id, from_date.isoformat(), to_date.isoformat()),
+            )
+            result = cursor.fetchone()[0]
+            return int(result) if result is not None else 0
+
+    def fetch_total_pages_by_user(self, user_id: str) -> int:
+        """Сумма страниц пользователя за всю доступную историю без привязки к книгам."""
+        with self.db.get_cursor() as cursor:
+            cursor.execute(
+                "SELECT SUM(pages_read) FROM read_stats WHERE user_id = ?",
+                (user_id,),
             )
             result = cursor.fetchone()[0]
             return int(result) if result is not None else 0
@@ -157,6 +180,40 @@ class ReadStatsRepository:
         )
         total = self.fetch_reading_stats(book_id, from_date, to_date)
         return total / days if days > 0 else 0.0
+
+
+class AchievementRepository:
+    """Репозиторий полученных пользователем достижений."""
+
+    def __init__(self, db: Database | None = None, db_path: str = "data/database.db") -> None:
+        self.db = db if db is not None else Database(db_path)
+
+    def get_unlocked(self, user_id: str) -> Dict[str, datetime]:
+        """Возвращает даты получения достижений по их устойчивым ключам."""
+        with self.db.get_cursor() as cursor:
+            cursor.execute(
+                "SELECT achievement_key, unlocked_at FROM user_achievements WHERE user_id = ?",
+                (user_id,),
+            )
+            return {key: datetime.fromisoformat(unlocked_at) for key, unlocked_at in cursor}
+
+    def unlock(self, user_id: str, achievement_keys: list[str], unlocked_at: datetime) -> list[str]:
+        """Сохраняет новые награды одной транзакцией и возвращает только вставленные ключи."""
+        if not achievement_keys:
+            return []
+
+        inserted = []
+        with self.db.get_cursor() as cursor:
+            for achievement_key in achievement_keys:
+                cursor.execute(
+                    "INSERT INTO user_achievements (user_id, achievement_key, unlocked_at) "
+                    "VALUES (?, ?, ?) "
+                    "ON CONFLICT(user_id, achievement_key) DO NOTHING",
+                    (user_id, achievement_key, unlocked_at.isoformat()),
+                )
+                if cursor.rowcount == 1:
+                    inserted.append(achievement_key)
+        return inserted
 
 
 class UserRepository:

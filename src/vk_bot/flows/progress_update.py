@@ -11,6 +11,7 @@ from core.progress_validation import (
     classify_progress_update,
 )
 from core.services import (
+    AchievementService,
     BookService,
     GoalService,
     MotivationService,
@@ -203,8 +204,18 @@ class ProgressUpdateFlow:
         if goal_line:
             parts.append(goal_line)
 
+        new_achievements = self._check_achievements(book)
+        achievement_block = helpers.format_new_achievements(new_achievements)
+        if achievement_block:
+            parts.append(achievement_block)
+
         phrase = self._pick_motivation_phrase(
-            book, unchanged, previous_page, pages_delta, goal_completed
+            book,
+            unchanged,
+            previous_page,
+            pages_delta,
+            goal_completed,
+            bool(new_achievements),
         )
         if phrase:
             parts.append(phrase)
@@ -219,13 +230,19 @@ class ProgressUpdateFlow:
         previous_page: int | None,
         pages_delta: int,
         goal_completed: bool,
+        has_new_achievements: bool,
     ) -> str | None:
         """Мотивационная фраза для подтверждения прогресса, None если не показываем.
 
-        Не показываем: прогресс не изменился, сегодня поздравление о цели
-        (п. design: фраза не дублирует 🎉 блок), настройка отключена, сбой сервиса.
+        Не показываем: прогресс не изменился, есть поздравление о цели или
+        достижении, настройка отключена, сбой сервиса.
         """
-        if unchanged or goal_completed or not getattr(book, "user_id", None):
+        if (
+            unchanged
+            or goal_completed
+            or has_new_achievements
+            or not getattr(book, "user_id", None)
+        ):
             return None
 
         try:
@@ -242,6 +259,17 @@ class ProgressUpdateFlow:
         except Exception as e:
             log.error(f"Failed to pick motivational phrase for book {book.id}: {e}")
             return None
+
+    def _check_achievements(self, book) -> list:
+        """Проверяет достижения, не прерывая основной результат при сбое."""
+        user_id = getattr(book, "user_id", None)
+        if not user_id:
+            return []
+        try:
+            return AchievementService().check(user_id).new_achievements
+        except Exception as error:
+            log.error("Failed to check achievements after progress update: %s", error)
+            return []
 
     def _format_goal_progress(self, book, pages_delta: int) -> tuple[str | None, bool]:
         """Строка о дневной цели и признак её выполнения этой строкой; None нет цели.

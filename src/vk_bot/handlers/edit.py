@@ -8,8 +8,8 @@ from typing import Any
 
 from vk_api.keyboard import VkKeyboard
 
-from core.services import BookService
-from utils import helpers
+from core.services import AchievementService, BookService
+from utils import helpers, logger
 from utils.helpers import format_tags_line, get_status_name
 from vk_bot.context import BotContext
 from vk_bot.flows.tag_editing import TagEditingFlow
@@ -23,6 +23,8 @@ from vk_bot.keyboards import (
 )
 from vk_bot.states import EditState
 from vk_bot.user_helpers import get_or_create_user
+
+log = logger.setup_logger(__name__)
 
 
 class EditHandler(ScenarioHandler):
@@ -335,13 +337,20 @@ class EditHandler(ScenarioHandler):
 
         book_id = state_info["data"]["selected_book_id"]
         updated_book = BookService().update_book_status(book_id, new_status)
-        self.finish(
-            context,
-            (
-                f"✅ Статус книги '{updated_book.title}' изменён на "
-                f"'{get_status_name(updated_book.status.value)}'"
-            ),
+        message_text = (
+            f"✅ Статус книги '{updated_book.title}' изменён на "
+            f"'{get_status_name(updated_book.status.value)}'"
         )
+        user_id = self._user_id(context, state_info)
+        try:
+            result = AchievementService().check(user_id)
+            achievement_block = helpers.format_new_achievements(result.new_achievements)
+            if achievement_block:
+                message_text = f"{message_text}\n\n{achievement_block}"
+        except Exception as error:
+            log.error("Failed to check achievements after changing book status: %s", error)
+
+        self.finish(context, message_text)
         return None
 
     # ── Финал ───────────────────────────────────────────────────────
