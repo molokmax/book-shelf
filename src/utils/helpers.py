@@ -136,8 +136,8 @@ def format_book_details(
         lines.append(f"За месяц прочитано: {monthly_pages} стр.")
     if avg_pages is not None:
         if avg_pages == 0:
-            # Дочитанной книге оценка завершения не нужна
-            if book.current_page < book.pages:
+            # При запасном прогнозе по общей скорости сообщение о нехватке данных не нужно
+            if book.current_page < book.pages and days_to_completion is None:
                 lines.append("Недостаточно данных для оценки завершения")
         else:
             lines.append(f"Среднее за {period_days} дней: {avg_pages:.2f} стр/день")
@@ -168,8 +168,8 @@ def format_progress_stats(
         lines.append(f"За месяц прочитано: {monthly_pages} стр.")
     if avg_pages is not None:
         if avg_pages == 0:
-            # Дочитанной книге оценка завершения не нужна
-            if book.current_page < book.pages:
+            # При запасном прогнозе по общей скорости сообщение о нехватке данных не нужно
+            if book.current_page < book.pages and days_to_completion is None:
                 lines.append("Недостаточно данных для оценки завершения")
         else:
             lines.append(f"Среднее за {period_days} дней: {avg_pages:.2f} стр/день")

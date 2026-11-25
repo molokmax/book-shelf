@@ -1,6 +1,7 @@
 """Сервисный слой для работы с книгами."""
 
 from datetime import date, datetime, timedelta
+from math import ceil
 from pathlib import Path
 from typing import Callable, Dict, List, Optional
 
@@ -13,10 +14,14 @@ from core.models import (
     AchievementMetric,
     AchievementStatus,
     Book,
+    BookCompletionForecast,
     Goal,
     GoalStatus,
     MotivationContext,
+    ReadingMetricComparison,
+    ReadingPeriodSummary,
     ReadingStatus,
+    ReadingSummary,
     User,
 )
 from core.repository import (
@@ -150,6 +155,31 @@ class BookService:
 
         return books
 
+    def get_stats(self, user_id: Optional[str] = None) -> Dict:
+        """Получает общие показатели библиотеки, сохраняя их прежние формулы."""
+        books = self.get_all_books(user_id)
+
+        total_books = len(books)
+        read_books = len([b for b in books if b.status == ReadingStatus.READ])
+        reading_books = len([b for b in books if b.status == ReadingStatus.READING])
+        want_to_read_books = len([b for b in books if b.status == ReadingStatus.WANT_TO_READ])
+        postponed_books = len([b for b in books if b.status == ReadingStatus.POSTPONED])
+
+        total_pages = sum(b.pages for b in books)
+        read_pages = sum(b.current_page for b in books)
+        avg_progress = (read_pages / total_pages * 100) if total_pages > 0 else 0
+
+        return {
+            "total_books": total_books,
+            "read_books": read_books,
+            "reading_books": reading_books,
+            "want_to_read_books": want_to_read_books,
+            "postponed_books": postponed_books,
+            "total_pages": total_pages,
+            "read_pages": int(read_pages),
+            "avg_progress": avg_progress,
+        }
+
     def get_book_by_id(self, book_id: str) -> Optional[Book]:
         """Получает книгу по ID."""
         return self.book_repo.get_book_by_id(book_id)
@@ -235,35 +265,6 @@ class TagService:
         """Возвращает теги пользователя, привязанные хотя бы к одной его книге."""
         return self.tag_repo.get_used_tags(user_id)
 
-    def get_stats(self, user_id: Optional[str] = None) -> Dict:
-        """Получает статистику чтения, опционально фильтруя по user_id."""
-        books = self.get_all_books(user_id)
-
-        total_books = len(books)
-        read_books = len([b for b in books if b.status == ReadingStatus.READ])
-        reading_books = len([b for b in books if b.status == ReadingStatus.READING])
-        want_to_read_books = len([b for b in books if b.status == ReadingStatus.WANT_TO_READ])
-        postponed_books = len([b for b in books if b.status == ReadingStatus.POSTPONED])
-
-        total_pages = sum(b.pages for b in books)
-        read_pages = sum(b.current_page for b in books)
-        avg_progress = (
-            (sum(b.current_page for b in books) / sum(b.pages for b in books) * 100)
-            if books and sum(b.pages for b in books) > 0
-            else 0
-        )
-
-        return {
-            "total_books": total_books,
-            "read_books": read_books,
-            "reading_books": reading_books,
-            "want_to_read_books": want_to_read_books,
-            "postponed_books": postponed_books,
-            "total_pages": total_pages,
-            "read_pages": int(read_pages),
-            "avg_progress": avg_progress,
-        }
-
 
 class UserService:
     """Сервис для работы с пользователями."""
@@ -312,35 +313,205 @@ class ReadingStatsService:
         """Возвращает количество прочитанных страниц за период."""
         return self.read_stats_repo.fetch_reading_stats(book_id, from_date, to_date)
 
-    def avg_pages_per_day(self, book: Book) -> float:
-        """Среднее количество страниц за период скорости чтения пользователя."""
-        today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-        if book.reading_start_date:
-            reading_start_date = book.reading_start_date.replace(
-                hour=0, minute=0, second=0, microsecond=0
-            )
-        else:
-            reading_start_date = today
+    def avg_pages_per_day(self, book: Book, today: date | None = None) -> float:
+        """Среднее количество страниц книги за период скорости чтения."""
+        reference_day = today or date.today()
         period_days = self.user_settings_repo.get_reading_speed_period(book.user_id)
-        from_date = max(today - timedelta(days=period_days - 1), reading_start_date)
-        return self.read_stats_repo.fetch_average_pages_per_day(book.id, from_date)
+        reading_start_day = (
+            book.reading_start_date.date() if book.reading_start_date else reference_day
+        )
+        from_day = max(reference_day - timedelta(days=period_days - 1), reading_start_day)
+        days = (reference_day - from_day).days + 1
+        total = self.read_stats_repo.fetch_reading_stats(
+            book.id,
+            datetime.combine(from_day, datetime.min.time()),
+            datetime.combine(reference_day, datetime.max.time()),
+        )
+        return total / days if days > 0 else 0.0
 
-    def predict_days_to_completion(self, book: Book) -> int | None:
+    def overall_avg_pages_per_day(self, user_id: str, today: date | None = None) -> float:
+        """Среднее количество страниц пользователя по всем книгам за период настройки."""
+        reference_day = today or date.today()
+        period_days = self.user_settings_repo.get_reading_speed_period(user_id)
+        from_day = reference_day - timedelta(days=period_days - 1)
+        total = self.read_stats_repo.fetch_pages_by_user(
+            user_id,
+            datetime.combine(from_day, datetime.min.time()),
+            datetime.combine(reference_day, datetime.max.time()),
+        )
+        return total / period_days
+
+    def predict_days_to_completion(self, book: Book, today: date | None = None) -> int | None:
         """Прогнозирует количество дней до завершения чтения книги."""
         remaining_pages = book.pages - book.current_page
         if remaining_pages <= 0:
             return 0  # книга уже дочитана
-        avg = self.avg_pages_per_day(book)
+        avg = self.avg_pages_per_day(book, today)
+        if avg == 0:
+            avg = self.overall_avg_pages_per_day(book.user_id, today)
         if avg == 0:
             return None  # недостаточно данных о скорости чтения
-        return int((remaining_pages / avg) + 0.9999)  # округление вверх
+        return ceil(remaining_pages / avg)
 
-    def predict_completion_date(self, book: Book) -> date | None:
+    def predict_completion_date(self, book: Book, today: date | None = None) -> date | None:
         """Прогнозирует дату завершения чтения книги на основе количества дней."""
-        days_needed = self.predict_days_to_completion(book)
+        reference_day = today or date.today()
+        days_needed = self.predict_days_to_completion(book, reference_day)
         if days_needed is None:
             return None
-        return date.today() + timedelta(days=days_needed)
+        return reference_day + timedelta(days=days_needed)
+
+
+class ReadingSummaryService:
+    """Сервис периодических показателей и прогнозов сводки чтения."""
+
+    def __init__(self, db_path: str | None = None) -> None:
+        db_path = db_path or get_default_db_path()
+        db = get_db(db_path)
+        self.book_repo = BookRepository(db)
+        self.read_stats_repo = ReadStatsRepository(db)
+        self.reading_stats_service = ReadingStatsService(db_path)
+
+    def get_summary(self, user_id: str, today: date | None = None) -> ReadingSummary:
+        """Формирует личную сводку на выбранный календарный день."""
+        reference_day = today or date.today()
+        books = self.book_repo.get_books_by_user_id(user_id)
+
+        week_start = reference_day - timedelta(days=reference_day.weekday())
+        previous_week_start = week_start - timedelta(days=7)
+        previous_week_end = previous_week_start + (reference_day - week_start)
+        week = self._period_summary(
+            user_id,
+            books,
+            week_start,
+            reference_day,
+            previous_week_start,
+            previous_week_end,
+        )
+
+        month_start = reference_day.replace(day=1)
+        previous_month_last_day = month_start - timedelta(days=1)
+        previous_month_start = previous_month_last_day.replace(day=1)
+        previous_month_end = previous_month_start.replace(
+            day=min(reference_day.day, previous_month_last_day.day)
+        )
+        month = self._period_summary(
+            user_id,
+            books,
+            month_start,
+            reference_day,
+            previous_month_start,
+            previous_month_end,
+        )
+
+        year_start = reference_day.replace(month=1, day=1)
+        previous_year_start = year_start.replace(year=year_start.year - 1)
+        try:
+            previous_year_end = reference_day.replace(year=reference_day.year - 1)
+        except ValueError:
+            previous_year_end = reference_day.replace(year=reference_day.year - 1, day=28)
+        year = self._period_summary(
+            user_id,
+            books,
+            year_start,
+            reference_day,
+            previous_year_start,
+            previous_year_end,
+            include_read_books=True,
+        )
+
+        reading_books = [book for book in books if book.status == ReadingStatus.READING]
+        forecasts = [
+            BookCompletionForecast(
+                book=book,
+                completion_date=self.reading_stats_service.predict_completion_date(
+                    book, reference_day
+                ),
+            )
+            for book in reading_books
+        ]
+        forecasts.sort(
+            key=lambda forecast: (
+                forecast.completion_date is None,
+                forecast.completion_date or date.max,
+                forecast.book.title.casefold(),
+            )
+        )
+
+        want_to_read_books = [book for book in books if book.status == ReadingStatus.WANT_TO_READ]
+        overall_speed = self.reading_stats_service.overall_avg_pages_per_day(user_id, reference_day)
+        queue_completion_date = self._predict_queue_completion(
+            want_to_read_books,
+            forecasts,
+            overall_speed,
+            reference_day,
+        )
+
+        return ReadingSummary(
+            week=week,
+            month=month,
+            year=year,
+            reading_forecasts=forecasts,
+            want_to_read_count=len(want_to_read_books),
+            want_to_read_completion_date=queue_completion_date,
+        )
+
+    def _period_summary(
+        self,
+        user_id: str,
+        books: list[Book],
+        current_start: date,
+        current_end: date,
+        previous_start: date,
+        previous_end: date,
+        include_read_books: bool = False,
+    ) -> ReadingPeriodSummary:
+        pages = ReadingMetricComparison(
+            current=self._fetch_pages(user_id, current_start, current_end),
+            previous=self._fetch_pages(user_id, previous_start, previous_end),
+        )
+        read_books = None
+        if include_read_books:
+            read_books = ReadingMetricComparison(
+                current=self._count_read_books(books, current_start, current_end),
+                previous=self._count_read_books(books, previous_start, previous_end),
+            )
+        return ReadingPeriodSummary(pages=pages, read_books=read_books)
+
+    def _fetch_pages(self, user_id: str, from_day: date, to_day: date) -> int:
+        return self.read_stats_repo.fetch_pages_by_user(
+            user_id,
+            datetime.combine(from_day, datetime.min.time()),
+            datetime.combine(to_day, datetime.max.time()),
+        )
+
+    @staticmethod
+    def _count_read_books(books: list[Book], from_day: date, to_day: date) -> int:
+        return sum(
+            1
+            for book in books
+            if book.status == ReadingStatus.READ
+            and book.reading_end_date is not None
+            and from_day <= book.reading_end_date.date() <= to_day
+        )
+
+    @staticmethod
+    def _predict_queue_completion(
+        books: list[Book],
+        reading_forecasts: list[BookCompletionForecast],
+        overall_speed: float,
+        today: date,
+    ) -> date | None:
+        if not books or overall_speed == 0:
+            return None
+        if any(forecast.completion_date is None for forecast in reading_forecasts):
+            return None
+        base_date = max(
+            (forecast.completion_date for forecast in reading_forecasts),
+            default=today,
+        )
+        queue_days = ceil(sum(book.pages for book in books) / overall_speed)
+        return base_date + timedelta(days=queue_days)
 
 
 class GoalService:

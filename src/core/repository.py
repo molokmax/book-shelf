@@ -113,12 +113,16 @@ class ReadStatsRepository:
         return self.db.add_reading_stat(book_id, pages_read, read_date, user_id)
 
     def fetch_pages_by_user(self, user_id: str, from_date: datetime, to_date: datetime) -> int:
-        """Сумма прочитанных страниц пользователя за период (включительно)."""
+        """Сумма страниц пользователя за календарные даты, включая обе границы."""
         with self.db.get_cursor() as cursor:
             cursor.execute(
                 "SELECT SUM(pages_read) FROM read_stats "
-                "WHERE user_id = ? AND read_date BETWEEN ? AND ?",
-                (user_id, from_date.isoformat(), to_date.isoformat()),
+                "WHERE user_id = ? AND read_date >= ? AND read_date < ?",
+                (
+                    user_id,
+                    from_date.date().isoformat(),
+                    (to_date.date() + timedelta(days=1)).isoformat(),
+                ),
             )
             result = cursor.fetchone()[0]
             return int(result) if result is not None else 0
@@ -151,7 +155,7 @@ class ReadStatsRepository:
             }
 
     def fetch_reading_stats(self, book_id: str, from_date: datetime, to_date: datetime) -> int:
-        """Return total pages read for a book between dates (inclusive)."""
+        """Возвращает страницы книги за календарные даты, включая обе границы."""
         log = logger.setup_logger(__name__)
         log.debug(
             "Fetching reading stats for book_id=%s from %s to %s",
@@ -162,8 +166,12 @@ class ReadStatsRepository:
         with self.db.get_cursor() as cursor:
             cursor.execute(
                 "SELECT SUM(pages_read) FROM read_stats "
-                "WHERE book_id = ? AND read_date BETWEEN ? AND ?",
-                (book_id, from_date.isoformat(), to_date.isoformat()),
+                "WHERE book_id = ? AND read_date >= ? AND read_date < ?",
+                (
+                    book_id,
+                    from_date.date().isoformat(),
+                    (to_date.date() + timedelta(days=1)).isoformat(),
+                ),
             )
             result = cursor.fetchone()[0]
             return int(result) if result is not None else 0
