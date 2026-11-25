@@ -71,13 +71,18 @@ def keyboard_payloads(keyboard):
 
 
 def test_more_keyboard_layout():
-    labels = keyboard_labels(more_keyboard().get_keyboard())
-    payloads = keyboard_payloads(more_keyboard().get_keyboard())
+    data = json.loads(more_keyboard().get_keyboard())
+    rows = [[button["action"]["label"] for button in row] for row in data["buttons"]]
+    payloads = keyboard_payloads(data)
 
-    assert labels[:3] == ["/edit", "/export", "/goal"]
-    assert labels[3:] == ["/stats", "/settings", "Назад"]
+    assert rows == [
+        ["/edit", "/export", "/goal"],
+        ["/stats", "/settings", "Достижения"],
+        ["Назад"],
+    ]
     assert payloads[:5] == [None] * 5
-    assert payloads[5] == {"command": "/back"}
+    assert payloads[5] == {"command": "/achievements"}
+    assert payloads[6] == {"command": "/back"}
 
 
 def test_more_opens_submenu_without_state():
@@ -92,12 +97,14 @@ def test_more_opens_submenu_without_state():
     assert msg["message"].startswith("Ещё")
     assert "/edit" in msg["message"]
     assert "/settings" in msg["message"]
+    assert "/achievements - Каталог достижений" in msg["message"]
     assert keyboard_labels(msg["keyboard"]) == [
         "/edit",
         "/export",
         "/goal",
         "/stats",
         "/settings",
+        "Достижения",
         "Назад",
     ]
     # Навигация не сценарий: состояние не должно появиться

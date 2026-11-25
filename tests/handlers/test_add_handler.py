@@ -6,6 +6,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from core.models import ACHIEVEMENT_DEFINITIONS
 from vk_bot.context import BotContext
 from vk_bot.flows import tag_editing as tf
 from vk_bot.handlers import add as ah
@@ -57,6 +58,26 @@ def keyboard_labels(keyboard):
 def keyboard_buttons(keyboard):
     data = keyboard if isinstance(keyboard, dict) else json.loads(keyboard)
     return [button["action"] for row in data["buttons"] for button in row]
+
+
+class AchievementServiceStub:
+    def __init__(self, new_achievements=None, error=None):
+        self.new_achievements = new_achievements or []
+        self.error = error
+        self.checked_user_id = None
+
+    def check(self, user_id):
+        self.checked_user_id = user_id
+        if self.error:
+            raise self.error
+        return types.SimpleNamespace(new_achievements=self.new_achievements)
+
+
+@pytest.fixture(autouse=True)
+def stub_achievements(monkeypatch):
+    service = AchievementServiceStub()
+    monkeypatch.setattr(ah, "AchievementService", lambda: service)
+    return service
 
 
 @pytest.fixture
@@ -218,3 +239,61 @@ def test_litres_flow_done_creates_book_with_link(stub_dictionary, saved_books):
     assert created["link"] == "https://litres.ru/book"
     assert created["tags"] == []
     assert storage.get(user_id) == {}
+
+
+def test_add_appends_new_achievement(stub_dictionary, saved_books, stub_achievements, monkeypatch):
+    service = AchievementServiceStub(new_achievements=[ACHIEVEMENT_DEFINITIONS[0]])
+    monkeypatch.setattr(ah, "AchievementService", lambda: service)
+    fake_api = FakeVkApiMethod()
+    user_id = 106
+    storage = FakeStateStorage()
+    run_manual_flow(fake_api, user_id, storage)
+
+    ah.AddHandler().handle(
+        make_context(
+            fake_api, user_id, payload={"command": "/add", "action": "done"}, storage=storage
+        )
+    )
+
+    assert service.checked_user_id == f"user-{user_id}"
+    assert fake_api.sent_messages[-1]["message"].endswith("🏆 Новое достижение: «Первая книга»!")
+    assert len(saved_books) == 1
+
+
+def test_add_without_new_achievement_has_no_achievement_block(stub_dictionary, saved_books):
+    fake_api = FakeVkApiMethod()
+    user_id = 107
+    storage = FakeStateStorage()
+    run_manual_flow(fake_api, user_id, storage)
+
+    ah.AddHandler().handle(
+        make_context(
+            fake_api, user_id, payload={"command": "/add", "action": "done"}, storage=storage
+        )
+    )
+
+    assert "Новое достижение" not in fake_api.sent_messages[-1]["message"]
+
+
+def test_add_achievement_error_does_not_block_book_creation(
+    stub_dictionary, saved_books, monkeypatch, caplog
+):
+    service = AchievementServiceStub(error=RuntimeError("achievement storage failed"))
+    monkeypatch.setattr(ah, "AchievementService", lambda: service)
+    fake_api = FakeVkApiMethod()
+    user_id = 108
+    storage = FakeStateStorage()
+    run_manual_flow(fake_api, user_id, storage)
+
+    ah.AddHandler().handle(
+        make_context(
+            fake_api, user_id, payload={"command": "/add", "action": "done"}, storage=storage
+        )
+    )
+
+    assert len(saved_books) == 1
+    message = fake_api.sent_messages[-1]["message"]
+    assert "успешно добавлена" in message
+    assert "Новое достижение" not in message
+    assert storage.get(user_id) == {}
+    assert "achievement storage failed" in caplog.text

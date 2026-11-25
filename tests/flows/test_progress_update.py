@@ -6,7 +6,7 @@ from conftest import FakeStateStorage
 from conftest import FakeVkApi as FakeVkApiMethod
 from conftest import make_context
 
-from core.models import ReadingStatus
+from core.models import ACHIEVEMENT_DEFINITIONS, ReadingStatus
 from vk_bot.flows import progress_update as puf
 
 
@@ -113,6 +113,19 @@ def make_motivation_stub(phrase=None):
     return StubMotivationService
 
 
+class AchievementServiceStub:
+    def __init__(self, new_achievements=None, error=None):
+        self.new_achievements = new_achievements or []
+        self.error = error
+        self.checked_user_id = None
+
+    def check(self, user_id):
+        self.checked_user_id = user_id
+        if self.error:
+            raise self.error
+        return types.SimpleNamespace(new_achievements=self.new_achievements)
+
+
 def make_motivation_failure_stub():
     class StubMotivationService:
         def __init__(self, *args, **kwargs):
@@ -134,6 +147,14 @@ def patch_settings_service(monkeypatch):
 def patch_motivation_service(monkeypatch):
     """Не трогаем реальную БД фраз: вручную фраза из потока тестов не приходит."""
     monkeypatch.setattr(puf, "MotivationService", make_motivation_stub())
+
+
+@pytest.fixture(autouse=True)
+def patch_achievement_service(monkeypatch):
+    """По умолчанию обновление прогресса не выдаёт новых достижений."""
+    service = AchievementServiceStub()
+    monkeypatch.setattr(puf, "AchievementService", lambda: service)
+    return service
 
 
 def save_progress_state(storage, user_id, state="waiting_for_progress_input", **data):
@@ -741,3 +762,100 @@ def test_finished_book_still_gets_phrase(monkeypatch):
     msg = fake_api.sent_messages[-1]["message"]
     assert "Прогресс: 319/319 (100%)" in msg
     assert "🌟 Так держать!" in msg
+
+
+def test_new_achievement_follows_summary_and_suppresses_motivation(monkeypatch):
+    service = AchievementServiceStub(new_achievements=[ACHIEVEMENT_DEFINITIONS[4]])
+    monkeypatch.setattr(puf, "AchievementService", lambda: service)
+    monkeypatch.setattr(puf, "BookService", make_progress_book_service(user_id="user-1"))
+    monkeypatch.setattr(puf, "ReadingStatsService", make_stats_stub())
+    monkeypatch.setattr(puf, "GoalService", make_goal_stub(target=None))
+    monkeypatch.setattr(puf, "MotivationService", make_motivation_stub(phrase="💪 Отлично!"))
+    api = FakeVkApiMethod()
+    storage = FakeStateStorage()
+    save_progress_state(storage, 5000)
+
+    puf.ProgressUpdateFlow().handle(make_context(api, 5000, "60", storage=storage))
+
+    message = api.sent_messages[-1]["message"]
+    assert service.checked_user_id == "user-1"
+    assert message.index("Прогресс: 60/319") < message.index("🏆 Новое достижение")
+    assert message.endswith("🏆 Новое достижение: «Сотня страниц»!")
+    assert "💪 Отлично!" not in message
+
+
+def test_goal_and_multiple_achievements_keep_order_without_motivation(monkeypatch):
+    service = AchievementServiceStub(
+        new_achievements=[ACHIEVEMENT_DEFINITIONS[2], ACHIEVEMENT_DEFINITIONS[4]]
+    )
+    monkeypatch.setattr(puf, "AchievementService", lambda: service)
+    monkeypatch.setattr(puf, "BookService", make_progress_book_service(user_id="user-1"))
+    monkeypatch.setattr(puf, "ReadingStatsService", make_stats_stub())
+    monkeypatch.setattr(puf, "GoalService", make_goal_stub(target=50, pages_today=52, streak=3))
+    monkeypatch.setattr(puf, "MotivationService", make_motivation_stub(phrase="💪 Отлично!"))
+    api = FakeVkApiMethod()
+    storage = FakeStateStorage()
+    save_progress_state(storage, 5001)
+
+    puf.ProgressUpdateFlow().handle(make_context(api, 5001, "60", storage=storage))
+
+    message = api.sent_messages[-1]["message"]
+    assert message.index("🎉 Цель на день выполнена!") < message.index("🏆 Новые достижения!")
+    assert message.index("Первый финиш") < message.index("Сотня страниц")
+    assert message.count("🏆") == 1
+    assert "💪 Отлично!" not in message
+
+
+def test_unchanged_progress_still_unlocks_retrospective_achievement(monkeypatch):
+    service = AchievementServiceStub(new_achievements=[ACHIEVEMENT_DEFINITIONS[0]])
+    monkeypatch.setattr(puf, "AchievementService", lambda: service)
+    monkeypatch.setattr(puf, "BookService", make_progress_book_service(user_id="user-1"))
+    monkeypatch.setattr(puf, "ReadingStatsService", make_stats_stub())
+    monkeypatch.setattr(puf, "GoalService", make_goal_stub(target=None))
+    api = FakeVkApiMethod()
+    storage = FakeStateStorage()
+    save_progress_state(storage, 5002)
+
+    puf.ProgressUpdateFlow().handle(make_context(api, 5002, "55", storage=storage))
+
+    message = api.sent_messages[-1]["message"]
+    assert service.checked_user_id == "user-1"
+    assert "ℹ️ Прогресс не изменился" in message
+    assert message.endswith("🏆 Новое достижение: «Первая книга»!")
+
+
+def test_progress_without_new_achievements_has_no_achievement_block(
+    monkeypatch, patch_achievement_service
+):
+    monkeypatch.setattr(puf, "BookService", make_progress_book_service(user_id="user-1"))
+    monkeypatch.setattr(puf, "ReadingStatsService", make_stats_stub())
+    monkeypatch.setattr(puf, "GoalService", make_goal_stub(target=None))
+    api = FakeVkApiMethod()
+    storage = FakeStateStorage()
+    save_progress_state(storage, 5003)
+
+    puf.ProgressUpdateFlow().handle(make_context(api, 5003, "60", storage=storage))
+
+    assert patch_achievement_service.checked_user_id == "user-1"
+    assert "🏆" not in api.sent_messages[-1]["message"]
+
+
+def test_achievement_failure_does_not_break_progress_or_motivation(monkeypatch, caplog):
+    service = AchievementServiceStub(error=RuntimeError("achievement storage failed"))
+    monkeypatch.setattr(puf, "AchievementService", lambda: service)
+    monkeypatch.setattr(puf, "BookService", make_progress_book_service(user_id="user-1"))
+    monkeypatch.setattr(puf, "ReadingStatsService", make_stats_stub())
+    monkeypatch.setattr(puf, "GoalService", make_goal_stub(target=None))
+    monkeypatch.setattr(puf, "MotivationService", make_motivation_stub(phrase="💪 Отлично!"))
+    api = FakeVkApiMethod()
+    storage = FakeStateStorage()
+    save_progress_state(storage, 5004)
+
+    puf.ProgressUpdateFlow().handle(make_context(api, 5004, "60", storage=storage))
+
+    message = api.sent_messages[-1]["message"]
+    assert "обновлён" in message
+    assert "🏆" not in message
+    assert message.endswith("💪 Отлично!")
+    assert not storage.is_active(5004)
+    assert "achievement storage failed" in caplog.text

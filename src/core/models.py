@@ -29,6 +29,92 @@ GENERAL_PHRASE_CATEGORY = "general"
 PHRASE_CATEGORIES = (GENERAL_PHRASE_CATEGORY, "trend_up", "trend_down", "goal_reached")
 
 
+class AchievementMetric(str, Enum):
+    """Метрики, по которым выдаются достижения."""
+
+    BOOKS = "books"
+    READ_BOOKS = "read_books"
+    PAGES = "pages"
+
+
+@dataclass(frozen=True)
+class AchievementDefinition:
+    """Открытое определение достижения из фиксированного каталога."""
+
+    key: str
+    title: str
+    description: str
+    metric: AchievementMetric
+    target: int
+
+
+@dataclass(frozen=True)
+class AchievementStatus:
+    """Текущий прогресс и дата получения достижения пользователем."""
+
+    definition: AchievementDefinition
+    current: int
+    unlocked_at: Optional[datetime] = None
+
+    @property
+    def is_unlocked(self) -> bool:
+        return self.unlocked_at is not None
+
+
+@dataclass(frozen=True)
+class AchievementCheckResult:
+    """Результат полной проверки каталога достижений пользователя."""
+
+    statuses: list[AchievementStatus]
+    new_achievements: list[AchievementDefinition]
+
+
+ACHIEVEMENT_DEFINITIONS = (
+    AchievementDefinition(
+        key="books_1",
+        title="Первая книга",
+        description="Добавь 1 книгу в библиотеку.",
+        metric=AchievementMetric.BOOKS,
+        target=1,
+    ),
+    AchievementDefinition(
+        key="books_10",
+        title="Своя библиотека",
+        description="Собери библиотеку из 10 книг.",
+        metric=AchievementMetric.BOOKS,
+        target=10,
+    ),
+    AchievementDefinition(
+        key="read_books_1",
+        title="Первый финиш",
+        description="Отметь 1 книгу как прочитанную.",
+        metric=AchievementMetric.READ_BOOKS,
+        target=1,
+    ),
+    AchievementDefinition(
+        key="read_books_5",
+        title="Читатель",
+        description="Отметь 5 книг как прочитанные.",
+        metric=AchievementMetric.READ_BOOKS,
+        target=5,
+    ),
+    AchievementDefinition(
+        key="pages_100",
+        title="Сотня страниц",
+        description="Прочитай 100 страниц по статистике чтения.",
+        metric=AchievementMetric.PAGES,
+        target=100,
+    ),
+    AchievementDefinition(
+        key="pages_1000",
+        title="Тысяча страниц",
+        description="Прочитай 1000 страниц по статистике чтения.",
+        metric=AchievementMetric.PAGES,
+        target=1000,
+    ),
+)
+
+
 @dataclass
 class Book:
     """Модель книги."""

@@ -11,6 +11,7 @@ from utils import logger
 from utils.config import load_config
 from vk_bot.command_router import CommandRouter
 from vk_bot.context import BotContext
+from vk_bot.handlers.achievements import AchievementsHandler
 from vk_bot.handlers.add import AddHandler
 from vk_bot.handlers.cancel import CancelHandler
 from vk_bot.handlers.details import DetailsHandler
@@ -48,6 +49,7 @@ class VkBookShelfBot:
         self.router.register_handler(SettingsHandler())
         self.router.register_handler(HelpHandler())
         self.router.register_handler(StatsHandler())
+        self.router.register_handler(AchievementsHandler())
 
     def create_longpoll(self):
         self.logger.info("Инициализация бота...")

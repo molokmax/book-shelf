@@ -6,7 +6,8 @@ from conftest import FakeStateStorage
 from conftest import FakeVkApi as FakeVkApiMethod
 from conftest import make_context
 
-from core.models import ReadingStatus
+from core.models import ACHIEVEMENT_DEFINITIONS, ReadingStatus
+from utils import helpers as real_helpers
 from vk_bot.flows import tag_editing as tf
 from vk_bot.handlers import edit as eh
 
@@ -33,6 +34,9 @@ class StubBookService:
             tags=["old"],
             link=None,
         )
+
+    def update_book_status(self, book_id, new_status):
+        return types.SimpleNamespace(title="Book1", status=ReadingStatus(new_status))
 
     def filter_books(self, user_id, status=None, tags=None):
         Book = types.SimpleNamespace
@@ -70,8 +74,23 @@ def stub_dictionary(monkeypatch):
     return tags
 
 
+class AchievementServiceStub:
+    def __init__(self, new_achievements=None, error=None):
+        self.new_achievements = new_achievements or []
+        self.error = error
+        self.checked_user_id = None
+
+    def check(self, user_id):
+        self.checked_user_id = user_id
+        if self.error:
+            raise self.error
+        return types.SimpleNamespace(new_achievements=self.new_achievements)
+
+
 @pytest.fixture(autouse=True)
 def patch_dependencies(monkeypatch):
+    achievements = AchievementServiceStub()
+    monkeypatch.setattr(eh, "AchievementService", lambda: achievements)
     monkeypatch.setattr(eh, "BookService", StubBookService)
     monkeypatch.setattr(eh, "get_or_create_user", fake_get_or_create_user)
     monkeypatch.setattr(
@@ -80,8 +99,10 @@ def patch_dependencies(monkeypatch):
         types.SimpleNamespace(
             format_book_info=fake_format_book_info,
             sort_books_by_status=lambda books: books,
+            format_new_achievements=real_helpers.format_new_achievements,
         ),
     )
+    return achievements
 
 
 def test_choose_status_filter_shows_status_message(monkeypatch):
@@ -289,3 +310,61 @@ def test_tags_step_invalid_typed_input_stays(stub_dictionary):
 
     assert "Не удалось обработать сообщение" in fake_api.sent_messages[-1]["message"]
     assert storage.get(user_id)["state"] == "selecting_tags"
+
+
+def status_context(api, storage, user_id=5000):
+    storage.save(
+        user_id,
+        {
+            "command": "/edit",
+            "state": "selecting_status",
+            "data": {"selected_book_id": "1", "user_id": "test_user"},
+        },
+    )
+    return make_context(api, user_id, "Прочитано", storage=storage)
+
+
+def test_status_change_appends_achievement(monkeypatch):
+    service = AchievementServiceStub(new_achievements=[ACHIEVEMENT_DEFINITIONS[2]])
+    monkeypatch.setattr(eh, "AchievementService", lambda: service)
+    api = FakeVkApiMethod()
+    storage = FakeStateStorage()
+
+    eh.EditHandler().handle(status_context(api, storage))
+
+    assert service.checked_user_id == "test_user"
+    assert api.sent_messages[-1]["message"].endswith("🏆 Новое достижение: «Первый финиш»!")
+    assert storage.get(5000) == {}
+
+
+def test_other_edit_action_does_not_check_achievements(patch_dependencies):
+    api = FakeVkApiMethod()
+    storage = FakeStateStorage()
+    storage.save(
+        5001,
+        {
+            "command": "/edit",
+            "state": "selecting_tags",
+            "data": {"selected_book_id": "1", "selected_tags": []},
+        },
+    )
+
+    eh.EditHandler().handle(
+        make_context(api, 5001, payload={"command": "/edit", "action": "done"}, storage=storage)
+    )
+
+    assert patch_dependencies.checked_user_id is None
+
+
+def test_status_change_achievement_error_does_not_block_result(monkeypatch, caplog):
+    service = AchievementServiceStub(error=RuntimeError("achievement storage failed"))
+    monkeypatch.setattr(eh, "AchievementService", lambda: service)
+    api = FakeVkApiMethod()
+    storage = FakeStateStorage()
+
+    eh.EditHandler().handle(status_context(api, storage, user_id=5002))
+
+    message = api.sent_messages[-1]["message"]
+    assert message == "✅ Статус книги 'Book1' изменён на 'Прочитал'"
+    assert storage.get(5002) == {}
+    assert "achievement storage failed" in caplog.text

@@ -40,7 +40,8 @@ class MoreHandler(AbstractCommandHandler):
             "/export - Экспорт списка книг в CSV\n"
             "/goal - Дневная цель чтения\n"
             "/stats - Статистика чтения\n"
-            "/settings - Настройки приложения"
+            "/settings - Настройки приложения\n"
+            "/achievements - Каталог достижений"
         )
         self._send(context, message, more_keyboard())
 

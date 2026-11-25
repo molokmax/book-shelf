@@ -31,6 +31,8 @@ def more_keyboard() -> VkKeyboard:
     kb.add_line()
     kb.add_button("/stats")
     kb.add_button("/settings")
+    kb.add_button("Достижения", payload={"command": "/achievements"})
+    kb.add_line()
     kb.add_button("Назад", payload={"command": "/back"})
     return kb
 
