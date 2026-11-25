@@ -2,7 +2,7 @@
 
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import date, datetime
 from enum import Enum
 from typing import Optional
 
@@ -216,6 +216,47 @@ class ReadStat:
             read_date=datetime.fromisoformat(data.get("read_date", datetime.now().isoformat())),
             user_id=data.get("user_id"),
         )
+
+
+@dataclass(frozen=True)
+class ReadingMetricComparison:
+    """Значение показателя за текущий и аналогичный предыдущий период."""
+
+    current: int
+    previous: int
+
+    @property
+    def difference(self) -> int:
+        """Возвращает абсолютное изменение показателя."""
+        return self.current - self.previous
+
+
+@dataclass(frozen=True)
+class ReadingPeriodSummary:
+    """Показатели одного календарного периода сводки чтения."""
+
+    pages: ReadingMetricComparison
+    read_books: Optional[ReadingMetricComparison] = None
+
+
+@dataclass(frozen=True)
+class BookCompletionForecast:
+    """Прогноз завершения отдельной текущей книги."""
+
+    book: Book
+    completion_date: Optional[date]
+
+
+@dataclass(frozen=True)
+class ReadingSummary:
+    """Периодические показатели и прогнозы личной сводки чтения."""
+
+    week: ReadingPeriodSummary
+    month: ReadingPeriodSummary
+    year: ReadingPeriodSummary
+    reading_forecasts: list[BookCompletionForecast]
+    want_to_read_count: int
+    want_to_read_completion_date: Optional[date]
 
 
 @dataclass

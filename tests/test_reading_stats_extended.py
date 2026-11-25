@@ -99,18 +99,19 @@ def test_predict_completion_date_with_data(services):
         db.add_reading_stat(book.id, pages_read=10, read_date=read_date)
     pred = reading_stats_service.predict_completion_date(book)
     # Remaining pages = 150, avg 10 => 15 days needed
-    expected = date.today() + timedelta(days=1) + timedelta(days=15)
+    expected = date.today() + timedelta(days=15)
     assert pred == expected
 
 
 def test_predict_completion_date_no_data(services):
-    book_service, reading_stats_service, _ = services
+    book_service, reading_stats_service, db_path = services
+    user_id = create_period_user(get_db(db_path))
     book = book_service.create_book(
         title="NoData Book",
         author="Author",
         tags=[],
         pages=100,
-        user_id="1",
+        user_id=user_id,
         link=None,
     )
     book.reading_start_date = datetime.now() - timedelta(days=31)
@@ -165,13 +166,14 @@ def test_predict_days_to_completion_rounds_up(services):
 
 
 def test_predict_days_to_completion_no_data(services):
-    book_service, reading_stats_service, _ = services
+    book_service, reading_stats_service, db_path = services
+    user_id = create_period_user(get_db(db_path))
     book = book_service.create_book(
         title="NoDays Book",
         author="Author",
         tags=[],
         pages=100,
-        user_id="1",
+        user_id=user_id,
         link=None,
     )
     book.reading_start_date = datetime.now() - timedelta(days=31)
