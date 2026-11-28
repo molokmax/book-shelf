@@ -98,21 +98,31 @@ Named volume `book-shelf-data` после `docker rm` сохраняется, т
 
 ## Публикация образа
 
-Workflow `.github/workflows/docker-publish.yml` собирает образ и публикует его в Docker Hub при пуше тега вида `v*`.
+Workflow `.github/workflows/docker-publish.yml` собирает образ и публикует его в Docker Hub при пуше тега вида `v*` или после создания релиза через Release Please.
 
 Требуемые секреты репозитория (Settings → Secrets and variables → Actions):
 
 - `DOCKERHUB_USERNAME` — логин Docker Hub (он же namespace образа).
 - `DOCKERHUB_TOKEN` — access token Docker Hub (не пароль).
 
-Выпуск версии:
+Выпуск версии автоматизирован через [Release Please](https://github.com/googleapis/release-please). После пуша в `main` workflow анализирует коммиты в формате [Conventional Commits](https://www.conventionalcommits.org/ru/) и создаёт или обновляет release PR. В нём обновляются `CHANGELOG.md` и версия в `.release-please-manifest.json`.
+
+Когда изменения готовы к выпуску, проверь и смержи release PR. После мержа автоматически:
+
+1. Создаются git-тег `vX.Y.Z` и GitHub Release с примечаниями из changelog.
+2. Тот же workflow запускает публикацию Docker-образа для созданного тега.
+3. В Docker Hub появляется образ `<DOCKERHUB_USERNAME>/book-shelf` с тегами `X.Y.Z`, `X.Y` и `latest`.
+
+Тег `latest` обновляется только для стабильных версий (без суффикса pre-release). Новые коммиты не публикуют релиз сразу: они накапливаются в открытом release PR до его мержа.
+
+Для ручного выпуска без release PR по-прежнему можно создать и отправить тег:
 
 ```bash
 git tag vX.Y.Z
 git push origin vX.Y.Z
 ```
 
-После завершения workflow в Docker Hub появится образ `<DOCKERHUB_USERNAME>/book-shelf` с тегами `X.Y.Z`, `X.Y` и `latest`. Тег `latest` обновляется только для стабильных версий (без суффикса pre-release). Допустим и сокращённый тег вида `vX.Y` — образ получит теги `X.Y` и `latest`.
+Ручной тег также запускает публикацию образа. Допустим и сокращённый тег вида `vX.Y` — образ получит теги `X.Y` и `latest`.
 
 Использование опубликованного образа:
 
